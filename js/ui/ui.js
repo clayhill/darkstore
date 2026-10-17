@@ -1,5 +1,7 @@
 /* DOM user interface: header controls, side-panel tabs (inbound, orders,
- * inventory, outbound, settings), control-room panels, inspector, labels. */
+ * inventory, outbound, settings), control-room panels, inspector, labels.
+ * What differs per storage type (KPI tiles, settings, cell inspector, how a
+ * unit's compartments are shown) comes from WS.TypeUI[kind]. */
 (function (WS) {
   'use strict';
   const U = WS.U, BC = WS.Barcode, esc = U.esc;
@@ -17,6 +19,8 @@
     }
     get sim() { return this.app.sim; }
     get terms() { return this.sim.terms; }
+    // the storage type's own UI pieces (js/<type>/ui.js)
+    get type() { return WS.TypeUI[this.sim.kind]; }
     stateLabel(k) { return (this.sim.stateLabels || {})[k] || STATE_LABEL[k]; }
 
     init() {
@@ -80,19 +84,12 @@
       const onTruck = sim.oms.truck.parcels.length;
       const back = open.filter((o) => o.status === 'BACKORDER').length;
       const charging = sim.robots.filter((r) => r.bucket === 'CHARGE').length, tm = this.terms;
-      const typeTiles = sim.kind === 'pod' ? [
-        this.kpiTile('Hit rate', (k.linesPicked / (k.presentedPick || 1)).toFixed(2), 'lines/pod', `${k.presentedPick} pick presentations`),
-        this.kpiTile('Pod returns', k.stores, '', `${sim.inv.bins.filter((b) => b.loc !== 'grid').length} pods off the floor now`),
-      ] : [
-        this.kpiTile('Dig ratio', k.digRatio.toFixed(2), '', `${k.shuffles} shuffles / ${k.productive} productive`),
-        this.kpiTile('Burial penalties', k.penaltyEvents, '', `${U.fmtDur(k.penaltyTime)} shuffling on A-items`),
-      ];
       $('#kpis').innerHTML = [
         this.kpiTile('Throughput', Math.round(k.rate('presented')), tm.units + '/h', `${k.presented} ${tm.units} presented`),
         this.kpiTile('Order lines', Math.round(k.rate('lines')), 'LPH', `${k.unitsPicked} units picked`),
         this.kpiTile('Orders shipped', Math.round(k.rate('shipped')), '/h', `${k.ordersShipped} total`),
         this.kpiTile('Robot utilization', Math.round(u.work * 100), '%', `now ${Math.round(ur.work * 100)}% · waiting ${Math.round(u.wait * 100)}%`),
-        ...typeTiles,
+        ...this.type.kpiTiles(this),
         this.kpiTile('Order cycle', k.cycleN ? U.fmtDur(k.cycleSum / k.cycleN) : '—', '', 'receipt → truck'),
         this.kpiTile('Orders in process', open.length, '', `${back ? back + ' backordered · ' : ''}${onTruck} on truck`),
         this.kpiTile('Fleet battery', Math.round(sim.robots.reduce((s, r) => s + r.battery, 0) / sim.robots.length), '%', `${charging} charging`),
@@ -316,54 +313,10 @@
       const c = this.sim.cfg;
       const num = (k, label, step, min, max) => `<div class="field"><label>${label}</label><input type="number" data-cfg="${k}" value="${c[k]}" step="${step || 1}" min="${min ?? 0}" ${max ? `max="${max}"` : ''}></div>`;
       const sel = (k, label, opts) => `<div class="field"><label>${label}</label><select data-cfg="${k}">${opts.map(([v, t]) => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
-      if (this.sim.kind === 'pod') return this.podSettings(c, num, sel);
-      return `<div class="sect"><h3>Live policies</h3><div class="card">
-        ${sel('restackPolicy', 'Blocker handling after a dig', [['origin', 'Consolidate — return blockers to origin column'], ['leave', 'Leave on neighbouring stacks (self-sorting)']])}
-        ${sel('putawayPolicy', 'Putaway / slotting', [['velocity', 'Velocity-based (ABC zones, avoid burying fast movers)'], ['nearest', 'Nearest free column'], ['random', 'Random column']])}
-        <div class="row2">${num('burialDepth', 'Burial penalty depth', 1, 2, 16)}${num('portInboundCap', 'Bins in flight per port', 1, 1, 10)}</div>
-        <div class="row2">${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}${num('battLow', 'Charge below (%)', 1, 5, 80)}</div>
-        <div class="row2">${num('truckCapacity', 'Truck capacity', 1, 1)}${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}</div>
-        <div class="note">Applied immediately. Ports can be switched to manual operation from their inspector (click a port).</div></div></div>
-      <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
-        <div class="row2">${num('gridW', 'Grid X (columns)', 1, 14, 48)}${num('gridD', 'Grid Y (rows)', 1, 8, 30)}</div>
-        <div class="row2">${num('gridZ', 'Grid Z (bins per stack)', 1, 4, 24)}${num('robots', 'Robots', 1, 1, 80)}</div>
-        <div class="row2">${num('pickPorts', 'Pick ports', 1, 1, 7)}${num('goodsInPorts', 'Goods-in ports', 1, 0, 3)}</div>
-        <div class="row2">${num('chargers', 'Chargers', 1, 1, 12)}${num('packStations', 'Pack stations', 1, 1, 5)}</div>
-        <div class="row2">${num('products', 'SKUs', 10, 20, 2000)}${num('initialFill', 'Initial grid fill', 0.05, 0.1, 0.98)}</div>
-        <div class="row2">${num('vmax', 'Robot top speed (m/s)', 0.1, 0.5, 5)}${num('accel', 'Acceleration (m/s²)', 0.1, 0.2, 3)}</div>
-        <div class="row2">${num('winchEmpty', 'Winch empty (m/s)', 0.1, 0.3, 3)}${num('winchLoaded', 'Winch full load (m/s)', 0.1, 0.3, 3)}</div>
-        ${num('seed', 'Random seed', 1, 1)}
-        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
-        <div class="note">Pick ports need 6 columns each along the front face; goods-in ports need 5 rows on the right face.</div></div></div>
-      <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">
-        Cube-storage AS/RS: bins stacked in a ${c.gridW}×${c.gridD}×${c.gridZ} [X][Y][Z] grid, robots on top travelling orthogonally (X/Y wheel-set change, no turning), digging out blockers to neighbour columns, delivering to conveyor ports. 100 ms fixed time step; moving-block cell reservations, A* routing, yield and evasive manoeuvres for deadlock resolution. Barcodes: GS1 GTIN-13 (EAN-13) on items, GS1-128 GRAI (AI 8003) on storage bins and totes, GS1-128 SSCC (AI 00) on shipping labels.</div></div>`;
-    }
-    podSettings(c, num, sel) {
-      return `<div class="sect"><h3>Live policies</h3><div class="card">
-        ${sel('putawayPolicy', 'Where pods go back', [['velocity', 'Velocity-based (busy pods near the stations)'], ['nearest', 'Nearest free cell'], ['random', 'Random free cell']])}
-        ${sel('tunnelling', 'Empty robots under stored pods', [['on', 'Allowed (tunnelling)'], ['off', 'Not allowed — highways and empty cells only']])}
-        <div class="row2">${num('podRotate', 'Turn pod 90° (s)', 0.1, 0.3, 6)}${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}</div>
-        <div class="row2">${num('battLow', 'Charge below (%)', 1, 5, 80)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>
-        ${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}
-        <div class="note">Applied immediately. Stations can be switched to manual operation from their inspector (click a station).</div></div></div>
-      <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
-        <div class="row2">${num('floorW', 'Floor X (cells)', 1, 18, 60)}${num('floorD', 'Floor Y (cells)', 1, 10, 40)}</div>
-        <div class="row2">${num('podFill', 'Share of storage cells with a pod', 0.05, 0.3, 0.95)}${num('robots', 'Robots', 1, 1, 80)}</div>
-        <div class="row2">${num('pickPorts', 'Pick stations', 1, 1, 7)}${num('goodsInPorts', 'Goods-in stations', 1, 0, 3)}</div>
-        <div class="row2">${num('portInboundCap', 'Pods in flight per station', 1, 2, 10)}${num('toteSlots', 'Put-wall slots', 1, 2, 12)}</div>
-        <div class="row2">${num('chargers', 'Chargers', 1, 1, 12)}${num('packStations', 'Pack stations', 1, 1, 5)}</div>
-        <div class="row2">${num('products', 'SKUs', 10, 20, 2000)}${num('stockedRatio', 'Share of pod bins stocked', 0.05, 0.1, 0.95)}</div>
-        <div class="row2">${num('vmax', 'Robot top speed (m/s)', 0.1, 0.5, 3)}${num('accel', 'Acceleration (m/s²)', 0.1, 0.2, 3)}</div>
-        <div class="row2">${num('wheelShift', 'Turn 90° on the spot (s)', 0.1, 0.3, 5)}${num('liftTime', 'Lift / lower pod (s)', 0.1, 0.3, 5)}</div>
-        ${num('seed', 'Random seed', 1, 1)}
-        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
-        <div class="note">A station's queue lane holds all but one of its pods in flight; each pick station needs that many cells plus three along the front edge.</div></div></div>
-      <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">
-        Pod robots: shelving pods stand on a ${c.floorW}×${c.floorD} floor in blocks two cells deep, with highways between them. A robot drives under a pod, lifts it and carries it to a station, where it joins a queue lane. At the station the robot turns the pod to show the operator the face with the next pick. Afterwards the pod goes back to a free cell chosen by the storage policy, so busy pods drift towards the stations. Robots turn on the spot to change direction; empty robots may drive under stored pods. 100 ms fixed time step; moving-block cell reservations, A* routing, yield and evasive manoeuvres. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on pods and totes, GS1-128 SSCC on shipping labels.</div></div>`;
+      return this.type.settings(this, c, num, sel);
     }
     bind_settings(b) {
-      const live = ['restackPolicy', 'putawayPolicy', 'burialDepth', 'portInboundCap', 'pickPerUnit', 'battLow', 'truckCapacity', 'truckCutoff', 'tunnelling', 'podRotate'];
-      if (this.sim.kind === 'pod') live.splice(live.indexOf('portInboundCap'), 1); // sets the lane length: restart only
+      const live = this.type.live; // settings that apply without a restart
       b.querySelectorAll('[data-cfg]').forEach((el) => {
         const k = el.dataset.cfg;
         if (live.includes(k)) el.addEventListener('change', () => { this.sim.cfg[k] = el.tagName === 'SELECT' ? el.value : +el.value; this.toast('Applied: ' + k); });
@@ -404,62 +357,35 @@
       const st = r.displayState, sim = this.sim;
       const tot = Object.values(r.stateTime).reduce((a, b) => a + b, 0) || 1;
       const bars = Object.entries(r.stateTime).filter(([, v]) => v / tot > 0.01).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i style="width:${(v / tot) * 100}%;background:${WS.STATE_COLORS[k]}" title="${this.stateLabel(k)} ${Math.round((v / tot) * 100)}%"></i>`).join('');
-      const pod = sim.kind === 'pod';
+      const T = this.type;
       const dest = r.goal && r.op && r.op.op === 'move' ? `${r.goal.x}, ${r.goal.y}` : '—';
       return `<div class="hd"><span class="sdot" style="background:${WS.STATE_COLORS[st]};width:12px;height:12px"></span><b>Robot ${r.name}</b><span class="pill">${this.stateLabel(st)}</span><button class="close">×</button></div>
         <dl class="kv"><dt>Position</dt><dd>X ${r.x} · Y ${r.y}${r.busy ? ' <span class="pill BACKORDER">cell blocked</span>' : ''}</dd>
-        <dt>Speed</dt><dd>${(r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${pod ? `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}` : `${r.axis.toUpperCase()}-wheels${r.shift > 0 ? ' (shifting)' : ''}`}</dd>
+        <dt>Speed</dt><dd>${(r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${T.motion(r)}</dd>
         <dt>Destination</dt><dd>${dest}</dd><dt>Task</dt><dd>${this.taskText(r)}</dd>
         <dt>Carrying</dt><dd>${r.bin ? `<a href="#" data-open="bin:${r.bin}">${r.bin}</a>` : '—'}</dd>
-        ${pod ? `<dt>Lift</dt><dd>${r.state === 'LIFTING_POD' ? (r.bin ? 'lowering' : 'lifting') : r.bin ? 'raised, carrying a pod' : 'down'}</dd>` : `<dt>Winch</dt><dd>${r.winch > 0.01 ? r.winch.toFixed(2) + ' m down' : 'retracted'}</dd>`}
+        ${T.mechanism(r)}
         <dt>Battery</dt><dd>${this.battBar(r.battery)}</dd>
         <dt>Reserved cells</dt><dd>${r.claims.size}</dd>
-        <dt>Tasks done</dt><dd>${r.tasksDone} · ${r.lifts} ${pod ? 'pods lifted' : 'lifts'}</dd>
+        <dt>Tasks done</dt><dd>${r.tasksDone} · ${r.lifts} ${T.liftsLabel}</dd>
         <dt>Distance</dt><dd>${(r.distance * sim.cfg.cellSize / 1000).toFixed(2)} km</dd></dl>
         <h3>Time by state</h3><div class="bar" style="height:10px">${bars}</div>`;
     }
     binRow(id, depth) {
       const inv = this.sim.inv, b = inv.binById.get(id), cls = inv.binClass(b);
       const content = b.comps.filter((c) => c.gtin).map((c) => `${c.qty}× ${esc(inv.byGtin.get(c.gtin).name)}`).join(', ') || '<span class="faint">empty</span>';
-      return `<div class="sb" data-open="bin:${id}" style="border-left-color:${WS.CLASS_COLORS[cls]}"><span class="faint">${this.sim.kind === 'pod' ? '' : 'd' + depth}</span><span class="mono">${id}${b.requests.length ? ' ★' : ''}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${content}</span></div>`;
+      return `<div class="sb" data-open="bin:${id}" style="border-left-color:${WS.CLASS_COLORS[cls]}"><span class="faint">${this.type.depthTag(depth)}</span><span class="mono">${id}${b.requests.length ? ' ★' : ''}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${content}</span></div>`;
     }
-    inspectFloorCell(i) {
-      const sim = this.sim, g = sim.grid, x = g.cx(i), y = g.cy(i), id = g.podAt[i];
-      const type = { [WS.CELL.STORAGE]: 'Storage cell', [WS.CELL.HIGHWAY]: 'Highway', [WS.CELL.LANE]: 'Queue lane', [WS.CELL.PORT]: 'Station', [WS.CELL.CHARGER]: 'Charger' }[g.type[i]] || 'Wall';
-      const claim = g.claim[i] >= 0 ? sim.robots[g.claim[i]].name : '—', target = g.podTarget[i] >= 0 ? sim.robots[g.podTarget[i]].name : '';
-      return `<div class="hd"><b>Cell X${x} · Y${y}</b><span class="pill">${type}</span><button class="close">×</button></div>
-        <dl class="kv"><dt>Pod</dt><dd>${id ? `<a href="#" data-open="bin:${id}">${id}</a>` : target ? `— (${target} is bringing one back)` : '—'}</dd><dt>Occupied by</dt><dd>${claim}</dd>
-        <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to station</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>
-        ${id ? `<h3>Stock on this pod</h3><div class="stack">${this.binRow(id, 1)}</div><div class="note">Colour = ABC class of contents. Open the pod for its four faces.</div>` : ''}`;
-    }
-    inspectCell(i) {
-      if (this.sim.kind === 'pod') return this.inspectFloorCell(i);
-      const sim = this.sim, g = sim.grid, s = g.stacks[i], x = g.cx(i), y = g.cy(i);
-      const type = ['Storage column', 'Port shaft', 'Charger'][g.type[i]];
-      const claim = g.claim[i] >= 0 ? sim.robots[g.claim[i]].name : '—', lock = g.colLock[i] >= 0 ? sim.robots[g.colLock[i]].name : '—';
-      return `<div class="hd"><b>Cell X${x} · Y${y}</b><span class="pill">${type}</span><button class="close">×</button></div>
-        <dl class="kv"><dt>Stack height</dt><dd>${s.length} / ${g.Z} bins</dd><dt>Occupied by</dt><dd>${claim}</dd><dt>Column lock</dt><dd>${lock}</dd>
-        <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to port</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>
-        ${s.length ? `<h3>Stack — top (Z=1) to bottom</h3><div class="stack">${s.slice().reverse().map((id, k) => this.binRow(id, k + 1)).join('')}</div><div class="note">★ = requested by a port. Colour = ABC class of contents.</div>` : ''}`;
-    }
+    inspectCell(i) { return this.type.inspectCell(this, i); }
     compCell(b, k, hl) {
       const c = b.comps[k];
       return `<div class="comp ${hl ? 'hl' : ''}"><span class="faint">#${k + 1}</span><b>${c.qty}</b>${c.gtin ? esc(this.sim.inv.byGtin.get(c.gtin).name) : '<span class="faint">empty</span>'}</div>`;
-    }
-    // One face of a pod as the operator sees it: top shelf first.
-    podFace(b, f, cell) {
-      const cfg = this.sim.cfg, per = this.sim.perFace, ks = [];
-      for (let j = cfg.podShelves - 1; j >= 0; j--) for (let s = 0; s < cfg.podSlots; s++) ks.push(f * per + j * cfg.podSlots + s);
-      return `<div class="comps" style="grid-template-columns:repeat(${cfg.podSlots},1fr)">${ks.map(cell).join('')}</div>`;
     }
     inspectPort(p) {
       const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine, tm = this.terms;
       let hmi = `<div class="hmi"><div class="muted">Waiting for next ${tm.unit}…</div></div>`;
       if (j) {
-        const b = j.bin, n = b.ncomp, pod = sim.kind === 'pod';
-        const face = pod ? (ln ? sim.faceOf(ln.comp) : sim.facing(b, p)) : 0;
-        const comps = pod ? `<div class="muted">Face ${face + 1} of 4, turned towards you</div>` + this.podFace(b, face, (k) => this.compCell(b, k, ln && ln.comp === k))
-          : `<div class="comps ${n > 1 ? 'n' + n : ''}">${b.comps.map((c, k) => this.compCell(b, k, ln && ln.comp === k)).join('')}</div>`;
+        const b = j.bin, comps = this.type.unitView(this, b, p, (k) => this.compCell(b, k, ln && ln.comp === k));
         let task;
         if (ln) {
           const prod = inv.byGtin.get(ln.gtin);
@@ -500,9 +426,7 @@
     }
     closeModal() { $('#modal').classList.add('hidden'); }
     binLocation(b) {
-      const inv = this.sim.inv;
-      if (b.loc === 'grid' && this.sim.kind === 'pod') return `Floor X${b.x} Y${b.y}`;
-      if (b.loc === 'grid') return `Grid X${b.x} Y${b.y} · depth ${inv.binDepth(b)} (Z level ${this.sim.grid.stacks[this.sim.grid.idx(b.x, b.y)].indexOf(b.id) + 1} from floor)`;
+      if (b.loc === 'grid') return this.type.locate(this, b);
       if (b.loc === 'robot') return `On robot ${this.sim.robots[b.robot].name}`;
       if (b.loc === 'port') return `At port ${this.sim.ports[b.port].code}`;
       return b.loc;
@@ -519,14 +443,14 @@
     }
     showBin(id) {
       const inv = this.sim.inv, b = inv.findBin(id); if (!b) return this.toast('Unknown bin ' + id, true);
-      const n = b.ncomp, pod = this.sim.kind === 'pod';
+      const T = this.type;
       const cell = (k) => { const c = b.comps[k]; return `<div class="comp"><span class="faint">#${k + 1}</span><b>${c.qty}${c.incoming ? `<span class="faint" style="font-size:11px"> +${c.incoming}</span>` : ''}</b>${c.gtin ? `<a href="#" data-open="prod:${c.gtin}">${esc(inv.byGtin.get(c.gtin).name)}</a><br><span class="faint">${c.reserved} reserved</span>` : '<span class="faint">empty</span>'}</div>`; };
-      const comps = pod ? [0, 1, 2, 3].map((f) => `<h3 style="margin-top:12px">Face ${f + 1}</h3>${this.podFace(b, f, cell)}`).join('') : `<div class="comps ${n > 1 ? 'n' + n : ''}">${b.comps.map((c, k) => cell(k)).join('')}</div>`;
+      const comps = T.unitComps(this, b, cell);
       this.modal(`Storage ${this.terms.unit} ` + b.id, `<div class="bcwrap">${BC.gs1SVG([['8003', b.grai]], { height: 50 })}</div><div class="note">GS1-128 · AI 8003 GRAI (returnable asset)</div>
         <dl class="kv" style="margin-top:10px"><dt>Location</dt><dd>${this.binLocation(b)}</dd><dt>Gross weight</dt><dd>${inv.binWeight(b).toFixed(1)} kg</dd><dt>Class</dt><dd>${inv.binClass(b)}</dd><dt>Presentations</dt><dd>${b.presentations}</dd>
         <dt>Requests</dt><dd>${b.requests.map((q) => this.sim.ports[q.port].code + ' (' + q.lines.length + ' lines)').join(', ') || '—'}</dd></dl>
         ${comps}
-        ${b.loc === 'grid' ? `<div class="btns"><button class="btn" data-open="cell:${this.sim.grid.idx(b.x, b.y)}">Show ${pod ? 'cell' : 'column'}</button></div>` : ''}`);
+        ${b.loc === 'grid' ? `<div class="btns"><button class="btn" data-open="cell:${this.sim.grid.idx(b.x, b.y)}">Show ${T.cellWord}</button></div>` : ''}`);
     }
     showOrder(id) {
       const o = this.sim.oms.byId.get(id); if (!o) return this.toast('Unknown order ' + id, true);

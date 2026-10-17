@@ -150,8 +150,8 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), robot (state
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts)
 js/ui/      ui (panels, inspector, labels, scanning)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
-            slotting), render
-js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render
+            slotting), render, ui (KPI tiles, settings, stack inspector)
+js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, ui
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod]
 ```
 
