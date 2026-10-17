@@ -181,7 +181,8 @@ cubeflow.html, podswarm.html, railrunner.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
-js/sim/     shared engine: inventory (IMS), router (fleet manager), robot (state machine,
+js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet member base),
+            robot (battery robot state machine,
             shared tasks), machine (shuttles, lifts), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout)
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts)

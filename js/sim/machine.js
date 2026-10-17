@@ -4,8 +4,8 @@
  *   travel  move one coordinate to a target with a trapezoidal speed profile
  *   wait    a fixed time (load handler, transfer)
  *   until   wait for a condition (a full buffer clears)
- * Machines share the robots' state names, so KPIs, the fleet table and the
- * control room treat them the same way. */
+ * Machines are WS.Movers like robots, so KPIs, the fleet table and the control
+ * room treat them the same way; rx / ry is their control-room map position. */
 (function (WS) {
   'use strict';
 
@@ -23,17 +23,7 @@
     return 0.5 * p.a * p.ta * p.ta + p.vp * (t - p.ta);
   }
 
-  class Machine {
-    constructor(sim, id, name) {
-      this.sim = sim; this.id = id; this.name = name;
-      this.state = 'IDLE'; this.task = null; this.gen = null; this.op = null;
-      this.stateTime = {}; WS.ROBOT_STATES.forEach((s) => (this.stateTime[s] = 0));
-      this.battery = 100; this.busy = false; this.claims = new Set(); this.path = null; this.bin = null;
-      this.v = 0; this.idleTime = 0; this.tasksDone = 0; this.lifts = 0; this.distance = 0;
-      this.x = 0; this.y = 0; this.rx = 0; this.ry = 0; this.prx = 0; this.pry = 0; // control-room map position
-    }
-    get displayState() { return this.op && this.op.waitState ? this.op.waitState : this.state; }
-    get bucket() { return WS.ROBOT_BUCKET[this.displayState] || 'IDLE'; }
+  class Machine extends WS.Mover {
     get idle() { return !this.gen; }
 
     run(gen, task) { this.gen = gen; this.task = task || null; this.op = null; this.idleTime = 0; this.advance(); }

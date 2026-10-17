@@ -11,7 +11,7 @@
       const sim = this.sim, g = sim.grid;
       // robots (projected centre)
       let best = null, bd = 22 * Math.max(1, this.cam.zoom);
-      for (const r of sim.robots) {
+      for (const r of sim.fleet) {
         const [px, py] = this.P(r.rx + 0.5, r.ry + 0.5, g.Z + 1);
         const d = Math.hypot(this.cam.x + px * this.cam.zoom - sx, this.cam.y + py * this.cam.zoom - sy);
         if (d < bd) { bd = d; best = { kind: 'robot', id: r.id }; }
@@ -134,7 +134,7 @@
           }
           // robot holding a winch down here: no-go cell
           const o = g.claim[i];
-          if (o >= 0 && sim.robots[o].busy && sim.robots[o].x === x && sim.robots[o].y === y && t === WS.CELL.STORAGE) {
+          if (o >= 0 && sim.fleet[o].busy && sim.fleet[o].x === x && sim.fleet[o].y === y && t === WS.CELL.STORAGE) {
             const a = 0.45 + 0.35 * Math.sin(this.t * 6);
             this.quadTop(x + 0.02, y + 0.02, x + 0.98, y + 0.98, Z + 0.01, null, `rgba(239,68,68,${a.toFixed(2)})`, 2.5);
           }
@@ -147,12 +147,12 @@
       // charger posts on the back edge
       for (const ch of g.chargers) {
         this.box(ch.x + 0.25, -0.32, Z, ch.x + 0.75, -0.04, Z + 1.6, '#334155');
-        const on = ch.robot >= 0 && sim.robots[ch.robot].state === 'CHARGING';
+        const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING';
         this.glow(ch.x + 0.5, -0.18, Z + 1.3, 14, on ? '#4ade80' : '#22c55e', on ? 0.9 : 0.35);
       }
       // claims & column locks
       if (this.opts.claims) {
-        for (const r of sim.robots) {
+        for (const r of sim.fleet) {
           const col = STATE_COLORS[r.displayState];
           for (const i of r.claims) {
             const x = g.cx(i), y = g.cy(i);
@@ -174,7 +174,7 @@
     // ---------------------------------------------------------------- robots
     drawRobots(alpha) {
       const sim = this.sim, g = sim.grid, Z = g.Z, P = this.P.bind(this), bh = sim.cfg.binHeight;
-      const list = sim.robots.map((r) => ({ r, x: r.prx + (r.rx - r.prx) * alpha, y: r.pry + (r.ry - r.pry) * alpha }));
+      const list = sim.fleet.map((r) => ({ r, x: r.prx + (r.rx - r.prx) * alpha, y: r.pry + (r.ry - r.pry) * alpha }));
       list.sort((a, b) => a.x + a.y - (b.x + b.y));
       // paths first, so robots sit on top
       if (this.opts.paths) {

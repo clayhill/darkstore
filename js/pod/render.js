@@ -86,11 +86,11 @@
       this.line(P(0, 0, 3.2), P(0, g.D, 3.2), '#94a3b8', 1.5);
       for (const ch of g.chargers) {
         this.box(ch.x + 0.3, 0.02, 0, ch.x + 0.7, 0.18, 1.8, '#334155');
-        const on = ch.robot >= 0 && sim.robots[ch.robot].state === 'CHARGING';
+        const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING';
         this.glow(ch.x + 0.5, 0.1, 1.5, 14, on ? '#4ade80' : '#22c55e', on ? 0.9 : 0.35);
       }
       if (this.opts.claims) {
-        for (const r of sim.robots) {
+        for (const r of sim.fleet) {
           const col = WS.STATE_COLORS[r.displayState];
           for (const i of r.claims) {
             const x = g.cx(i), y = g.cy(i);
@@ -105,7 +105,7 @@
     }
     drawPaths(alpha) {
       const sim = this.sim, P = this.P.bind(this), c = this.ctx;
-      for (const r of sim.robots) {
+      for (const r of sim.fleet) {
         if (!r.path || !r.op || r.op.op !== 'move') continue;
         const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
         const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id, col = WS.STATE_COLORS[r.displayState];
@@ -122,7 +122,7 @@
     floorObjects(items, alpha) {
       const sim = this.sim, g = sim.grid, inv = sim.inv;
       const lifting = new Map(); // cell → lift fraction of a pod being picked up
-      for (const r of sim.robots) {
+      for (const r of sim.fleet) {
         if (r.state === 'LIFTING_POD' && r.op && r.op.op === 'timer' && !r.bin) lifting.set(g.idx(r.x, r.y), r.op.t / r.op.dur);
       }
       for (let i = 0; i < g.podAt.length; i++) {
@@ -131,7 +131,7 @@
         const lift = (lifting.get(i) || 0) * 0.25;
         items.push({ d: x + y + 1, fn: () => (lift ? this.drawPod(x + 0.5, y + 0.5, pod.angle, pod, lift) : this.blitPod(x + 0.5, y + 0.5, pod)) });
       }
-      for (const r of sim.robots) {
+      for (const r of sim.fleet) {
         const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
         items.push({
           d: x + y + 0.99, fn: () => {
@@ -312,7 +312,7 @@
     pick(sx, sy) {
       const sim = this.sim, g = sim.grid;
       let best = null, bd = 22 * Math.max(1, this.cam.zoom);
-      for (const r of sim.robots) {
+      for (const r of sim.fleet) {
         const [px, py] = this.P(r.rx + 0.5, r.ry + 0.5, r.bin ? 3 : 0.5);
         const d = Math.hypot(this.cam.x + px * this.cam.zoom - sx, this.cam.y + py * this.cam.zoom - sy);
         if (d < bd) { bd = d; best = { kind: 'robot', id: r.id }; }

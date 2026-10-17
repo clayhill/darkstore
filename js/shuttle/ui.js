@@ -3,11 +3,7 @@
 (function (WS) {
   'use strict';
   const esc = WS.U.esc;
-  const work = (list) => {
-    let w = 0, t = 0;
-    for (const r of list) for (const [k, v] of Object.entries(r.stateTime)) { t += v; if (WS.ROBOT_BUCKET[k] === 'WORK') w += v; }
-    return t ? w / t : 0;
-  };
+  const work = (list) => list.reduce((s, r) => s + r.utilization, 0) / list.length;
   WS.TypeUI = WS.TypeUI || {};
   WS.TypeUI.shuttle = {
     kpiTiles(ui) {

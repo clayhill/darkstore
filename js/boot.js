@@ -23,7 +23,7 @@
       sim: ['js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/shuttle/render.js', 'js/shuttle/ui.js'],
     },
   };
-  const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/robot.js',
+  const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',
     'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js'];
   const k = KINDS[document.body.dataset.kind];
   document.title = `${k.name} — DarkStore`;

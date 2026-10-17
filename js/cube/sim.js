@@ -11,7 +11,7 @@
     get taskTypes() { return WS.CubeTasks; }
     defaults() { return WS.CUBE_CONFIG; }
     createGrid() { return new WS.Grid(this.cfg); }
-    describe() { return `Grid ${this.cfg.gridW}×${this.cfg.gridD}×${this.cfg.gridZ} online · ${this.robots.length} robots · ${this.inv.bins.length} bins · ${this.ports.length} ports`; }
+    describe() { return `Grid ${this.cfg.gridW}×${this.cfg.gridD}×${this.cfg.gridZ} online · ${this.fleet.length} robots · ${this.inv.bins.length} bins · ${this.ports.length} ports`; }
     storageCapacity() { const g = this.grid; return g.type.reduce((s, t) => s + (t === WS.CELL.STORAGE ? g.Z : 0), 0); }
     // Cost of fetching a bin for an order line: digging depth, travel, a locked column.
     fetchCost(bin) {
@@ -42,7 +42,7 @@
       const free = cols.slice();
       for (let r = 0; r < cfg.robots; r++) {
         const j = Math.floor(rng() * free.length), i = free.splice(j, 1)[0];
-        this.robots.push(new WS.Robot(this, r, g.cx(i), g.cy(i)));
+        this.fleet.push(new WS.Robot(this, r, g.cx(i), g.cy(i)));
       }
     }
 

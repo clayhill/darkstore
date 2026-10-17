@@ -16,7 +16,7 @@ if (process.argv[2] === '--one') {
   const num = (v) => Math.round(v * 1000) / 1000;
   const counters = () => Object.entries(sim.kpi).filter(([, v]) => typeof v === 'number').map(([k, v]) => `${k}=${num(v)}`).join(' ');
   const stock = () => sim.inv.bins.map((b) => [b.id, b.loc, num(b.x || 0), num(b.y || 0), b.comps.map((c) => `${c.gtin}:${c.qty}:${c.reserved}`).join(',')].join('|')).join('\n');
-  const fleet = () => sim.robots.map((r) => [r.name, r.displayState, num(r.x), num(r.y), num(r.battery), r.tasksDone, r.bin || ''].join('|')).join('\n');
+  const fleet = () => sim.fleet.map((r) => [r.name, r.displayState, num(r.x), num(r.y), r.battery == null ? "-" : num(r.battery), r.tasksDone, r.bin || ''].join('|')).join('\n');
   const orders = () => { const st = {}; for (const o of sim.oms.orders) st[o.status] = (st[o.status] || 0) + 1; return Object.keys(st).sort().map((k) => `${k}:${st[k]}`).join(' '); };
   const steps = HOURS * 3600 / sim.cfg.tick, every = EVERY / sim.cfg.tick;
   for (let k = 1; k <= steps; k++) {

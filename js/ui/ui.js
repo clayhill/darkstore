@@ -83,7 +83,7 @@
       const open = sim.oms.orders.filter((o) => o.status !== 'SHIPPED' && o.status !== 'LOADED');
       const onTruck = sim.oms.truck.parcels.length;
       const back = open.filter((o) => o.status === 'BACKORDER').length;
-      const charging = sim.robots.filter((r) => r.bucket === 'CHARGE').length, tm = this.terms;
+      const charging = sim.fleet.filter((r) => r.bucket === 'CHARGE').length, tm = this.terms;
       $('#kpis').innerHTML = [
         this.kpiTile('Throughput', Math.round(k.rate('presented')), tm.units + '/h', `${k.presented} ${tm.units} presented`),
         this.kpiTile('Order lines', Math.round(k.rate('lines')), 'LPH', `${k.unitsPicked} units picked`),
@@ -92,7 +92,7 @@
         ...this.type.kpiTiles(this),
         this.kpiTile('Order cycle', k.cycleN ? U.fmtDur(k.cycleSum / k.cycleN) : '—', '', 'receipt → truck'),
         this.kpiTile('Orders in process', open.length, '', `${back ? back + ' backordered · ' : ''}${onTruck} on truck`),
-        sim.cfg.chargers ? this.kpiTile('Fleet battery', Math.round(sim.robots.reduce((s, r) => s + r.battery, 0) / sim.robots.length), '%', `${charging} charging`) : '',
+        sim.cfg.chargers ? this.kpiTile('Fleet battery', Math.round(sim.fleet.reduce((s, r) => s + r.battery, 0) / sim.fleet.length), '%', `${charging} charging`) : '',
       ].join('');
     }
     renderPorts() {
@@ -125,10 +125,10 @@
     }
     battBar(b) { const c = b < 15 ? '#ef4444' : b < 30 ? '#facc15' : '#4ade80'; return `<span class="batt"><i style="width:${b}%;background:${c}"></i></span>${Math.round(b)}%`; }
     renderFleet() {
-      $('#fleet').innerHTML = '<tr><th>Robot</th><th>State</th><th>Battery</th><th>Task</th><th class="r">Util</th></tr>' + this.sim.robots.map((r) => {
-        const st = r.displayState, tot = Object.values(r.stateTime).reduce((a, b) => a + b, 0) || 1;
-        const work = Object.entries(r.stateTime).reduce((s, [k, v]) => s + (WS.ROBOT_BUCKET[k] === 'WORK' ? v : 0), 0);
-        return `<tr class="click" data-open="robot:${r.id}"><td><b>${r.name}</b></td><td><span class="sdot" style="background:${WS.STATE_COLORS[st]}"></span>${this.stateLabel(st)}</td><td>${this.battBar(r.battery)}</td><td>${this.taskText(r)}</td><td class="r">${Math.round((work / tot) * 100)}%</td></tr>`;
+      const batt = this.sim.cfg.chargers > 0;
+      $('#fleet').innerHTML = `<tr><th>${this.terms.machine || 'Robot'}</th><th>State</th>${batt ? '<th>Battery</th>' : ''}<th>Task</th><th class="r">Util</th></tr>` + this.sim.fleet.map((r) => {
+        const st = r.displayState;
+        return `<tr class="click" data-open="robot:${r.id}"><td><b>${r.name}</b></td><td><span class="sdot" style="background:${WS.STATE_COLORS[st]}"></span>${this.stateLabel(st)}</td>${batt ? `<td>${this.battBar(r.battery)}</td>` : ''}<td>${this.taskText(r)}</td><td class="r">${Math.round(r.utilization * 100)}%</td></tr>`;
       }).join('');
     }
     renderLog() {
@@ -358,7 +358,7 @@
       if (!s) return;
       if (!force && (el.matches(':hover') || (el.contains(document.activeElement) && document.activeElement.tagName === 'SELECT'))) return;
       let html = '';
-      if (s.kind === 'robot') html = this.inspectRobot(sim.robots[s.id]);
+      if (s.kind === 'robot') html = this.inspectRobot(sim.fleet[s.id]);
       else if (s.kind === 'cell') html = this.inspectCell(s.id);
       else if (s.kind === 'port') html = this.inspectPort(sim.ports[s.id]);
       else if (s.kind === 'packer') html = this.inspectPacker(sim.oms.packers[s.id]);
@@ -444,7 +444,7 @@
     closeModal() { $('#modal').classList.add('hidden'); }
     binLocation(b) {
       if (b.loc === 'grid') return this.type.locate(this, b);
-      if (b.loc === 'robot') return `On robot ${this.sim.robots[b.robot].name}`;
+      if (b.loc === 'robot') return `On robot ${this.sim.fleet[b.robot].name}`;
       if (b.loc === 'port') return `At port ${this.sim.ports[b.port].code}`;
       return b.loc;
     }
@@ -509,7 +509,7 @@
       if (sim.oms.byId.has(s)) return this.showOrder(s);
       if (/^\d{6}$/.test(s) && sim.oms.byId.has('SO-' + s)) return this.showOrder('SO-' + s);
       if (sim.oms.receipts.find((r) => r.id === s)) return this.showReceipt(s);
-      const r = sim.robots.find((x) => x.name === s); if (r) { this.app.iso.selected = { kind: 'robot', id: r.id }; return this.select({ kind: 'robot', id: r.id }); }
+      const r = sim.fleet.find((x) => x.name === s); if (r) { this.app.iso.selected = { kind: 'robot', id: r.id }; return this.select({ kind: 'robot', id: r.id }); }
       const p = sim.ports.find((x) => x.code === s); if (p) return this.select({ kind: 'port', id: p.idx });
       const prods = sim.inv.products.filter((x) => x.name.toUpperCase().includes(s));
       if (prods.length === 1) return this.showProduct(prods[0].gtin);

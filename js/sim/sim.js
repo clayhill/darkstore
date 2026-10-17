@@ -54,7 +54,7 @@
       this.ports = this.grid.ports.map((d, k) => new WS.Port(this, k, d));
       this.layout = this.createLayout();
       this.kpi = new WS.KPI(this);
-      this.robots = [];
+      this.fleet = [];
       this.seed();
       this.oms = new WS.OMS(this);
       this.dispatchTimer = 0; this.heatTimer = 0;
@@ -127,7 +127,7 @@
     // Robots low on battery go charging when a charger is free.
     dispatchCharging() {
       const cfg = this.cfg, g = this.grid;
-      for (const r of this.robots) {
+      for (const r of this.fleet) {
         if (r.task || r.battery >= cfg.battLow) continue;
         const ch = g.chargers.filter((c) => c.robot < 0).sort((a, b) => WS.U.manhattan(r.x, r.y, a.x, a.y) - WS.U.manhattan(r.x, r.y, b.x, b.y))[0];
         if (ch) { ch.robot = r.id; this.assignTask(r, { type: 'CHARGE', charger: ch, priority: 9 }); this.log('robot', `${r.name} battery ${r.battery.toFixed(0)}% → charger ${ch.id + 1}`); }
@@ -139,7 +139,7 @@
     pendingTasks() { return this.tasks.filter((t) => t.robot < 0).sort((a, b) => this.taskPriority(b) - this.taskPriority(a)); }
     // A station already has as many units on their way as it may have.
     portFull(port) { return port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= this.cfg.portInboundCap; }
-    idleRobots() { return this.robots.filter((r) => !r.task && r.battery >= this.cfg.battLow * 0.5); }
+    idleRobots() { return this.fleet.filter((r) => !r.task && r.battery >= this.cfg.battLow * 0.5); }
     nearestRobot(list, x, y) {
       let best = null, bd = Infinity;
       for (const r of list) { const d = WS.U.manhattan(r.x, r.y, x, y); if (d < bd) { bd = d; best = r; } }
@@ -192,7 +192,7 @@
       for (const p of this.ports) p.update(dt);
       this.dispatchTimer += dt;
       if (this.dispatchTimer >= 0.2) { this.dispatchTimer = 0; this.dispatch(); }
-      for (const r of this.robots) r.update(dt);
+      for (const r of this.fleet) r.update(dt);
       this.heatTimer += dt;
       if (this.heatTimer >= 1) { this.grid.decayHeat(this.heatTimer); this.heatTimer = 0; }
       this.kpi.update(dt);

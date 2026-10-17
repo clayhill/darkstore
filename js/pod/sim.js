@@ -102,7 +102,7 @@
     defaults() { return WS.POD_CONFIG; }
     createGrid() { return new WS.PodFloor(this.cfg); }
     createLayout() { return new PodLayout(this); }
-    describe() { return `Floor ${this.grid.W}×${this.grid.D} online · ${this.robots.length} robots · ${this.inv.bins.length} pods · ${this.ports.length} stations`; }
+    describe() { return `Floor ${this.grid.W}×${this.grid.D} online · ${this.fleet.length} robots · ${this.inv.bins.length} pods · ${this.ports.length} stations`; }
     storageCapacity() { return this.grid.type.reduce((s, t) => s + (t === WS.CELL.STORAGE ? 1 : 0), 0); }
     get perFace() { return this.cfg.podShelves * this.cfg.podSlots; }
     faceOf(comp) { return Math.floor(comp / this.perFace); }
@@ -142,7 +142,7 @@
       for (let i = 0; i < g.type.length; i++) if (g.type[i] === WS.CELL.HIGHWAY) free.push(i);
       for (let r = 0; r < cfg.robots && free.length; r++) {
         const i = free.splice(r < cells.length - nPods ? 0 : Math.floor(rng() * free.length), 1)[0];
-        this.robots.push(new WS.Robot(this, r, g.cx(i), g.cy(i)));
+        this.fleet.push(new WS.Robot(this, r, g.cx(i), g.cy(i)));
       }
     }
 

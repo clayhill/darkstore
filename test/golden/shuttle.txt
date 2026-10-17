@@ -1,8 +1,8 @@
-t=00:29:59 stock e028f250 fleet f20a3033 tasks 3 orders CONVEYOR:2 LOADED:38 PACKED:1 PACKING:2 PICKING:1 RELEASED:1 SHIPPED:120 TO_PACK:3
+t=00:29:59 stock e028f250 fleet 280bae23 tasks 3 orders CONVEYOR:2 LOADED:38 PACKED:1 PACKING:2 PICKING:1 RELEASED:1 SHIPPED:120 TO_PACK:3
   presented=344 presentedPick=315 presentedIn=29 linesPicked=325 unitsPicked=454 unitsReceived=295 ordersShipped=120 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=328 cycleSum=43436.8 cycleN=120 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
-t=00:59:59 stock f4adced1 fleet 6ff1852e tasks 0 orders CONVEYOR:5 LOADED:14 PACKED:1 PACKING:2 SHIPPED:280
+t=00:59:59 stock f4adced1 fleet 9070949e tasks 0 orders CONVEYOR:5 LOADED:14 PACKED:1 PACKING:2 SHIPPED:280
   presented=616 presentedPick=579 presentedIn=37 linesPicked=591 unitsPicked=816 unitsReceived=350 ordersShipped=280 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=598 cycleSum=105549.4 cycleN=280 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
-t=01:30:00 stock 1a5cb96b fleet 91f74422 tasks 3 orders CONVEYOR:3 LOADED:19 PACKED:1 PACKING:3 RELEASED:6 SHIPPED:440 TO_PACK:4
+t=01:30:00 stock 1a5cb96b fleet 3e933dea tasks 3 orders CONVEYOR:3 LOADED:19 PACKED:1 PACKING:3 RELEASED:6 SHIPPED:440 TO_PACK:4
   presented=927 presentedPick=869 presentedIn=58 linesPicked=888 unitsPicked=1230 unitsReceived=569 ordersShipped=440 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=899 cycleSum=164680.4 cycleN=440 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
-t=02:00:00 stock 0f84c793 fleet 6628e432 tasks 0 orders CONVEYOR:4 LOADED:14 PACKED:1 PACKING:2 RELEASED:1 SHIPPED:600 TO_PACK:1
+t=02:00:00 stock 0f84c793 fleet ab57a412 tasks 0 orders CONVEYOR:4 LOADED:14 PACKED:1 PACKING:2 RELEASED:1 SHIPPED:600 TO_PACK:1
   presented=1209 presentedPick=1136 presentedIn=73 linesPicked=1160 unitsPicked=1636 unitsReceived=901 ordersShipped=600 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=1167 cycleSum=224465.3 cycleN=600 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30

@@ -36,7 +36,7 @@
     inspectCell(ui, i) {
       const sim = ui.sim, g = sim.grid, x = g.cx(i), y = g.cy(i), id = g.podAt[i];
       const type = { [WS.CELL.STORAGE]: 'Storage cell', [WS.CELL.HIGHWAY]: 'Highway', [WS.CELL.LANE]: 'Queue lane', [WS.CELL.PORT]: 'Station', [WS.CELL.CHARGER]: 'Charger' }[g.type[i]] || 'Wall';
-      const claim = g.claim[i] >= 0 ? sim.robots[g.claim[i]].name : '—', target = g.podTarget[i] >= 0 ? sim.robots[g.podTarget[i]].name : '';
+      const claim = g.claim[i] >= 0 ? sim.fleet[g.claim[i]].name : '—', target = g.podTarget[i] >= 0 ? sim.fleet[g.podTarget[i]].name : '';
       return `<div class="hd"><b>Cell X${x} · Y${y}</b><span class="pill">${type}</span><button class="close">×</button></div>
         <dl class="kv"><dt>Pod</dt><dd>${id ? `<a href="#" data-open="bin:${id}">${id}</a>` : target ? `— (${target} is bringing one back)` : '—'}</dd><dt>Occupied by</dt><dd>${claim}</dd>
         <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to station</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>

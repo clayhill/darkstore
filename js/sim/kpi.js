@@ -58,7 +58,7 @@
 
     update(dt) {
       const sim = this.sim;
-      for (const r of sim.robots) { const b = r.bucket; this.acc[b] += dt; this.accTotal[b] += dt; }
+      for (const r of sim.fleet) { const b = r.bucket; this.acc[b] += dt; this.accTotal[b] += dt; }
       this.sampleTimer += dt;
       if (this.sampleTimer >= this.sampleEvery) {
         this.sampleTimer = 0;
@@ -67,7 +67,7 @@
         this.series.push({
           t: sim.time, bins: this.rate('presented'), lines: this.rate('lines'), shipped: this.rate('shipped'),
           work: u.work, wait: u.wait, idle: u.idle, charge: u.charge, open,
-          batt: sim.robots.reduce((s, r) => s + r.battery, 0) / sim.robots.length, dig: this.recentDigRatio,
+          batt: sim.cfg.chargers ? sim.fleet.reduce((s, r) => s + r.battery, 0) / sim.fleet.length : null, dig: this.recentDigRatio,
         });
         if (this.series.length > 720) this.series.shift();
         this.acc = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0 };
@@ -95,10 +95,10 @@
       const back = sim.oms.orders.filter((o) => o.status === 'BACKORDER').length;
       if (back) out.push({ sev: back > 10 ? 'critical' : 'warning', key: 'back', title: 'Backorders', msg: `${back} order(s) waiting for stock` });
       if (!sim.oms.freeTotes.length) out.push({ sev: 'warning', key: 'totes', title: 'Tote shortage', msg: 'No empty order totes — release paused' });
-      const low = sim.robots.filter((r) => r.battery < 12);
+      const low = sim.cfg.chargers ? sim.fleet.filter((r) => r.battery < 12) : [];
       if (low.length) out.push({ sev: 'critical', key: 'batt', title: 'Low battery', msg: low.map((r) => r.name).join(', ') + ' below 12%' });
-      const waiting = sim.robots.filter((r) => r.displayState === 'WAITING_IN_TRAFFIC').length;
-      if (waiting > sim.robots.length * 0.3) out.push({ sev: 'warning', key: 'jam', title: 'Congestion', msg: `${waiting} of ${sim.robots.length} robots waiting in traffic` });
+      const waiting = sim.fleet.filter((r) => r.displayState === 'WAITING_IN_TRAFFIC').length;
+      if (waiting > sim.fleet.length * 0.3) out.push({ sev: 'warning', key: 'jam', title: 'Congestion', msg: `${waiting} of ${sim.fleet.length} robots waiting in traffic` });
       const recentPen = this.penaltyLog.filter((e) => e.t > sim.time - 600).length;
       if (recentPen >= 3) out.push({ sev: 'info', key: 'bury', title: 'Fast movers buried', msg: `${recentPen} burial penalties in the last 10 min` });
       this.alerts = out;

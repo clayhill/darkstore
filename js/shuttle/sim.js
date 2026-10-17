@@ -208,9 +208,9 @@
       this.stockBins(all);
       this.seedDemand();
       let id = 0;
-      for (const aisle of this.aisles) for (let l = 0; l < L; l++) { const sh = new Shuttle(this, id++, aisle.a, l); aisle.shuttles.push(sh); this.robots.push(sh); }
-      for (const aisle of this.aisles) { aisle.lift = new Lift(this, id++, aisle.a); this.robots.push(aisle.lift); }
-      for (const r of this.robots) r.place();
+      for (const aisle of this.aisles) for (let l = 0; l < L; l++) { const sh = new Shuttle(this, id++, aisle.a, l); aisle.shuttles.push(sh); this.fleet.push(sh); }
+      for (const aisle of this.aisles) { aisle.lift = new Lift(this, id++, aisle.a); this.fleet.push(aisle.lift); }
+      for (const r of this.fleet) r.place();
     }
 
     // ---------- racking bookkeeping ----------

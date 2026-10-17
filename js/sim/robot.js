@@ -1,4 +1,4 @@
-/* Robots on a grid: an independent state machine per robot plus the physical
+/* Battery robots on a grid (a WS.Mover): an independent state machine per robot plus the physical
  * constraints (speeds, winch by payload, gripper times, battery drain).
  * Tasks are generator functions that yield primitive operations:
  *   move · winch · grip · release · wait · until · charge
@@ -7,32 +7,24 @@
 (function (WS) {
   'use strict';
 
-  const STATES = ['IDLE', 'MOVING_TO_TARGET', 'DIGGING_BIN', 'LIFTING_POD', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING', 'YIELDING'];
-  // KPI buckets: utilization = WORK / total
-  const BUCKET = { IDLE: 'IDLE', YIELDING: 'IDLE', MOVING_TO_TARGET: 'WORK', DIGGING_BIN: 'WORK', LIFTING_POD: 'WORK', HANDLING: 'WORK', TRANSPORTING_TO_PORT: 'WORK', AT_PORT: 'WORK', STORING: 'WORK', RESTACKING: 'WORK', WAITING_IN_TRAFFIC: 'WAIT', WAITING_PORT: 'WAIT', TO_CHARGER: 'CHARGE', CHARGING: 'CHARGE' };
-
-  class Robot {
+  class Robot extends WS.Mover {
     constructor(sim, id, x, y) {
-      this.sim = sim; this.id = id; this.name = 'R' + String(id + 1).padStart(2, '0');
+      super(sim, id, 'R' + String(id + 1).padStart(2, '0'));
       this.x = x; this.y = y; this.axis = 'x';
-      this.rx = x; this.ry = y; this.prx = x; this.pry = y; // render position (current / previous tick)
-      this.v = 0; this.shift = 0; this.path = null; this.pi = 0; this.prog = 0; this.goal = null; this.detour = false;
+      this.rx = x; this.ry = y; this.prx = x; this.pry = y;
+      this.shift = 0; this.path = null; this.pi = 0; this.prog = 0; this.goal = null; this.detour = false;
       this.wait = 0; this.waitTotal = 0; this.patience = 1.5; this.evadeAt = 7; this.replanIn = 0;
       this.claims = new Set(); this.blocked = false; this.busy = false; this.moved = 0;
-      this.state = 'IDLE'; this.task = null; this.gen = null; this.op = null; this.lastResult = undefined;
-      this.bin = null; this.winch = 0; this.winchFrom = 0; this.winchTo = 0; this.winchDur = 0;
+      this.lastResult = undefined;
+      this.winch = 0; this.winchFrom = 0; this.winchTo = 0; this.winchDur = 0;
       this.battery = 70 + sim.rng() * 30;
-      this.idleTime = 0; this.yieldCooldown = 0;
-      this.stateTime = {}; STATES.forEach((s) => (this.stateTime[s] = 0));
-      this.tasksDone = 0; this.distance = 0; this.lifts = 0;
+      this.yieldCooldown = 0;
       sim.router.claimCell(this, sim.grid.idx(x, y));
     }
     get displayState() {
       if (this.op && this.op.op === 'move' && this.blocked) return 'WAITING_IN_TRAFFIC';
-      if (this.op && this.op.op === 'until' && this.op.waitState) return this.op.waitState;
-      return this.state;
+      return super.displayState;
     }
-    get bucket() { return BUCKET[this.displayState] || 'IDLE'; }
 
     start(task) {
       this.task = task; task.robot = this.id; task.started = this.sim.time;
@@ -134,6 +126,4 @@
 
   WS.Robot = Robot;
   WS.Tasks = T;
-  WS.ROBOT_STATES = STATES;
-  WS.ROBOT_BUCKET = BUCKET;
 })((globalThis.WS = globalThis.WS || {}));

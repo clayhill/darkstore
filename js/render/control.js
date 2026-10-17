@@ -41,7 +41,7 @@
     }
     pickMap(mx, my) {
       const g = this.grid, r = this.map.getBoundingClientRect(), m = this.mapGeom(r.width, r.height);
-      for (const rb of this.sim.robots) {
+      for (const rb of this.sim.fleet) {
         const cx = m.ox + (rb.rx + 0.5) * m.s, cy = m.oy + (rb.ry + 0.5) * m.s;
         if (Math.abs(mx - cx) < m.s * 0.5 && Math.abs(my - cy) < m.s * 0.5) return { kind: 'robot', id: rb.id };
       }
@@ -83,11 +83,11 @@
       for (const ch of g.chargers) {
         c.fillStyle = '#4ade80'; c.font = '700 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.fillText('⚡', m.ox + (ch.x + 0.5) * s, m.oy + (ch.y + 0.5) * s);
       }
-      // claims and paths
-      for (const r of sim.robots) {
+      // claims and paths (robots only)
+      for (const r of sim.fleet) {
         const col = WS.STATE_COLORS[r.displayState];
         c.strokeStyle = col; c.globalAlpha = 0.6; c.lineWidth = 1;
-        for (const i of r.claims) { if (g.cx(i) === r.x && g.cy(i) === r.y) continue; c.strokeRect(m.ox + g.cx(i) * s + 2.5, m.oy + g.cy(i) * s + 2.5, s - 5, s - 5); }
+        if (r.claims) for (const i of r.claims) { if (g.cx(i) === r.x && g.cy(i) === r.y) continue; c.strokeRect(m.ox + g.cx(i) * s + 2.5, m.oy + g.cy(i) * s + 2.5, s - 5, s - 5); }
         if (r.path && r.op && r.op.op === 'move') {
           c.globalAlpha = 0.5; c.lineWidth = 1.5; c.beginPath();
           c.moveTo(m.ox + (r.rx + 0.5) * s, m.oy + (r.ry + 0.5) * s);
@@ -98,7 +98,7 @@
       }
       // robots
       const sel = this.app.ui.selection;
-      for (const r of sim.robots) {
+      for (const r of sim.fleet) {
         const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
         const col = WS.STATE_COLORS[r.displayState], px = m.ox + x * s, py = m.oy + y * s;
         if (r.busy) { c.strokeStyle = `rgba(239,68,68,${(0.5 + 0.5 * Math.sin(t * 6)).toFixed(2)})`; c.lineWidth = 2; c.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1); }
@@ -106,9 +106,11 @@
         if (r.bin) { c.fillStyle = '#0f172a'; c.fillRect(px + s * 0.3, py + s * 0.3, s * 0.4, s * 0.4); }
         c.fillStyle = '#0b1220'; c.font = `700 ${Math.max(7, s * 0.3).toFixed(0)}px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif`;
         if (!r.bin) c.fillText(String(r.id + 1), px + s / 2, py + s / 2 + 0.5);
-        c.fillStyle = '#0b1220'; c.fillRect(px + s * 0.14, py + s * 0.9, s * 0.72, 2.5);
-        c.fillStyle = r.battery < 15 ? '#ef4444' : r.battery < 30 ? '#facc15' : '#4ade80';
-        c.fillRect(px + s * 0.14, py + s * 0.9, (s * 0.72 * r.battery) / 100, 2.5);
+        if (r.battery != null) {
+          c.fillStyle = '#0b1220'; c.fillRect(px + s * 0.14, py + s * 0.9, s * 0.72, 2.5);
+          c.fillStyle = r.battery < 15 ? '#ef4444' : r.battery < 30 ? '#facc15' : '#4ade80';
+          c.fillRect(px + s * 0.14, py + s * 0.9, (s * 0.72 * r.battery) / 100, 2.5);
+        }
         if (sel && sel.kind === 'robot' && sel.id === r.id) { c.strokeStyle = '#fff'; c.lineWidth = 2; c.strokeRect(px - 1, py - 1, s + 2, s + 2); }
       }
       if (sel && sel.kind === 'cell') { c.strokeStyle = '#38bdf8'; c.lineWidth = 2; c.strokeRect(m.ox + g.cx(sel.id) * s, m.oy + g.cy(sel.id) * s, s, s); }

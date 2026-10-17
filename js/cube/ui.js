@@ -36,7 +36,7 @@
     inspectCell(ui, i) {
       const sim = ui.sim, g = sim.grid, s = g.stacks[i], x = g.cx(i), y = g.cy(i);
       const type = ['Storage column', 'Port shaft', 'Charger'][g.type[i]];
-      const claim = g.claim[i] >= 0 ? sim.robots[g.claim[i]].name : '—', lock = g.colLock[i] >= 0 ? sim.robots[g.colLock[i]].name : '—';
+      const claim = g.claim[i] >= 0 ? sim.fleet[g.claim[i]].name : '—', lock = g.colLock[i] >= 0 ? sim.fleet[g.colLock[i]].name : '—';
       return `<div class="hd"><b>Cell X${x} · Y${y}</b><span class="pill">${type}</span><button class="close">×</button></div>
         <dl class="kv"><dt>Stack height</dt><dd>${s.length} / ${g.Z} bins</dd><dt>Occupied by</dt><dd>${claim}</dd><dt>Column lock</dt><dd>${lock}</dd>
         <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to port</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>

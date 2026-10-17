@@ -25,7 +25,7 @@
       const sim = this.sim, g = sim.grid, W = g.W, n = W * g.D;
       const start = g.idx(r.x, r.y), goal = g.idx(gx, gy);
       if (start === goal) return [{ x: r.x, y: r.y }];
-      const robots = sim.robots;
+      const robots = sim.fleet;
       const cellCost = 1 / this.vmax;
       const blocked = (i, from) => {
         if (i === goal) return g.enterGoal ? !g.enterGoal(i, r, from) : false;
@@ -170,7 +170,7 @@
       r.blocked = true; r.wait += dt; r.waitTotal += dt;
       g.waitHeat[g.idx(next.x, next.y)] += dt;
       if (blocker >= 0) {
-        const o = sim.robots[blocker];
+        const o = sim.fleet[blocker];
         if (!o.task) this.requestYield(o, r);
       }
       if (r.wait > r.patience) {
@@ -224,7 +224,7 @@
           const ni = g.idx(nx, ny);
           if (seen[ni] || !g.passable(ni, o, ci)) continue;
           const c = g.claim[ni];
-          if (c >= 0 && c !== o.id && sim.robots[c].busy) continue;
+          if (c >= 0 && c !== o.id && sim.fleet[c].busy) continue;
           seen[ni] = 1; q.push(ni);
         }
       }

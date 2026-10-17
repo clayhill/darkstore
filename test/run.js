@@ -6,7 +6,7 @@ const g = sim.grid;
 function check() {
   // single occupancy: each robot's current cell claimed by itself, no two robots on same cell
   const seen = new Map();
-  for (const r of kind === 'shuttle' ? [] : sim.robots) {
+  for (const r of kind === 'shuttle' ? [] : sim.fleet) {
     const i = g.idx(r.x, r.y);
     if (g.claim[i] !== r.id) throw new Error(`t=${sim.time.toFixed(1)} ${r.name} cell not claimed by itself (claim=${g.claim[i]})`);
     if (seen.has(i)) throw new Error('two robots on cell ' + i);
@@ -51,7 +51,7 @@ function checkPods() {
   }
   for (const b of sim.inv.bins) {
     if (b.loc === 'grid') { n--; continue; }
-    const r = sim.robots.find((x) => x.bin === b.id);
+    const r = sim.fleet.find((x) => x.bin === b.id);
     if (!r) throw new Error(`pod ${b.id} (${b.loc}) not carried by any robot`);
   }
   if (n !== 0) throw new Error('pod count mismatch');
@@ -79,7 +79,7 @@ for (let k = 0; k < total; k++) {
 check();
 const st = {}; for (const o of sim.oms.orders) st[o.status] = (st[o.status] || 0) + 1;
 console.log('order statuses', st);
-console.log('robots', sim.robots.map((r) => `${r.name}:${r.displayState}:${r.battery.toFixed(0)}%`).join(' '));
+console.log("fleet", sim.fleet.map((r) => `${r.name}:${r.displayState}${r.battery == null ? "" : ":" + r.battery.toFixed(0) + "%"}`).join(' '));
 console.log('router replans', sim.router.replans, 'evasions', sim.router.evasions, 'yields', sim.router.yields, 'restacks', sim.kpi.restacks, 'penalties', sim.kpi.penaltyEvents);
 console.log('receipts', sim.oms.receipts.map(r=>r.status).reduce((a,s)=>(a[s]=(a[s]||0)+1,a),{}));
 console.log('alerts', sim.kpi.alerts.map(a=>a.title+': '+a.msg));
