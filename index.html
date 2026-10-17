@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DarkStore — Goods-to-Person Warehouse Simulator</title>
+  <meta name="description" content="DarkStore simulates automated goods-to-person warehouses in the browser. Pick a system and watch robots, operators and orders move through it.">
+  <link rel="stylesheet" href="css/landing.css">
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"><div class="floor"></div></div>
+
+  <header class="nav">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="#0ea5e9"/><path d="M16 2 29 9.5 16 17 3 9.5z" fill="#7dd3fc"/><path d="M16 17v13L3 22.5v-13z" fill="#0369a1"/><rect x="13" y="7.5" width="6" height="4" rx="1" fill="#0c4a6e"/></svg>
+      <span>DARKSTORE</span>
+    </a>
+    <a class="gh" href="https://github.com/clayhill/warehouse_sim">Source on GitHub</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow"><span class="pulse"></span>Goods-to-person warehouse simulator</p>
+      <h1>Dark<span>Store</span></h1>
+      <p class="lede">Lights-out warehouses, simulated. Pick a system and watch robots, operators and orders move through it in real time.</p>
+    </section>
+
+    <section class="sims" aria-labelledby="sims-title">
+      <h2 id="sims-title"><span class="idx">//</span> Choose a simulation</h2>
+      <div class="cards">
+        <a class="card" href="cubeflow.html">
+          <div class="preview">
+            <canvas data-preview="cube" role="img" aria-label="Animated preview: robots driving on top of a cube storage grid and digging bins out of the stacks"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Cube storage · AS/RS</p>
+            <h3>CubeFlow</h3>
+            <p class="desc">Bins stacked in a dense grid with no aisles. Robots drive on top, dig down to the bin they need and bring it to the pick ports.</p>
+            <ul class="specs" data-specs="cube"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>DarkStore is a simulation and teaching tool, not control software for real systems · Apache-2.0</footer>
+
+  <script src="js/core/config.js"></script>
+  <script src="js/landing/landing.js"></script>
+</body>
+</html>

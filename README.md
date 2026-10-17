@@ -20,7 +20,12 @@ systems are written but not implemented yet.
 Open `index.html` in Safari (or any modern browser). It has no build step, no
 dependencies and no network calls, so double-clicking the file works.
 
-Optional URL parameters (handy for demos):
+`index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
+name and page; for now there is one, **CubeFlow** (cube storage), at `cubeflow.html`.
+
+![Landing page with the CubeFlow simulation card](docs/screenshots/landing.png)
+
+Optional URL parameters for `cubeflow.html` (handy for demos):
 
 | Parameter | Effect |
 |---|---|
@@ -97,7 +102,8 @@ with the default 16 robots.
 ## Files
 
 ```
-index.html, css/style.css
+index.html, css/landing.css, js/landing/   landing page and simulation previews
+cubeflow.html, css/style.css               CubeFlow simulator page
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (defaults)
 js/sim/     grid, inventory (IMS), router (fleet manager), robot (state machine + tasks),
             ports, orders (OMS, packing, dock), kpi, sim (loop, dispatcher, layout)
