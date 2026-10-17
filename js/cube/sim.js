@@ -37,28 +37,15 @@
         }
       }
       // stock: every product in at least one bin, then demand-weighted
-      const stocked = allBins.filter(() => rng() < cfg.stockedRatio);
-      const prods = inv.products, w = prods.map((p) => Math.pow(p.demand, 0.3)), tot = w.reduce((a, b) => a + b, 0);
-      let k = 0;
+      const stocked = allBins.filter(() => rng() < cfg.stockedRatio), next = this.productStream();
       for (const bin of stocked) {
         const nfill = bin.ncomp === 1 || rng() < 0.6 ? 1 : 2;
         for (let c = 0; c < nfill; c++) {
-          const p = k < prods.length ? prods[k++] : prods[rng.weighted(w, tot)];
-          if (bin.comps.some((x) => x.gtin === p.gtin)) continue;
-          const cap = inv.compCap(bin, p), q = Math.max(1, Math.round(cap * (0.25 + rng() * 0.75)));
-          inv.setComp(bin, c, p.gtin);
-          bin.comps[c].qty = q; p.onHand += q;
+          const p = next();
+          if (!bin.comps.some((x) => x.gtin === p.gtin)) this.stockComp(bin, c, p);
         }
       }
-      // velocity prior & replenishment levels from expected demand
-      const dTot = prods.reduce((s, p) => s + p.demand, 0);
-      for (const p of prods) {
-        const share = p.demand / dTot;
-        p.hits = cfg.orderRate * 1.9 * share;
-        p.min = Math.max(4, Math.ceil(cfg.orderRate * 2.2 * share * 2));
-        p.max = p.min * 4;
-      }
-      inv.classify();
+      this.seedDemand();
       // robots on random free storage cells
       const free = cols.slice();
       for (let r = 0; r < cfg.robots; r++) {
@@ -75,19 +62,9 @@
     // ---------------------------------------------------------------- dispatch
     dispatch() {
       const g = this.grid, cfg = this.cfg;
-      for (const bin of this.binsWithRequests) {
-        if (bin.loc === 'grid' && !bin.task && bin.requests.length) {
-          const goodsIn = this.ports[bin.requests[0].port].kind === 'GOODS_IN';
-          bin.task = this.newTask({ type: 'RETRIEVE', bin, port: bin.requests[0].port, priority: goodsIn ? 4 : 5 });
-        }
-      }
-      // battery management: low robots go charging when a charger is free
-      for (const r of this.robots) {
-        if (r.task || r.battery >= cfg.battLow) continue;
-        const ch = g.chargers.filter((c) => c.robot < 0).sort((a, b) => WS.U.manhattan(r.x, r.y, a.x, a.y) - WS.U.manhattan(r.x, r.y, b.x, b.y))[0];
-        if (ch) { ch.robot = r.id; this.assignTask(r, { type: 'CHARGE', charger: ch, priority: 9 }); this.log('robot', `${r.name} battery ${r.battery.toFixed(0)}% → charger ${ch.id + 1}`); }
-      }
-      let idle = this.robots.filter((r) => !r.task && r.battery >= cfg.battLow * 0.5);
+      this.createRetrievals();
+      this.dispatchCharging();
+      let idle = this.idleRobots();
       if (!idle.length) return;
       // priority ageing (1 point per waiting minute) so no port starves; restacks don't age
       const now = this.time, eff = (t) => t.priority + (t.type === 'RESTACK' ? 0 : (now - t.created) / 60);
@@ -116,21 +93,18 @@
           if (idle.length < 2 && this.tasks.some((x) => x.robot < 0 && x.priority > 1)) continue; // keep a robot for real work
           sx = g.cx(t.items[0].tmp); sy = g.cy(t.items[0].tmp);
         } else continue;
-        let best = null, bd = Infinity;
-        for (const r of idle) { const d = WS.U.manhattan(r.x, r.y, sx, sy); if (d < bd) { bd = d; best = r; } }
+        const best = this.nearestRobot(idle, sx, sy);
         if (t.type === 'RETRIEVE') { g.colLock[this.inv.binColumn(t.bin)] = best.id; this.ports[t.port].inbound++; }
         if (t.type === 'RESTACK') g.colLock[t.origin] = best.id;
         idle = idle.filter((r) => r !== best);
         best.start(t);
       }
-      // idle robots clear ports, chargers and the cells right next to ports
-      for (const r of idle) {
-        if (r.idleTime < 3) continue;
-        const i = g.idx(r.x, r.y);
-        if (g.isStorage(i) && this.inv.portDist[i] >= 3 && r.y > 0) continue;
-        const target = this.parkingCell(r);
-        if (target >= 0) this.assignTask(r, { type: 'PARK', x: g.cx(target), y: g.cy(target), priority: 0 });
-      }
+      this.parkIdle(idle);
+    }
+    // idle robots clear ports, chargers and the cells right next to ports
+    needsParking(r) {
+      const g = this.grid, i = g.idx(r.x, r.y);
+      return !(g.isStorage(i) && this.inv.portDist[i] >= 3 && r.y > 0);
     }
     parkingCell(r) {
       const g = this.grid; let best = -1, bd = Infinity;

@@ -128,26 +128,15 @@
         pods.push(pod);
       }
       // stock: every product somewhere, then demand-weighted; one SKU per pod at most once
-      const prods = inv.products, w = prods.map((p) => Math.pow(p.demand, 0.3)), tot = w.reduce((a, b) => a + b, 0);
-      let k = 0;
+      const next = this.productStream();
       for (const pod of pods) {
         for (let c = 0; c < ncomp; c++) {
           if (rng() >= cfg.stockedRatio) continue;
-          const p = k < prods.length ? prods[k++] : prods[rng.weighted(w, tot)];
-          if (pod.comps.some((x) => x.gtin === p.gtin)) continue;
-          const q = Math.max(1, Math.round(inv.compCap(pod, p) * (0.25 + rng() * 0.75)));
-          inv.setComp(pod, c, p.gtin);
-          pod.comps[c].qty = q; p.onHand += q;
+          const p = next();
+          if (!pod.comps.some((x) => x.gtin === p.gtin)) this.stockComp(pod, c, p);
         }
       }
-      const dTot = prods.reduce((s, p) => s + p.demand, 0);
-      for (const p of prods) {
-        const share = p.demand / dTot;
-        p.hits = cfg.orderRate * 1.9 * share;
-        p.min = Math.max(4, Math.ceil(cfg.orderRate * 2.2 * share * 2));
-        p.max = p.min * 4;
-      }
-      inv.classify();
+      this.seedDemand();
       // robots start on empty storage cells, then on highways
       const free = cells.slice(nPods);
       for (let i = 0; i < g.type.length; i++) if (g.type[i] === WS.CELL.HIGHWAY) free.push(i);
@@ -211,19 +200,10 @@
     }
 
     dispatch() {
-      const g = this.grid, cfg = this.cfg;
-      for (const pod of this.binsWithRequests) {
-        if (pod.loc === 'grid' && !pod.task && pod.requests.length) {
-          const goodsIn = this.ports[pod.requests[0].port].kind === 'GOODS_IN';
-          pod.task = this.newTask({ type: 'RETRIEVE', bin: pod, port: pod.requests[0].port, priority: goodsIn ? 4 : 5 });
-        }
-      }
-      for (const r of this.robots) {
-        if (r.task || r.battery >= cfg.battLow) continue;
-        const ch = g.chargers.filter((c) => c.robot < 0).sort((a, b) => WS.U.manhattan(r.x, r.y, a.x, a.y) - WS.U.manhattan(r.x, r.y, b.x, b.y))[0];
-        if (ch) { ch.robot = r.id; this.assignTask(r, { type: 'CHARGE', charger: ch, priority: 9 }); this.log('robot', `${r.name} battery ${r.battery.toFixed(0)}% → charger ${ch.id + 1}`); }
-      }
-      let idle = this.robots.filter((r) => !r.task && r.battery >= cfg.battLow * 0.5);
+      const cfg = this.cfg;
+      this.createRetrievals();
+      this.dispatchCharging();
+      let idle = this.idleRobots();
       if (!idle.length) return;
       const now = this.time, eff = (t) => t.priority + (now - t.created) / 60;
       const pending = this.tasks.filter((t) => t.robot < 0).sort((a, b) => eff(b) - eff(a));
@@ -233,21 +213,15 @@
         t.port = t.bin.requests[0].port;
         const port = this.ports[t.port];
         if (port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= cfg.portInboundCap) continue;
-        let best = null, bd = Infinity;
-        for (const r of idle) { const d = WS.U.manhattan(r.x, r.y, t.bin.x, t.bin.y); if (d < bd) { bd = d; best = r; } }
+        const best = this.nearestRobot(idle, t.bin.x, t.bin.y);
         port.inbound++;
         idle = idle.filter((r) => r !== best);
         best.start(t);
       }
-      // idle robots get off highways, lanes and chargers and wait on a storage cell
-      for (const r of idle) {
-        if (r.idleTime < 3) continue;
-        const i = g.idx(r.x, r.y);
-        if (g.canPark(i)) continue;
-        const target = this.parkingCell(r);
-        if (target >= 0) this.assignTask(r, { type: 'PARK', x: g.cx(target), y: g.cy(target), priority: 0 });
-      }
+      this.parkIdle(idle);
     }
+    // idle robots get off highways, lanes and chargers and wait on a storage cell
+    needsParking(r) { return !this.grid.canPark(this.grid.idx(r.x, r.y)); }
     parkingCell(r) {
       const g = this.grid; let best = -1, bd = Infinity;
       for (let i = 0; i < g.type.length; i++) {

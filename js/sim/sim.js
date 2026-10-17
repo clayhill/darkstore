@@ -72,6 +72,66 @@
     unitDepth(bin) { return this.grid.depthOf(this.inv.binColumn(bin), bin.id); }
     onPortOut() {}
 
+    // ---------------------------------------------------------------- seeding helpers
+    // Products to stock, in order: every product once, then demand-weighted draws.
+    productStream() {
+      const prods = this.inv.products, rng = this.rng, w = prods.map((p) => Math.pow(p.demand, 0.3)), tot = w.reduce((a, b) => a + b, 0);
+      let k = 0;
+      return () => (k < prods.length ? prods[k++] : prods[rng.weighted(w, tot)]);
+    }
+    // Fill compartment c with a random 25–100 % of what fits.
+    stockComp(bin, c, p) {
+      const inv = this.inv, q = Math.max(1, Math.round(inv.compCap(bin, p) * (0.25 + this.rng() * 0.75)));
+      inv.setComp(bin, c, p.gtin);
+      bin.comps[c].qty = q; p.onHand += q;
+    }
+    // Velocity prior and min/max replenishment levels from expected demand.
+    seedDemand() {
+      const cfg = this.cfg, prods = this.inv.products, dTot = prods.reduce((s, p) => s + p.demand, 0);
+      for (const p of prods) {
+        const share = p.demand / dTot;
+        p.hits = cfg.orderRate * 1.9 * share;
+        p.min = Math.max(4, Math.ceil(cfg.orderRate * 2.2 * share * 2));
+        p.max = p.min * 4;
+      }
+      this.inv.classify();
+    }
+
+    // ---------------------------------------------------------------- dispatch helpers
+    // A retrieval task for every stored unit that a station has asked for.
+    createRetrievals() {
+      for (const bin of this.binsWithRequests) {
+        if (bin.loc === 'grid' && !bin.task && bin.requests.length) {
+          const goodsIn = this.ports[bin.requests[0].port].kind === 'GOODS_IN';
+          bin.task = this.newTask({ type: 'RETRIEVE', bin, port: bin.requests[0].port, priority: goodsIn ? 4 : 5 });
+        }
+      }
+    }
+    // Robots low on battery go charging when a charger is free.
+    dispatchCharging() {
+      const cfg = this.cfg, g = this.grid;
+      for (const r of this.robots) {
+        if (r.task || r.battery >= cfg.battLow) continue;
+        const ch = g.chargers.filter((c) => c.robot < 0).sort((a, b) => WS.U.manhattan(r.x, r.y, a.x, a.y) - WS.U.manhattan(r.x, r.y, b.x, b.y))[0];
+        if (ch) { ch.robot = r.id; this.assignTask(r, { type: 'CHARGE', charger: ch, priority: 9 }); this.log('robot', `${r.name} battery ${r.battery.toFixed(0)}% → charger ${ch.id + 1}`); }
+      }
+    }
+    idleRobots() { return this.robots.filter((r) => !r.task && r.battery >= this.cfg.battLow * 0.5); }
+    nearestRobot(list, x, y) {
+      let best = null, bd = Infinity;
+      for (const r of list) { const d = WS.U.manhattan(r.x, r.y, x, y); if (d < bd) { bd = d; best = r; } }
+      return best;
+    }
+    // Robots idle for a few seconds in the way (needsParking) move to parkingCell().
+    parkIdle(idle) {
+      const g = this.grid;
+      for (const r of idle) {
+        if (r.idleTime < 3 || !this.needsParking(r)) continue;
+        const target = this.parkingCell(r);
+        if (target >= 0) this.assignTask(r, { type: 'PARK', x: g.cx(target), y: g.cy(target), priority: 0 });
+      }
+    }
+
     // ---------------------------------------------------------------- events & log
     schedule(delay, fn) { this.events.push({ t: this.time + delay, fn }); this.events.sort((a, b) => a.t - b.t); }
     log(type, msg) {
