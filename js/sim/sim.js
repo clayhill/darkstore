@@ -41,23 +41,42 @@
 
   class Sim {
     constructor(cfg) {
-      this.cfg = Object.assign({}, WS.DEFAULT_CONFIG, cfg || {});
+      this.cfg = Object.assign({}, this.defaults(), cfg || {});
       this.rng = WS.U.rng(this.cfg.seed);
       this.time = 0; this.ticks = 0;
       this.logs = []; this.logSeq = 0; this.events = [];
       this.tasks = []; this.taskSeq = 1;
       this.binsWithRequests = new Set();
-      this.grid = new WS.Grid(this.cfg);
+      this.grid = this.createGrid();
       this.inv = new WS.Inventory(this);
       this.router = new WS.Router(this);
       this.ports = this.grid.ports.map((d, k) => new WS.Port(this, k, d));
-      this.layout = new Layout(this);
+      this.layout = this.createLayout();
       this.kpi = new WS.KPI(this);
       this.robots = [];
       this.seed();
       this.oms = new WS.OMS(this);
       this.dispatchTimer = 0; this.heatTimer = 0;
-      this.log('system', `Grid ${this.cfg.gridW}×${this.cfg.gridD}×${this.cfg.gridZ} online · ${this.robots.length} robots · ${this.inv.bins.length} bins · ${this.ports.length} ports`);
+      this.log('system', this.describe());
+    }
+
+    // ---------------------------------------------------------------- storage type
+    // A storage type (see PodSim) overrides these hooks; the order flow, ports,
+    // inventory, router and KPIs are shared.
+    get kind() { return 'cube'; }
+    get terms() { return TERMS; }
+    get taskTypes() { return WS.Tasks; }
+    defaults() { return WS.DEFAULT_CONFIG; }
+    createGrid() { return new WS.Grid(this.cfg); }
+    createLayout() { return new Layout(this); }
+    describe() { return `Grid ${this.cfg.gridW}×${this.cfg.gridD}×${this.cfg.gridZ} online · ${this.robots.length} robots · ${this.inv.bins.length} bins · ${this.ports.length} ports`; }
+    compLabel(k) { return 'compartment ' + (k + 1); }
+    storageCapacity() { const g = this.grid; return g.type.reduce((s, t) => s + (t === WS.CELL.STORAGE ? g.Z : 0), 0); }
+    // Cost of fetching a bin for an order line: digging depth, travel, a locked column.
+    fetchCost(bin) {
+      if (bin.loc !== 'grid') return 25;
+      const g = this.grid, i = this.inv.binColumn(bin);
+      return (g.depthOf(i, bin.id) - 1) * 9 + this.inv.portDist[i] * 0.5 + (g.colLock[i] >= 0 ? 6 : 0);
     }
 
     seed() {
@@ -224,5 +243,8 @@
     }
   }
 
+  const TERMS = { unit: 'bin', Unit: 'Bin', units: 'bins', Units: 'Bins', store: 'grid', Store: 'Grid', port: 'port', ports: 'ports' };
+
   WS.Sim = Sim;
+  WS.Layout = Layout;
 })((globalThis.WS = globalThis.WS || {}));

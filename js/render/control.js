@@ -45,7 +45,7 @@
       }
       const x = Math.floor((mx - m.ox) / m.s), y = Math.floor((my - m.oy) / m.s);
       if (!g.inside(x, y)) return null;
-      const i = g.idx(x, y), port = this.sim.ports.find((p) => g.idx(p.drop.x, p.drop.y) === i || g.idx(p.lift.x, p.lift.y) === i);
+      const i = g.idx(x, y), port = this.sim.ports.find((p) => p.cells.some((c) => g.idx(c.x, c.y) === i));
       return port ? { kind: 'port', id: port.idx } : { kind: 'cell', id: i };
     }
 
@@ -54,14 +54,12 @@
       const t = performance.now() / 1000;
       c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
       c.font = '600 11px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.fillStyle = C.muted; c.textAlign = 'left';
-      c.fillText('GRID SURFACE · fill = stack height' + (this.heat ? ' · red = traffic wait' : ''), m.ox, m.oy - 10);
+      c.fillText(g.mapTitle + (this.heat ? ' · red = traffic wait' : ''), m.ox, m.oy - 10);
       for (let y = 0; y < g.D; y++) for (let x = 0; x < g.W; x++) {
         const i = g.idx(x, y), px = m.ox + x * s, py = m.oy + y * s, ty = g.type[i];
-        if (ty === WS.CELL.STORAGE) c.fillStyle = mix('#131c2c', '#2a5d9e', g.stacks[i].length / g.Z);
-        else if (ty === WS.CELL.PORT) c.fillStyle = '#3a2a0a';
-        else c.fillStyle = '#0f3321';
+        c.fillStyle = g.mapFill(i, mix);
         c.fillRect(px + 0.5, py + 0.5, s - 1, s - 1);
-        if (this.heat && ty === WS.CELL.STORAGE) {
+        if (this.heat && (ty === WS.CELL.STORAGE || g.passable(i))) {
           const v = Math.min(1, g.waitHeat[i] / 40);
           if (v > 0.05) { c.fillStyle = `rgba(239,68,68,${(v * 0.75).toFixed(2)})`; c.fillRect(px + 0.5, py + 0.5, s - 1, s - 1); }
         }
@@ -70,15 +68,15 @@
       // ports & chargers
       c.textAlign = 'center'; c.textBaseline = 'middle';
       for (const p of sim.ports) {
-        const x0 = Math.min(p.drop.x, p.lift.x), y0 = Math.min(p.drop.y, p.lift.y);
-        const pw = (Math.abs(p.drop.x - p.lift.x) + 1) * s, ph = (Math.abs(p.drop.y - p.lift.y) + 1) * s;
+        const xs = p.cells.map((q) => q.x), ys = p.cells.map((q) => q.y), x0 = Math.min(...xs), y0 = Math.min(...ys);
+        const pw = (Math.max(...xs) - x0 + 1) * s, ph = (Math.max(...ys) - y0 + 1) * s;
         const starving = p.recentStarve > 0.35;
         c.strokeStyle = starving ? `rgba(239,68,68,${(0.6 + 0.4 * Math.sin(t * 5)).toFixed(2)})` : '#facc15'; c.lineWidth = 2;
         c.strokeRect(m.ox + x0 * s + 1, m.oy + y0 * s + 1, pw - 2, ph - 2);
         c.fillStyle = '#fde68a'; c.font = '700 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-        const lx = m.ox + x0 * s + pw / 2, ly = p.face === 'front' ? m.oy + (y0 + 1) * s + 9 : m.oy + y0 * s + ph / 2;
+        const lx = m.ox + x0 * s + pw / 2, ly = p.face === 'front' ? m.oy + y0 * s + ph + 9 : m.oy + y0 * s + ph / 2;
         if (p.face === 'front') c.fillText(p.code, lx, ly);
-        else { c.save(); c.translate(m.ox + (x0 + 1) * s + 8, ly); c.rotate(-Math.PI / 2); c.fillText(p.code, 0, 0); c.restore(); }
+        else { c.save(); c.translate(m.ox + x0 * s + pw + 8, ly); c.rotate(-Math.PI / 2); c.fillText(p.code, 0, 0); c.restore(); }
       }
       for (const ch of g.chargers) {
         c.fillStyle = '#4ade80'; c.font = '700 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.fillText('⚡', m.ox + (ch.x + 0.5) * s, m.oy + (ch.y + 0.5) * s);
@@ -149,7 +147,7 @@
       const { c, w, h } = setup(this.chartT), S = this.sim.kpi.series;
       c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
       const pad = { l: 40, r: 64, t: 12, b: 20 };
-      const series = [{ k: 'bins', col: C.s1, label: 'Bins at ports /h' }, { k: 'lines', col: C.s2, label: 'Order lines /h' }];
+      const tm = this.sim.terms, series = [{ k: 'bins', col: C.s1, label: `${tm.Units} at ${tm.ports} /h` }, { k: 'lines', col: C.s2, label: 'Order lines /h' }];
       if (S.length < 2) { c.fillStyle = C.muted; c.font = '500 12px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.textAlign = 'center'; c.fillText('Collecting samples (every 30 s sim-time)…', w / 2, h / 2); return; }
       let ymax = 10; for (const p of S) for (const s of series) ymax = Math.max(ymax, p[s.k]);
       ymax = Math.ceil((ymax * 1.15) / 50) * 50;

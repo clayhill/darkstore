@@ -25,6 +25,16 @@
     cy(i) { return (i / this.W) | 0; }
     inside(x, y) { return x >= 0 && y >= 0 && x < this.W && y < this.D; }
     isStorage(i) { return this.type[i] === CELL.STORAGE; }
+    // Traffic rules used by the router: robots drive over storage cells only;
+    // ports and chargers are destinations, never thoroughfares.
+    passable(i) { return this.type[i] === CELL.STORAGE; }
+    canPark(i) { return this.type[i] === CELL.STORAGE; }
+    // Control-room map: cell colour (stack height) and caption.
+    mapFill(i, mix) {
+      const t = this.type[i];
+      return t === CELL.STORAGE ? mix('#131c2c', '#2a5d9e', this.stacks[i].length / this.Z) : t === CELL.PORT ? '#3a2a0a' : '#0f3321';
+    }
+    get mapTitle() { return 'GRID SURFACE · fill = stack height'; }
     height(i) { return this.stacks[i].length; }
     // [X][Y][Z] accessor, z counted from the floor
     binAt(x, y, z) { return this.stacks[this.idx(x, y)][z]; }
@@ -48,6 +58,7 @@
         this.ports.push({ kind: 'GOODS_IN', face: 'right', drop: { x: W - 1, y: gy }, lift: { x: W - 1, y: gy + 1 } });
       }
       for (const p of this.ports) {
+        p.cells = [p.drop, p.lift];
         this.type[this.idx(p.drop.x, p.drop.y)] = CELL.PORT;
         this.type[this.idx(p.lift.x, p.lift.y)] = CELL.PORT;
       }

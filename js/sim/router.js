@@ -27,9 +27,9 @@
       if (start === goal) return [{ x: r.x, y: r.y }];
       const robots = sim.robots;
       const cellCost = 1 / this.vmax;
-      const blocked = (i) => {
-        if (i === goal) return false;
-        if (g.type[i] !== WS.CELL.STORAGE) return true; // ports & chargers only as destinations
+      const blocked = (i, from) => {
+        if (i === goal) return g.enterGoal ? !g.enterGoal(i, r, from) : false;
+        if (!g.passable(i, r, from)) return true; // e.g. ports & chargers only as destinations
         const o = g.claim[i];
         if (o < 0 || o === r.id) return false;
         const ro = robots[o];
@@ -64,7 +64,7 @@
           const nx = x + DX[d], ny = y + DY[d];
           if (nx < 0 || ny < 0 || nx >= W || ny >= g.D) continue;
           const ni = ny * W + nx;
-          if (blocked(ni)) continue;
+          if (blocked(ni, ci)) continue;
           let cost = cellCost + extra(ni);
           const axis = d < 2 ? 'x' : 'y';
           if (dir === 4) { if (axis !== r.axis) cost += this.sim.cfg.wheelShift; cost += this.vmax / this.acc * 0.5; }
@@ -193,7 +193,7 @@
         const nx = r.x + DX[d], ny = r.y + DY[d];
         if (!g.inside(nx, ny) || (nx === avoid.x && ny === avoid.y)) continue;
         const i = g.idx(nx, ny);
-        if (g.type[i] !== WS.CELL.STORAGE || g.claim[i] >= 0) continue;
+        if (!g.passable(i, r, g.idx(r.x, r.y)) || g.claim[i] >= 0) continue;
         opts.push({ x: nx, y: ny });
       }
       if (!opts.length) return;
@@ -216,13 +216,13 @@
       let target = -1;
       for (let h = 0; h < q.length && h < 400; h++) {
         const ci = q[h];
-        if (ci !== start && !avoid.has(ci) && g.claim[ci] < 0 && g.type[ci] === WS.CELL.STORAGE) { target = ci; break; }
+        if (ci !== start && !avoid.has(ci) && g.claim[ci] < 0 && g.canPark(ci, o)) { target = ci; break; }
         const x = ci % g.W, y = (ci / g.W) | 0;
         for (let d = 0; d < 4; d++) {
           const nx = x + DX[d], ny = y + DY[d];
           if (!g.inside(nx, ny)) continue;
           const ni = g.idx(nx, ny);
-          if (seen[ni] || g.type[ni] !== WS.CELL.STORAGE) continue;
+          if (seen[ni] || !g.passable(ni, o, ci)) continue;
           const c = g.claim[ni];
           if (c >= 0 && c !== o.id && sim.robots[c].busy) continue;
           seen[ni] = 1; q.push(ni);

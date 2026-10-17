@@ -40,10 +40,12 @@
         return false;
       });
       if (!bin.requests.length) sim.binsWithRequests.delete(bin);
-      let t = cfg.scanTime;
+      if (sim.sequenceLines) sim.sequenceLines(bin, lines, this);
+      let t = cfg.scanTime, prev = null;
       for (const ln of lines) {
+        if (sim.lineOverhead) t += sim.lineOverhead(bin, ln, prev, this); // e.g. turning a pod to another face
         t += this.kind === 'PICK' ? 1.0 + ln.qty * cfg.pickPerUnit + cfg.putConfirm : 2.0 + ln.qty * cfg.decantPerUnit;
-        ln.at = t;
+        ln.at = t; prev = ln;
       }
       if (this.kind === 'GOODS_IN') t += 1.5; // bin confirm
       this.job = { bin, lines, t: 0, total: Math.max(t, 1.5), next: 0 };

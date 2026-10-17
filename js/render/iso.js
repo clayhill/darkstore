@@ -5,7 +5,7 @@
   'use strict';
   const TW = 64, TH = 32, LV = 17;
   const STATE_COLORS = {
-    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
+    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', LIFTING_POD: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
     AT_PORT: '#2dd4bf', STORING: '#a78bfa', RESTACKING: '#fb923c', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
     TO_CHARGER: '#facc15', CHARGING: '#fde047', YIELDING: '#cbd5e1',
   };
@@ -32,7 +32,7 @@
       this.opts = { xray: false, heat: false, paths: true, claims: true, labels: true };
       this.selected = null; this.hover = null;
       this.xcache = document.createElement('canvas'); this.xkey = ''; this.xtime = 0; this.xcam = null;
-      this.t = 0;
+      this.t = 0; this.CZ = 2.2; // conveyor height (levels)
       this.bindInput();
     }
     get sim() { return this.app.sim; }
@@ -493,11 +493,63 @@
       }
     }
 
-    drawStations() {
+    // Conveyor port: the frame the bins ride through, HMI screen and stack light.
+    drawPortBody(p, add) {
+      const sim = this.sim, g = sim.grid, L = sim.layout, CZ = this.CZ;
+      const pp = L.portPath(p), op = L.operatorPos(p), front = p.face === 'front';
+      const x0 = front ? p.drop.x + 0.1 : g.W, y0 = front ? g.D : p.drop.y + 0.1;
+      const x1 = front ? p.drop.x + 1.9 : g.W + 1.75, y1 = front ? g.D + 1.75 : p.drop.y + 1.9;
+      // anti-fatigue mat where the operator stands
+      add(op.x + op.y - 1.2, () => this.quadTop(op.x - 0.55, op.y - 0.45, op.x + 0.55, op.y + 0.45, 0.02, '#10161f', '#2a3546', 1));
+      add(x0 + y0, () => {
+        this.box(x0, y0, 0, x1, y1, CZ, '#3b4658', { top: '#252f3e' });
+        // kick plate, access panel and black/yellow hazard edge along the working side
+        if (front) { this.faceY(y1 + 0.002, x0 + 0.15, x1 - 0.15, 0.3, CZ - 0.5, '#344052', '#4b5a70'); this.faceY(y1 + 0.002, x0, x1, 0, 0.22, '#1f2733'); }
+        else { this.faceX(x1 + 0.002, y0 + 0.15, y1 - 0.15, 0.3, CZ - 0.5, '#2c3746', '#435064'); this.faceX(x1 + 0.002, y0, y1, 0, 0.22, '#1a212c'); }
+        for (let k = 0; k < 12; k++) {
+          const a = k / 12, b2 = (k + 1) / 12, fill = k % 2 ? '#111827' : '#facc15';
+          if (front) this.faceY(y1 + 0.003, x0 + (x1 - x0) * a, x0 + (x1 - x0) * b2, CZ - 0.25, CZ, fill);
+          else this.faceX(x1 + 0.003, y0 + (y1 - y0) * a, y0 + (y1 - y0) * b2, CZ - 0.25, CZ, k % 2 ? '#0b1220' : '#d4a90f');
+        }
+        // bins on the port conveyor
+        p.inQ.forEach((q, k) => {
+          const f = Math.min(1, q.t / sim.cfg.conveyorStep), a = pp.entry[0], b = pp.entry[1];
+          const t = k === 0 ? f : 0;
+          this.drawBin(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, CZ, q.bin.id, { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 });
+        });
+        if (p.pick) {
+          const ln = p.currentLine;
+          this.drawBin(pp.pick.x, pp.pick.y, CZ, p.pick.id, { open: true, hl: ln ? ln.comp : -1, w: front ? 0.42 : 0.3, d: front ? 0.3 : 0.42 });
+          if (ln) this.glow(pp.pick.x, pp.pick.y, CZ + 1, 30, '#4ade80', 0.25);
+        }
+        p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; this.drawBin(e.x, e.y, CZ, b.id, { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 }); });
+        // operator HMI screen on a post, showing the pick instruction when a job is open
+        const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
+        this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
+        this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
+        this.faceY(sy + 0.045, sx - 0.24, sx + 0.24, 3.4, 4.5, p.job ? '#0c4a6e' : '#111c2e');
+        if (p.job) {
+          this.faceY(sy + 0.05, sx - 0.2, sx + 0.05, 4.2, 4.38, '#e0f2fe');
+          this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80');
+          this.faceY(sy + 0.05, sx - 0.2, sx + 0.1, 3.55, 3.7, '#7dd3fc');
+        }
+        // stack light: green = working, amber = waiting for bins, off = idle
+        const lx = front ? x0 + 0.12 : g.W + 0.12, ly = front ? g.D + 0.12 : y0 + 0.12;
+        this.box(lx - 0.04, ly - 0.04, CZ, lx + 0.04, ly + 0.04, CZ + 2.2, '#64748b');
+        const starving = !p.job && !p.inQ.length && p.demand() > 0, lamps = [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]];
+        lamps.forEach(([lc, on], k) => {
+          const z = CZ + 2.2 + k * 0.42;
+          this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : shade(lc, -0.65), on ? { top: shade(lc, 0.4) } : {});
+          if (on) this.glow(lx, ly, z + 0.2, 16, lc, 0.55);
+        });
+      });
+    }
+
+    // Stations, packing and dock. `items` lets a subclass mix its own floor
+    // objects into the same painter's ordering.
+    drawStations(items = []) {
       const sim = this.sim, g = sim.grid, L = sim.layout, oms = sim.oms;
-      const items = []; // painter's list for floor objects
-      const add = (d, fn) => items.push({ d, fn });
-      const CZ = 2.2; // conveyor height (levels)
+      const add = (d, fn) => items.push({ d, fn }), CZ = this.CZ;
 
       // takeaway conveyor + spurs
       const picks = sim.ports.filter((p) => p.kind === 'PICK');
@@ -515,58 +567,13 @@
       });
 
       for (const p of sim.ports) {
-        const pp = L.portPath(p), op = L.operatorPos(p), front = p.face === 'front';
-        const x0 = front ? p.drop.x + 0.1 : g.W, y0 = front ? g.D : p.drop.y + 0.1;
-        const x1 = front ? p.drop.x + 1.9 : g.W + 1.75, y1 = front ? g.D + 1.75 : p.drop.y + 1.9;
-        // anti-fatigue mat where the operator stands
-        add(op.x + op.y - 1.2, () => this.quadTop(op.x - 0.55, op.y - 0.45, op.x + 0.55, op.y + 0.45, 0.02, '#10161f', '#2a3546', 1));
-        add(x0 + y0, () => {
-          this.box(x0, y0, 0, x1, y1, CZ, '#3b4658', { top: '#252f3e' });
-          // kick plate, access panel and black/yellow hazard edge along the working side
-          if (front) { this.faceY(y1 + 0.002, x0 + 0.15, x1 - 0.15, 0.3, CZ - 0.5, '#344052', '#4b5a70'); this.faceY(y1 + 0.002, x0, x1, 0, 0.22, '#1f2733'); }
-          else { this.faceX(x1 + 0.002, y0 + 0.15, y1 - 0.15, 0.3, CZ - 0.5, '#2c3746', '#435064'); this.faceX(x1 + 0.002, y0, y1, 0, 0.22, '#1a212c'); }
-          for (let k = 0; k < 12; k++) {
-            const a = k / 12, b2 = (k + 1) / 12, fill = k % 2 ? '#111827' : '#facc15';
-            if (front) this.faceY(y1 + 0.003, x0 + (x1 - x0) * a, x0 + (x1 - x0) * b2, CZ - 0.25, CZ, fill);
-            else this.faceX(x1 + 0.003, y0 + (y1 - y0) * a, y0 + (y1 - y0) * b2, CZ - 0.25, CZ, k % 2 ? '#0b1220' : '#d4a90f');
-          }
-          // bins on the port conveyor
-          p.inQ.forEach((q, k) => {
-            const f = Math.min(1, q.t / sim.cfg.conveyorStep), a = pp.entry[0], b = pp.entry[1];
-            const t = k === 0 ? f : 0;
-            this.drawBin(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, CZ, q.bin.id, { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 });
-          });
-          if (p.pick) {
-            const ln = p.currentLine;
-            this.drawBin(pp.pick.x, pp.pick.y, CZ, p.pick.id, { open: true, hl: ln ? ln.comp : -1, w: front ? 0.42 : 0.3, d: front ? 0.3 : 0.42 });
-            if (ln) this.glow(pp.pick.x, pp.pick.y, CZ + 1, 30, '#4ade80', 0.25);
-          }
-          p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; this.drawBin(e.x, e.y, CZ, b.id, { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 }); });
-          // operator HMI screen on a post, showing the pick instruction when a job is open
-          const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
-          this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
-          this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
-          this.faceY(sy + 0.045, sx - 0.24, sx + 0.24, 3.4, 4.5, p.job ? '#0c4a6e' : '#111c2e');
-          if (p.job) {
-            this.faceY(sy + 0.05, sx - 0.2, sx + 0.05, 4.2, 4.38, '#e0f2fe');
-            this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80');
-            this.faceY(sy + 0.05, sx - 0.2, sx + 0.1, 3.55, 3.7, '#7dd3fc');
-          }
-          // stack light: green = working, amber = waiting for bins, off = idle
-          const lx = front ? x0 + 0.12 : g.W + 0.12, ly = front ? g.D + 0.12 : y0 + 0.12;
-          this.box(lx - 0.04, ly - 0.04, CZ, lx + 0.04, ly + 0.04, CZ + 2.2, '#64748b');
-          const starving = !p.job && !p.inQ.length && p.demand() > 0, lamps = [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]];
-          lamps.forEach(([lc, on], k) => {
-            const z = CZ + 2.2 + k * 0.42;
-            this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : shade(lc, -0.65), on ? { top: shade(lc, 0.4) } : {});
-            if (on) this.glow(lx, ly, z + 0.2, 16, lc, 0.55);
-          });
-        });
+        const op = L.operatorPos(p);
+        this.drawPortBody(p, add);
         add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e'));
         if (p.kind === 'PICK') {
           const s0 = L.slotPos(p, 0);
           add(s0.x + s0.y, () => {
-            const wx0 = p.drop.x + 2.0, wx1 = p.drop.x + 4.2, wy0 = s0.y - 0.35, wy1 = s0.y + 0.35;
+            const wx0 = s0.x - 0.3, wx1 = L.slotPos(p, p.slots.length - 1).x + 0.34, wy0 = s0.y - 0.35, wy1 = s0.y + 0.35;
             this.box(wx0, wy0, 0, wx1, wy1, CZ - 0.1, '#334155');
             for (const xx of [wx0, wx1 - 0.08]) this.box(xx, wy0, CZ, xx + 0.08, wy0 + 0.08, 4.6, '#64748b');
             this.box(wx0, wy0, 4.5, wx1, wy0 + 0.1, 4.7, '#64748b');
@@ -770,4 +777,6 @@
   WS.STATE_COLORS = STATE_COLORS;
   WS.CLASS_COLORS = CLASS_COLORS;
   WS.roundRect = roundRect;
+  WS.shade = shade;
+  WS.rgba = rgba;
 })((globalThis.WS = globalThis.WS || {}));

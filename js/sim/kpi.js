@@ -88,7 +88,7 @@
       }
       for (const p of sim.ports) {
         if (p.recentStarve > 0.35 && p.stats.t > 120)
-          out.push({ sev: p.recentStarve > 0.6 ? 'critical' : 'warning', key: 'starve' + p.idx, title: p.name + ' starved', msg: `Waiting for bins ${(p.recentStarve * 100).toFixed(0)}% of recent time`, port: p.idx });
+          out.push({ sev: p.recentStarve > 0.6 ? 'critical' : 'warning', key: 'starve' + p.idx, title: p.name + ' starved', msg: `Waiting for ${sim.terms.units} ${(p.recentStarve * 100).toFixed(0)}% of recent time`, port: p.idx });
         if (p.outQ.length >= 2 && p.job && p.job.next >= p.job.lines.length && p.job.t >= p.job.total)
           out.push({ sev: 'warning', key: 'blocked' + p.idx, title: p.name + ' blocked', msg: 'Outgoing bins not collected — robot shortage', port: p.idx });
       }

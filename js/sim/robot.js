@@ -6,9 +6,9 @@
 (function (WS) {
   'use strict';
 
-  const STATES = ['IDLE', 'MOVING_TO_TARGET', 'DIGGING_BIN', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING', 'YIELDING'];
+  const STATES = ['IDLE', 'MOVING_TO_TARGET', 'DIGGING_BIN', 'LIFTING_POD', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING', 'YIELDING'];
   // KPI buckets: utilization = WORK / total
-  const BUCKET = { IDLE: 'IDLE', YIELDING: 'IDLE', MOVING_TO_TARGET: 'WORK', DIGGING_BIN: 'WORK', TRANSPORTING_TO_PORT: 'WORK', AT_PORT: 'WORK', STORING: 'WORK', RESTACKING: 'WORK', WAITING_IN_TRAFFIC: 'WAIT', WAITING_PORT: 'WAIT', TO_CHARGER: 'CHARGE', CHARGING: 'CHARGE' };
+  const BUCKET = { IDLE: 'IDLE', YIELDING: 'IDLE', MOVING_TO_TARGET: 'WORK', DIGGING_BIN: 'WORK', LIFTING_POD: 'WORK', TRANSPORTING_TO_PORT: 'WORK', AT_PORT: 'WORK', STORING: 'WORK', RESTACKING: 'WORK', WAITING_IN_TRAFFIC: 'WAIT', WAITING_PORT: 'WAIT', TO_CHARGER: 'CHARGE', CHARGING: 'CHARGE' };
 
   class Robot {
     constructor(sim, id, x, y) {
@@ -35,7 +35,7 @@
 
     start(task) {
       this.task = task; task.robot = this.id; task.started = this.sim.time;
-      this.gen = WS.Tasks[task.type](this.sim, this, task);
+      this.gen = (this.sim.taskTypes || WS.Tasks)[task.type](this.sim, this, task);
       this.op = null; this.lastResult = undefined; this.idleTime = 0;
     }
 
@@ -254,4 +254,5 @@
   WS.Robot = Robot;
   WS.Tasks = T;
   WS.ROBOT_STATES = STATES;
+  WS.ROBOT_BUCKET = BUCKET;
 })((globalThis.WS = globalThis.WS || {}));

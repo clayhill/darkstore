@@ -6,8 +6,10 @@
     acc: 0, last: 0,
 
     start() {
-      this.sim = new WS.Sim();
-      this.iso = new WS.IsoRenderer(document.getElementById('iso'), this);
+      // the page picks the storage type; CubeFlow is the default
+      this.Kind = WS.Kind || { Sim: WS.Sim, Renderer: WS.IsoRenderer };
+      this.sim = new this.Kind.Sim();
+      this.iso = new this.Kind.Renderer(document.getElementById('iso'), this);
       this.cr = new WS.ControlRoom(this, document.getElementById('crmap'), document.getElementById('chT'), document.getElementById('chU'));
       this.ui = new WS.UI(this);
       const ro = new ResizeObserver(() => { const fresh = !this.iso.w; this.iso.resize(); if (fresh) this.iso.fit(); });
@@ -26,7 +28,7 @@
       requestAnimationFrame((t) => this.frame(t));
     },
     restart(cfg) {
-      this.sim = new WS.Sim(cfg);
+      this.sim = new this.Kind.Sim(cfg);
       this.iso.selected = null; this.iso.xkey = '';
       this.ui.onRestart();
       this.iso.fit();

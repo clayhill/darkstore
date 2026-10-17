@@ -45,10 +45,11 @@
       this.products.forEach((p, i) => (p.demand = d[i]));
     }
 
-    createBin(ncomp) {
+    // o.prefix / o.digits name the unit, o.asset is the GRAI asset type, o.vol its usable litres
+    createBin(ncomp, o = {}) {
       const serial = this.nextBinSerial++;
       const bin = {
-        id: 'B' + String(serial).padStart(5, '0'), serial, grai: WS.Barcode.makeGRAI(10, serial), ncomp,
+        id: (o.prefix || 'B') + String(serial).padStart(o.digits || 5, '0'), serial, grai: WS.Barcode.makeGRAI(o.asset || 10, serial), ncomp, vol: o.vol || BIN_VOLUME,
         comps: Array.from({ length: ncomp }, () => ({ gtin: null, qty: 0, reserved: 0, incoming: 0 })),
         loc: 'grid', x: -1, y: -1, robot: -1, port: -1, requests: [], task: null, presentations: 0,
       };
@@ -59,7 +60,7 @@
       const s = String(code).trim().toUpperCase();
       return this.binById.get(s) || this.binByGrai.get(s.replace(/^\(?8003\)?/, '')) || null;
     }
-    compCap(bin, prod) { return Math.max(1, Math.floor(BIN_VOLUME / bin.ncomp / prod.vol)); }
+    compCap(bin, prod) { return Math.max(1, Math.floor(bin.vol / bin.ncomp / prod.vol)); }
     binWeight(bin) {
       let w = this.sim.cfg.binTare;
       for (const c of bin.comps) if (c.gtin) w += c.qty * this.byGtin.get(c.gtin).weight;
@@ -156,11 +157,11 @@
     }
 
     // Reserve stock for an order line. Prefers bins already travelling to /
-    // sitting at the port, then shallow bins close to the port.
+    // sitting at the port, then the ones that are cheapest to fetch.
     planLine(gtin, qty, portIdx) {
       const prod = this.byGtin.get(gtin);
       if (!prod || this.available(prod) < qty) return null;
-      const g = this.sim.grid, cand = [];
+      const cand = [];
       for (const id of prod.bins) {
         const bin = this.binById.get(id);
         bin.comps.forEach((c, k) => {
@@ -169,10 +170,7 @@
           if (avail <= 0) return;
           let score;
           if (bin.port === portIdx || bin.requests.some((r) => r.port === portIdx)) score = -100;
-          else if (bin.loc === 'grid') {
-            const i = this.binColumn(bin);
-            score = (g.depthOf(i, bin.id) - 1) * 9 + this.portDist[i] * 0.5 + (g.colLock[i] >= 0 ? 6 : 0);
-          } else score = 25;
+          else score = this.sim.fetchCost(bin);
           cand.push({ bin, comp: k, avail, score });
         });
       }
