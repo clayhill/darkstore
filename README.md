@@ -3,6 +3,15 @@
 A browser simulation of a grid-based (cube storage) automated storage and retrieval
 system, following `input.txt` (robot principles) and `sim_input.txt` (simulation spec).
 
+![Floor view: robots on the grid, pick ports, pack stations and the outbound dock](docs/screenshots/floor.png)
+
+| | |
+|---|---|
+| ![Control room with KPIs, live grid map, workstation status and trend charts](docs/screenshots/control-room.png) | ![X-ray view of every bin in the grid, coloured by ABC velocity class](docs/screenshots/xray-abc.png) |
+| **Control room:** KPIs, live grid map, port status and trends | **X-ray + ABC:** every bin in the grid, coloured by velocity class |
+| ![Close-up of robots digging and delivering bins to the pick ports](docs/screenshots/closeup.png) | ![GS1 logistics label with SSCC barcode](docs/screenshots/shipping-label.png) |
+| **Close-up:** robots digging (winch depth shown) and pick ports | **Shipping label:** GS1 logistics label with SSCC |
+
 ## Run
 
 Open `index.html` in Safari (or any modern browser). It has no build step, no
