@@ -6,7 +6,7 @@
   'use strict';
   const U = WS.U, BC = WS.Barcode, esc = U.esc;
   const $ = (s, r) => (r || document).querySelector(s);
-  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', LIFTING_POD: 'Lifting pod', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
+  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', LIFTING_POD: 'Lifting pod', MAST: 'Mast up/down', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
   const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
   const SEV_ICON = { critical: '⛔', warning: '⚠️', info: 'ℹ️' };
   const LOG_COL = { order: '#7dd3fc', release: '#93c5fd', pick: '#86efac', pack: '#c4b5fd', ship: '#4ade80', inbound: '#fde68a', warn: '#fca5a5', penalty: '#fb923c', robot: '#facc15', system: '#e2e8f0' };

@@ -84,6 +84,7 @@
     // createMachines() · aisleLoad(aisle) / levelLoad(aisle, l) for the storage
     // policy · slotRank(l, s, b): 0 = fastest position, 1 = slowest
     createGrid() { return new Racking(this.cfg, this.rackShape()); }
+    createMap() { return new RackMap(this); }
     storageCapacity() { const c = this.cfg; return c.aisles * c.levels * 2 * this.grid.SB; }
     unitDepth() { return 1; }
     unitCell(bin) { return this.mapGrid.idx(bin.x, bin.y); }
@@ -92,7 +93,7 @@
 
     seed() {
       const cfg = this.cfg, inv = this.inv, rng = this.rng, A = cfg.aisles, L = cfg.levels, B = cfg.bays, SB = this.grid.SB;
-      this.mapGrid = new RackMap(this);
+      this.mapGrid = this.createMap();
       this.conv = []; this.cycleLog = [];
       inv.seedCatalog(cfg.products, rng);
       this.aisles = [];

@@ -74,6 +74,7 @@
     pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer }),
     shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer }),
     crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer }),
+    acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

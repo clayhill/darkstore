@@ -100,3 +100,11 @@ On top of the common output:
   mast               0.8 m/s up and down
   handler            8 s to take or place one tote
   ports              3, 1 goods-in, handover 2 s per tote
+
+StackPilot uses these values, except for a smaller rack so the whole system
+fits the view: 10 aisles x 14 bays, 12 levels, 1 m bays, and 10 robots. A
+robot needs minutes to bring a batch, so each station keeps 12 orders open (a
+wide put wall) and up to 24 totes in flight; with fewer, the stations wait
+for totes however many robots there are. Aisle locking is the default
+traffic rule: in this layout it gave shorter trips and more throughput than
+one-way aisles.

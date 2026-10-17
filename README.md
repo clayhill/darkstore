@@ -7,10 +7,11 @@ simulation and name:
 - **PodSwarm**: pod robots that lift shelving units off the floor and carry them to stations.
 - **RailRunner**: a shuttle AS/RS with a shuttle on every rack level and a lift per aisle.
 - **SkyStack**: a stacker crane AS/RS with one crane per aisle of high racking.
+- **StackPilot**: case-handling robots (ACR) that collect a batch of totes from shelving on one trip.
 
 The specs are in [`specs/`](specs/README.txt). `common.txt` holds the rules shared by every storage
-type, and `cube.txt`, `pod.txt`, `shuttle.txt` and `crane.txt` describe the four types implemented here.
-A spec for ACR (case-handling robots) is written but not implemented yet.
+type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt` and `acr.txt` describe the five types
+implemented here.
 
 ### CubeFlow
 
@@ -50,6 +51,15 @@ A spec for ACR (case-handling robots) is written but not implemented yet.
 | ![Close-up of the cranes: masts on floor rails, carriages carrying totes](docs/screenshots/sky-closeup.png) | ![SkyStack control room: crane cycles, cycle time against the FEM 9.851 reference, I/O queues](docs/screenshots/sky-control.png) |
 | **Close-up:** each crane moves along the aisle and up the mast at the same time | **Control room:** crane cycles, cycle time next to the FEM 9.851 reference and I/O queues |
 
+### StackPilot
+
+![StackPilot: shelving aisles with case-handling robots, queue lanes and stations in front](docs/screenshots/acr-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the robots: masts with back shelves carrying totes, handlers reaching into the racking](docs/screenshots/acr-closeup.png) | ![StackPilot control room: totes per trip, trip time split, aisle waits and the floor map](docs/screenshots/acr-control.png) |
+| **Close-up:** robots carry several totes on their back shelves; the handler runs up the mast at each stop | **Control room:** totes per trip, the fleet's time split, aisle waits and the live floor map |
+
 ## Run
 
 Open `index.html` in Safari (or any modern browser). It has no build step, no
@@ -57,7 +67,7 @@ dependencies and no network calls, so double-clicking the file works.
 
 `index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
 name and page: **CubeFlow** at `cubeflow.html`, **PodSwarm** at `podswarm.html`, **RailRunner** at
-`railrunner.html` and **SkyStack** at `skystack.html`.
+`railrunner.html`, **SkyStack** at `skystack.html` and **StackPilot** at `stackpilot.html`.
 
 ![Landing page with the simulation cards](docs/screenshots/landing.png)
 
@@ -202,6 +212,41 @@ handler to one tote for a like-for-like comparison with FEM; with the velocity p
 cycles come out shorter than the reference, which assumes random locations. Not modelled yet:
 double-deep storage, aisle-changing cranes and a limit on the I/O conveyor.
 
+## What is modelled: StackPilot
+
+StackPilot keeps its totes in the shared racking bookkeeping (`js/sim/rack.js`), but the machines are
+battery robots on a floor grid, with the same router, cell reservations and charging as PodSwarm.
+
+**Floor.** Aisles one robot wide between single-deep shelving, a cross aisle two cells wide behind and
+in front of the racking, a corridor and a column of parking spots and chargers on the right. Each
+station has a short queue lane and a handover point; a conveyor carries totes from there into the
+station, and a return conveyor brings them back out.
+
+**Robot.** A drive unit with a mast, a tote handler and a column of back shelves (8 by default). The
+robot only lifts or handles a tote while standing still, and blocks its aisle cell meanwhile. At a
+stop the handler runs up the mast at mast speed, takes or puts a tote (8 s) and comes back down.
+
+**Trips.** A trip loads the totes waiting on a station's return conveyor, stores them in free
+positions near the trip's retrievals, takes up to a shelf-full of totes that one station needs (the
+most urgent first, then the ones closest to it) and hands them over at that station, 2 s per tote. A
+trip waits for at least 4 totes unless the oldest has waited 25 s. No more robots head for a station
+than its lane holds, so a queue never spills into the cross aisle; a robot with a batch waits at its
+last stop until there is room.
+
+**Aisle traffic.** A setting, to compare: with aisle locking (the default) a trip holds its aisles
+from planning until it has left them, and other robots drive around them; with one-way aisles,
+neighbouring aisles run in opposite directions and robots queue behind one that is handling a tote.
+With the default layout locking gives shorter trips and more throughput (about 600 against 480
+order lines per hour).
+
+**Storage policy.** Positions are ranked low first, then near the front and in the aisles nearest a
+station. With the velocity policy fast movers go to the fastest positions, close to the trip.
+
+**KPIs.** Totes per trip (retrieved and stored) and how full the back shelves are, the trip time and
+how the fleet's working time splits into driving, mast travel, handling, handover and waiting, and
+aisle waits. A robot needs minutes to bring a batch, so each station keeps 12 orders open on a wide
+put wall. Not modelled yet: double-deep storage and robots that climb the racking.
+
 ## Time model
 
 The simulation advances in fixed 100 ms ticks and also has a small discrete-event queue. Rendering
@@ -212,7 +257,7 @@ with the default 16 robots.
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, railrunner.html, skystack.html
+cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -220,16 +265,17 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             robot (battery robot state machine,
             shared tasks), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout), rack (racking, storage policy and conveyor for
-            RailRunner and SkyStack)
+            RailRunner, SkyStack and StackPilot)
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts),
-            rack (see-through racking and conveyors)
+            rack (see-through racking and conveyors, also used by StackPilot)
 js/ui/      ui (panels, inspector, labels, scanning), rack (rack inspector for both rack types)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
             slotting), render, ui (KPI tiles, settings, stack inspector)
 js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, ui
 js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
 js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane]
+js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), render, ui
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, and compares a
             fingerprint of stock, fleet, orders and KPIs with test/golden/<type>.txt
 ```

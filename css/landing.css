@@ -116,6 +116,12 @@ h1 span { background: linear-gradient(180deg, #7dd3fc 20%, #0ea5e9); -webkit-bac
   .cards:has(> .card:nth-child(4):last-child) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 520px)); }
   /* one simulation: a wide feature card */
   .cards:has(> .card:only-child) { grid-template-columns: minmax(0, 960px); }
+@media (min-width: 1200px) {
+  /* five cards: three over two, the second row centred */
+  .cards:has(> .card:nth-child(5):last-child) { grid-template-columns: repeat(6, minmax(0, 230px)); }
+  .cards:has(> .card:nth-child(5):last-child) > .card { grid-column: span 2; }
+  .cards:has(> .card:nth-child(5):last-child) > .card:nth-child(4) { grid-column: 2 / span 2; }
+}
   .card:only-child { flex-direction: row; }
   .card:only-child .preview { flex: 1.3; aspect-ratio: auto; min-height: 340px; border-bottom: 0; border-right: 1px solid var(--line); }
   .card:only-child .body { flex: 1; padding: 32px; justify-content: center; }

@@ -15,6 +15,7 @@ once, in common.txt.
                 (the Kiva-style system, implemented as PodSwarm)
   acr.txt       case-handling robots: floor robots with a mast that pick
                 totes from ordinary shelving, several per trip
+                (implemented as StackPilot)
   crane.txt     stacker crane AS/RS: one crane per aisle, mini-load (totes)
                 or unit-load (pallets) (mini-load implemented as SkyStack)
 

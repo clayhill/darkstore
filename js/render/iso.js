@@ -6,7 +6,7 @@
   'use strict';
   const TW = 64, TH = 32, LV = 17;
   const STATE_COLORS = {
-    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', LIFTING_POD: '#f59e0b', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
+    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', LIFTING_POD: '#f59e0b', MAST: '#e879f9', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
     AT_PORT: '#2dd4bf', STORING: '#a78bfa', RESTACKING: '#fb923c', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
     TO_CHARGER: '#facc15', CHARGING: '#fde047', YIELDING: '#cbd5e1',
   };

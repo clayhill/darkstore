@@ -22,16 +22,16 @@
 
     // Each rack side is a tinted volume with the ends of its totes showing on
     // the aisle side and at the front, steel beams per level and uprights every
-    // two bays.
+    // two bays. Bays start at y = g.Y0 (0 unless a cross aisle runs behind them).
     renderRacks() {
-      const sim = this.sim, g = sim.grid, inv = sim.inv, P = this.P.bind(this), B = g.B, c = this.ctx;
+      const sim = this.sim, g = sim.grid, inv = sim.inv, P = this.P.bind(this), Y0 = g.Y0 || 0, B = Y0 + g.B, c = this.ctx;
       for (const aisle of sim.aisles) {
         const a = aisle.a;
         for (const s of [0, 1]) {
           const x0 = a * 3 + s * 2, x1 = x0 + 1, faceX = s === 0 ? x1 : x0; // tote ends face the aisle
-          this.quadTop(x0, 0, x1, B, 0.01, 'rgba(0,0,0,0.3)');
+          this.quadTop(x0, Y0, x1, B, 0.01, 'rgba(0,0,0,0.3)');
           c.globalAlpha = 0.18;
-          this.box(x0, 0, g.Z0 - 0.2, x1, B, g.Z, '#334155');
+          this.box(x0, Y0, g.Z0 - 0.2, x1, B, g.Z, '#334155');
           c.globalAlpha = 1;
           for (let l = 0; l < g.L; l++) {
             const z = g.levelZ(l);
@@ -39,18 +39,18 @@
               const id = aisle.slot[sim.si(l, s, b)];
               if (!id) continue;
               const col = this.toteColor(inv.binById.get(id));
-              this.faceX(faceX, b + 0.1, b + 0.9, z + 0.06, z + 0.06 + TOTE_H, WS.rgba(col, 0.85));
-              this.faceX(faceX, b + 0.08, b + 0.92, z + 0.06 + TOTE_H - 0.18, z + 0.06 + TOTE_H, shade(col, 0.2));
-              if (b === g.SB - 1) this.faceY(g.SB, x0 + 0.1, x1 - 0.1, z + 0.06, z + 0.06 + TOTE_H, shade(col, -0.15));
+              this.faceX(faceX, Y0 + b + 0.1, Y0 + b + 0.9, z + 0.06, z + 0.06 + TOTE_H, WS.rgba(col, 0.85));
+              this.faceX(faceX, Y0 + b + 0.08, Y0 + b + 0.92, z + 0.06 + TOTE_H - 0.18, z + 0.06 + TOTE_H, shade(col, 0.2));
+              if (b === g.SB - 1) this.faceY(Y0 + g.SB, x0 + 0.1, x1 - 0.1, z + 0.06, z + 0.06 + TOTE_H, shade(col, -0.15));
             }
-            this.line(P(x1, 0, z), P(x1, B, z), 'rgba(203,213,225,0.35)', 1);
+            this.line(P(x1, Y0, z), P(x1, B, z), 'rgba(203,213,225,0.35)', 1);
             this.line(P(x0, B, z), P(x1, B, z), 'rgba(203,213,225,0.5)', 1);
           }
-          for (let b = 0; b <= B; b += 2) this.line(P(x1, b, 0), P(x1, b, g.Z), 'rgba(148,163,184,0.4)', 1);
-          for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) this.line(P(px, py, 0), P(px, py, g.Z), '#94a3b8', 1.6);
+          for (let b = Y0; b <= B; b += 2) this.line(P(x1, b, 0), P(x1, b, g.Z), 'rgba(148,163,184,0.4)', 1);
+          for (const [px, py] of [[x0, B], [x1, B], [x1, Y0]]) this.line(P(px, py, 0), P(px, py, g.Z), '#94a3b8', 1.6);
           this.line(P(x0, B, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
-          this.line(P(x1, 0, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
-          this.line(P(x0, 0, g.Z), P(x0, B, g.Z), 'rgba(148,163,184,0.6)', 1);
+          this.line(P(x1, Y0, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
+          this.line(P(x0, Y0, g.Z), P(x0, B, g.Z), 'rgba(148,163,184,0.6)', 1);
         }
         this.drawLaneRails(a);
       }

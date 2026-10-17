@@ -4,12 +4,13 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
     shuttle: [`${SC.aisles} aisles`, `${SC.levels} levels`, `${SC.aisles * SC.levels} shuttles`, `${SC.aisles} lifts`],
     crane: [`${KC.aisles} aisles`, `${KC.levels} levels`, `${KC.aisles} cranes`, `twin load handler`],
+    acr: [`${AC.aisles} aisles`, `${AC.levels} levels`, `${AC.robots} robots`, `${AC.robotSlots} back shelves`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
     for (const s of specs[ul.dataset.specs] || []) {
@@ -468,6 +469,90 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview };
+  // Shelving aisles with case-handling robots: a robot drives into an aisle,
+  // stops, runs its handler up the mast for a tote, collects a few on its back
+  // shelves and brings them to the station at the front.
+  function acrPreview(canvas) {
+    const A = 4, B = 8, L = 6, LH = 0.62, Z0 = 0.3, TOP = Z0 + L * LH, GW = A * 3 + 2, GD = B + 3.2, FY = B + 0.9, ST = { x: GW - 1.4, y: B + 2.4 };
+    const kit = isoKit(canvas, GW, GD, TOP + 0.8, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(33), HUES = ['#38bdf8', '#e879f9', '#facc15'];
+    const slots = new Map();
+    for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B; b++) {
+      const r = rand(); if (r < 0.7) slots.set([a, s2, l, b].join(), r < 0.08 ? HUES[Math.floor(rand() * 3)] : null);
+    }
+    // each robot follows a list of waypoints; at a stop the handler goes up and back
+    const bots = [...Array(3)].map((_, k) => ({ x: ST.x - 1 - k * 1.2, y: FY, z: 0.3, path: [], stop: null, wait: k * 1.5, load: 0 }));
+    function plan(bot) {
+      const a = Math.floor(rand() * A), lx = a * 3 + 1.5, stops = 1 + Math.floor(rand() * 2);
+      bot.path = [{ x: lx, y: FY }];
+      let b = B - 1;
+      for (let k = 0; k < stops; k++) { b = Math.max(0, b - 1 - Math.floor(rand() * 3)); bot.path.push({ x: lx, y: b + 0.5, stop: Z0 + Math.floor(rand() * L) * LH + 0.1 }); }
+      bot.path.push({ x: lx, y: FY }, { x: ST.x, y: FY }, { x: ST.x, y: ST.y - 0.6, drop: true });
+    }
+    let glow = 0;
+    function step(dt) {
+      for (const bot of bots) {
+        if (bot.wait > 0) { bot.wait -= dt; continue; }
+        if (bot.stop) {
+          const s = bot.stop, mz = 1.4 * dt;
+          if (s.up) { bot.z = Math.min(s.h, bot.z + mz); if (bot.z === s.h) { s.up = false; s.hold = 0.6; } }
+          else if (s.hold > 0) { s.hold -= dt; if (s.hold <= 0) bot.load++; }
+          else { bot.z = Math.max(0.3, bot.z - mz); if (bot.z === 0.3) bot.stop = null; }
+          continue;
+        }
+        if (!bot.path.length) { plan(bot); continue; }
+        const w = bot.path[0], dx = w.x - bot.x, dy = w.y - bot.y, m = 2.4 * dt;
+        if (Math.abs(dx) > 1e-3) bot.x = Math.abs(dx) > m ? bot.x + Math.sign(dx) * m : w.x;
+        else if (Math.abs(dy) > 1e-3) bot.y = Math.abs(dy) > m ? bot.y + Math.sign(dy) * m : w.y;
+        else {
+          bot.path.shift();
+          if (w.stop) bot.stop = { h: w.stop, up: true };
+          if (w.drop) { bot.load = 0; bot.wait = 1; glow = 1.2; bot.path.push({ x: ST.x, y: FY }); }
+        }
+      }
+      glow = Math.max(0, glow - dt);
+    }
+    function rack(a, s2) {
+      const x0 = a * 3 + s2 * 2, x1 = x0 + 1, fx = s2 ? x0 : x1;
+      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B, 0), P(x0, B, 0)], 'rgba(56,189,248,.05)');
+      for (let l = 0; l < L; l++) {
+        const z = Z0 + l * LH;
+        for (let b = 0; b < B; b++) {
+          if (!slots.has([a, s2, l, b].join())) continue;
+          const c = slots.get([a, s2, l, b].join());
+          quad([P(fx, b + 0.12, z + 0.05), P(fx, b + 0.88, z + 0.05), P(fx, b + 0.88, z + LH * 0.8), P(fx, b + 0.12, z + LH * 0.8)], c ? c + '44' : 'rgba(30,42,61,.7)', c ? c + 'aa' : 'rgba(56,189,248,.18)');
+        }
+        quad([P(x1, 0, z), P(x1, B, z)], null, 'rgba(56,189,248,.28)');
+      }
+      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
+      for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) quad([P(px, py, 0), P(px, py, TOP)], null, 'rgba(125,211,252,.75)', 1.2);
+      quad([P(x0, B, TOP), P(x1, B, TOP), P(x1, 0, TOP), P(x0, 0, TOP)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
+      ctx.restore();
+    }
+    function drawBot(bot) {
+      const { x, y } = bot, H = TOP + 0.3, moving = bot.wait <= 0 && !bot.stop && bot.path.length;
+      box(x - 0.38, y - 0.38, x + 0.38, y + 0.38, 0, 0.22, '#0f172a', '#f97316', '#b4500c', 'rgba(249,115,22,.8)');
+      ctx.save(); if (moving || bot.stop) { ctx.shadowColor = '#f97316'; ctx.shadowBlur = 10; }
+      for (const [px, py] of [[x - 0.28, y + 0.28], [x + 0.28, y + 0.28], [x + 0.28, y - 0.28]]) quad([P(px, py, 0.22), P(px, py, H)], null, '#fdba74', 1.4);
+      ctx.restore();
+      for (let k = 0; k < 4; k++) {
+        const z = 0.7 + k * (H - 1.2) / 3;
+        quad([P(x - 0.28, y - 0.28, z), P(x + 0.28, y - 0.28, z), P(x + 0.28, y + 0.28, z), P(x - 0.28, y + 0.28, z)], 'rgba(249,115,22,.08)', 'rgba(253,186,116,.5)');
+        if (k < bot.load) box(x - 0.22, y - 0.22, x + 0.22, y + 0.22, z, z + 0.32, 'rgba(56,189,248,.5)', 'rgba(56,189,248,.35)', 'rgba(56,189,248,.25)', '#38bdf8');
+      }
+      box(x - 0.35, y - 0.3, x + 0.35 + (bot.stop && !bot.stop.up && bot.stop.hold > 0 ? 0.5 : 0), y + 0.3, bot.z, bot.z + 0.08, 'rgba(232,121,249,.5)', 'rgba(232,121,249,.35)', 'rgba(232,121,249,.25)', '#e879f9');
+    }
+    animate(canvas, kit, step, () => {
+      quad([P(0, B + 0.3, 0), P(GW, B + 0.3, 0), P(GW, B + 1.5, 0), P(0, B + 1.5, 0)], 'rgba(250,204,21,.04)', 'rgba(250,204,21,.25)');
+      box(ST.x - 0.6, ST.y, ST.x + 0.6, ST.y + 0.9, 0, 0.9, glow ? 'rgba(74,222,128,.55)' : 'rgba(74,222,128,.15)', 'rgba(74,222,128,.25)', 'rgba(74,222,128,.15)', '#4ade80');
+      // painter's order: racks and robots from the back
+      const items = [];
+      for (let a = 0; a < A; a++) { items.push({ d: a * 3, fn: () => rack(a, 0) }); items.push({ d: a * 3 + 2.4, fn: () => rack(a, 1) }); }
+      for (const bot of bots) items.push({ d: bot.y > B ? 100 + bot.x : bot.x - 0.5 + 1, fn: () => drawBot(bot) });
+      items.sort((p, q) => p.d - q.d).forEach((it) => it.fn());
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

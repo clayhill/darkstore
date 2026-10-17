@@ -27,6 +27,11 @@
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Crane',
       sim: ['js/crane/config.js', 'js/crane/sim.js'], view: ['js/render/rack.js', 'js/ui/rack.js', 'js/crane/render.js', 'js/crane/ui.js'],
     },
+    acr: {
+      name: 'StackPilot', sub: 'Case-handling robots', scan: 'tote, order, robot', click: 'robots, rack columns, stations',
+      map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
+      sim: ['js/acr/config.js', 'js/acr/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js'],
+    },
   };
   const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',
     'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/rack.js'];

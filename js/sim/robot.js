@@ -1,7 +1,7 @@
 /* Battery robots on a grid (a WS.Mover): an independent state machine per robot plus the physical
  * constraints (speeds, winch by payload, gripper times, battery drain).
  * Tasks are generator functions that yield primitive operations:
- *   move · winch · grip · release · wait · until · charge
+ *   move · winch · grip · release · wait · until · charge · mast
  * so multi-step jobs read top to bottom. Each storage type adds its own tasks
  * (js/cube/tasks.js, js/pod/sim.js); charging, yielding and parking are shared. */
 (function (WS) {
@@ -53,6 +53,13 @@
             if (f >= 1) this.finishOp();
             break;
           }
+          case 'mast': { // a case-handling robot's handler moving up or down its mast
+            op.t += dt; drain = cfg.battMast;
+            const f = Math.min(1, op.t / op.dur);
+            this.mast = op.from + (op.to - op.from) * f;
+            if (f >= 1) this.finishOp();
+            break;
+          }
           case 'timer': op.t += dt; if (op.t >= op.dur) this.finishOp(); break;
           case 'until': if (op.fn()) this.finishOp(); break;
           case 'charge': {
@@ -96,6 +103,12 @@
             }
             this.winchFrom = this.winch; this.winchTo = o.to;
             this.op = { op: 'winch', t: 0, dur: dist / speed + 0.35 }; // + ramp up/down
+            return;
+          }
+          case 'mast': {
+            const d = Math.abs(o.to - this.mast);
+            if (d < 1e-3) continue;
+            this.op = { op: 'mast', from: this.mast, to: o.to, t: 0, dur: d / o.v };
             return;
           }
           case 'grip': case 'release': this.op = { op: 'timer', t: 0, dur: this.sim.cfg.gripTime }; return;
