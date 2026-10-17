@@ -144,13 +144,14 @@ with the default 16 robots.
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, css/style.css simulator pages
-js/core/    util (RNG, heap), barcode (GS1 encoders), config (CubeFlow defaults)
-js/sim/     shared simulation and CubeFlow: grid, inventory (IMS), router (fleet manager),
-            robot (state machine + tasks), ports, orders (OMS, packing, dock), kpi,
-            sim (loop, dispatcher, layout)
-js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render
-js/render/  iso (isometric floor), control (SCADA map + charts)
+js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
+js/sim/     shared engine: inventory (IMS), router (fleet manager), robot (state machine,
+            shared tasks), ports, orders (OMS, packing, dock), kpi, sim (loop, layout)
+js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts)
 js/ui/      ui (panels, inspector, labels, scanning)
+js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
+            slotting), render
+js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod]
 ```
 

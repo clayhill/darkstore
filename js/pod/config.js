@@ -3,7 +3,7 @@
  * physical values follow typical figures for this kind of system. */
 (function (WS) {
   'use strict';
-  WS.POD_CONFIG = Object.assign({}, WS.DEFAULT_CONFIG, {
+  WS.POD_CONFIG = Object.assign({}, WS.BASE_CONFIG, {
     // Floor
     floorW: 26, floorD: 15,
     cellSize: 1.2, // m — one pod footprint plus clearance

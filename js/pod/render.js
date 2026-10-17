@@ -22,21 +22,13 @@
       return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
     }
 
-    draw(alpha) {
-      const c = this.ctx;
-      this.t = performance.now() / 1000;
-      c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-      const bg = c.createLinearGradient(0, 0, 0, this.h);
-      bg.addColorStop(0, '#0a0f1a'); bg.addColorStop(1, '#121b2b');
-      c.fillStyle = bg; c.fillRect(0, 0, this.w, this.h);
-      c.setTransform(this.dpr * this.cam.zoom, 0, 0, this.dpr * this.cam.zoom, this.dpr * this.cam.x, this.dpr * this.cam.y);
+    drawScene(alpha) {
       this.drawFloor();
       this.drawPodFloor();
       if (this.opts.paths) this.drawPaths(alpha);
       const items = [];
       this.floorObjects(items, alpha);
       this.drawStations(items);
-      if (this.opts.labels) this.drawLabels();
     }
 
     // ---------------------------------------------------------------- floor
@@ -318,7 +310,7 @@
     }
 
     pick(sx, sy) {
-      const sim = this.sim, g = sim.grid, L = sim.layout;
+      const sim = this.sim, g = sim.grid;
       let best = null, bd = 22 * Math.max(1, this.cam.zoom);
       for (const r of sim.robots) {
         const [px, py] = this.P(r.rx + 0.5, r.ry + 0.5, r.bin ? 3 : 0.5);
@@ -334,14 +326,15 @@
         const port = sim.ports.find((p) => p.cells.some((c) => g.idx(c.x, c.y) === i));
         return port ? { kind: 'port', id: port.idx } : { kind: 'cell', id: i };
       }
-      const f = this.toWorld(sx, sy, 1.5);
-      for (const p of sim.ports) {
+      return this.pickStations(this.toWorld(sx, sy, 1.5));
+    }
+    // the pick frame and operator area just outside the station cell
+    pickPort(f) {
+      const g = this.sim.grid;
+      for (const p of this.sim.ports) {
         if (p.face === 'front' && f.x >= p.drop.x - 0.4 && f.x <= p.drop.x + 1.4 && f.y >= g.D && f.y <= g.D + 1.6) return { kind: 'port', id: p.idx };
         if (p.face === 'right' && f.x >= g.W && f.x <= g.W + 1.6 && f.y >= p.drop.y - 0.4 && f.y <= p.drop.y + 1.4) return { kind: 'port', id: p.idx };
       }
-      for (const pk of sim.oms.packers) { const q = L.packerPos(pk.idx); if (Math.abs(f.x - q.x) < 1.2 && Math.abs(f.y - q.y) < 1.2) return { kind: 'packer', id: pk.idx }; }
-      const d = L.dock();
-      if (f.x > d.x - 1 && f.x < d.x + 6 && Math.abs(f.y - d.y) < 1.6) return { kind: 'dock' };
       return null;
     }
   }

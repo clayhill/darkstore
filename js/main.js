@@ -70,7 +70,7 @@
     },
   };
   const KINDS = {
-    cube: () => ({ Sim: WS.Sim, Renderer: WS.IsoRenderer }),
+    cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer }),
     pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer }),
   };
   WS.app = app;

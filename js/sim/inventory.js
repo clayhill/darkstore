@@ -1,6 +1,6 @@
-/* Inventory Management System ("the brain"): item master, storage bins and
- * their compartments, stock reservation, velocity/ABC classification, and the
- * slotting decisions — where a returning bin is stored and where blockers go. */
+/* Inventory Management System ("the brain"): item master, storage units and
+ * their compartments, stock reservation and velocity/ABC classification.
+ * Where a unit is stored is up to each storage type. */
 (function (WS) {
   'use strict';
   const BIN_VOLUME = 64; // litres of usable volume per storage bin
@@ -83,21 +83,9 @@
     isEmpty(bin) { return bin.comps.every((c) => !c.gtin && c.qty === 0 && c.incoming === 0); }
     available(prod) { return prod.onHand - prod.reserved; }
 
-    // ---------- bin ⇄ grid bookkeeping ----------
-    placeOnStack(bin, i) {
-      const g = this.sim.grid;
-      g.stacks[i].push(bin.id);
-      bin.loc = 'grid'; bin.x = g.cx(i); bin.y = g.cy(i); bin.robot = -1; bin.port = -1;
-      g.version++;
-    }
-    liftFromStack(bin, i, robotId) {
-      const g = this.sim.grid, s = g.stacks[i];
-      if (s[s.length - 1] !== bin.id) throw new Error('lift of non-top bin ' + bin.id);
-      s.pop();
-      bin.loc = 'robot'; bin.robot = robotId; g.version++;
-    }
+    // ---------- location ----------
     binColumn(bin) { return bin.loc === 'grid' ? this.sim.grid.idx(bin.x, bin.y) : -1; }
-    binDepth(bin) { return bin.loc === 'grid' ? this.sim.grid.depthOf(this.binColumn(bin), bin.id) : 0; }
+    binDepth(bin) { return bin.loc === 'grid' ? this.sim.unitDepth(bin) : 0; }
 
     computePortDistances() {
       const g = this.sim.grid, picks = g.ports.filter((p) => p.kind === 'PICK');
@@ -193,12 +181,11 @@
     planReceipt(gtin, qty, forcedBin) {
       const prod = this.byGtin.get(gtin), out = [];
       let need = qty;
-      const g = this.sim.grid;
       const consider = forcedBin ? [forcedBin] : this.bins;
       const cand = [];
       for (const bin of consider) {
         if (bin.loc === 'void') continue;
-        const depth = bin.loc === 'grid' ? g.depthOf(this.binColumn(bin), bin.id) : 1;
+        const depth = bin.loc === 'grid' ? this.sim.unitDepth(bin) : 1;
         const cap = this.compCap(bin, prod);
         const empty = this.isEmpty(bin);
         bin.comps.forEach((c, k) => {
@@ -219,60 +206,6 @@
         out.push({ bin: c.bin, comp: c.comp, qty: take }); need -= take;
       }
       return { plan: out, short: need };
-    }
-
-    // ---------- slotting ----------
-    columnRisk(i) {
-      // cost of burying column i: popularity of its top bins + any bins awaiting retrieval
-      const s = this.sim.grid.stacks[i]; let r = 0;
-      for (let k = s.length - 1, w = 1; k >= 0 && w > 0.1; k--, w *= 0.5) {
-        const b = this.binById.get(s[k]);
-        if (b.requests.length) r += 40 * w;
-        r += Math.min(this.binVelocity(b), 20) * 0.6 * w;
-      }
-      return r;
-    }
-    chooseStoreColumn(bin, fx, fy, robotId) {
-      const g = this.sim.grid, cfg = this.sim.cfg, pol = cfg.putawayPolicy;
-      const cls = this.binClass(bin);
-      const target = { A: 0, B: 0.35, C: 0.75, E: 0.6 }[cls];
-      let best = -1, bestS = Infinity;
-      for (let i = 0; i < g.type.length; i++) {
-        if (!g.isStorage(i) || g.stacks[i].length >= g.Z) continue;
-        if (g.colLock[i] >= 0 && g.colLock[i] !== robotId) continue;
-        const travel = WS.U.manhattan(fx, fy, g.cx(i), g.cy(i));
-        let s;
-        if (pol === 'random') s = this.sim.rng();
-        else if (pol === 'nearest') s = travel + this.columnRisk(i) * 0.3;
-        else {
-          const nd = this.portDist[i] / this.maxPortDist;
-          s = Math.abs(nd - target) * 26 + travel * 0.12 + this.columnRisk(i) * (cls === 'C' || cls === 'E' ? 1 : 0.4) + (g.stacks[i].length / g.Z) * 2;
-        }
-        if (s < bestS) { bestS = s; best = i; }
-      }
-      return best;
-    }
-    // Temporary column for a blocker bin during a dig: adjacent first, then further out.
-    findTempColumn(x, y, robotId) {
-      const g = this.sim.grid, origin = g.idx(x, y);
-      for (let rad = 1; rad <= 4; rad++) {
-        let best = -1, bestS = Infinity;
-        for (let dx = -rad; dx <= rad; dx++) {
-          const ady = rad - Math.abs(dx);
-          for (const dy of ady ? [-ady, ady] : [0]) {
-            const nx = x + dx, ny = y + dy;
-            if (!g.inside(nx, ny)) continue;
-            const i = g.idx(nx, ny);
-            if (i === origin || !g.isStorage(i) || g.stacks[i].length >= g.Z) continue;
-            if (g.colLock[i] >= 0) continue;
-            if (g.claim[i] >= 0 && g.claim[i] !== robotId) continue;
-            const s = this.columnRisk(i) + g.stacks[i].length * 0.4;
-            if (s < bestS) { bestS = s; best = i; }
-          }
-        }
-        if (best >= 0) return best;
-      }
-      return -1;
     }
   }
 

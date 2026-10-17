@@ -1,11 +1,12 @@
 // Headless simulation test: node test/run.js [hours] [seed] [cube|pod]
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
-const files = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/grid.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/robot.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js'];
+const files = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/robot.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js',
+  'js/cube/config.js', 'js/cube/grid.js', 'js/cube/tasks.js', 'js/cube/sim.js', 'js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js'];
 for (const f of files) vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });
 const WS = globalThis.WS;
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
-const sim = kind === 'pod' ? new WS.PodSim({ seed }) : new WS.Sim({ seed });
+const sim = kind === 'pod' ? new WS.PodSim({ seed }) : new WS.CubeSim({ seed });
 const g = sim.grid;
 function check() {
   // single occupancy: each robot's current cell claimed by itself, no two robots on same cell

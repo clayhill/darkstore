@@ -4,7 +4,7 @@
  * top-most (accessible) bin. "Depth" is counted from the top: depth 1 = top. */
 (function (WS) {
   'use strict';
-  const CELL = { STORAGE: 0, PORT: 1, CHARGER: 2 };
+  const CELL = WS.CELL;
 
   class Grid {
     constructor(cfg) {
@@ -77,6 +77,5 @@
     }
   }
 
-  WS.CELL = CELL;
   WS.Grid = Grid;
 })((globalThis.WS = globalThis.WS || {}));

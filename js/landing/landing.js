@@ -4,7 +4,7 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.DEFAULT_CONFIG, PC = WS.POD_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
