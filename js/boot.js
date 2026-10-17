@@ -20,11 +20,11 @@
     shuttle: {
       name: 'RailRunner', sub: 'Shuttle AS/RS', scan: 'tote, order, machine', click: 'shuttles, lifts, racks, stations',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
-      sim: ['js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/shuttle/render.js', 'js/shuttle/ui.js'],
+      sim: ['js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/render/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js'],
     },
   };
   const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',
-    'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js'];
+    'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/rack.js'];
   const k = KINDS[document.body.dataset.kind];
   document.title = `${k.name} — DarkStore`;
   // keep the page hidden until the stylesheet is in, so it never flashes unstyled

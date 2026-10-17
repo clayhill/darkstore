@@ -184,8 +184,10 @@ js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet member base),
             robot (battery robot state machine,
             shared tasks), machine (shuttles, lifts), ports, orders (OMS, packing, dock),
-            kpi, sim (loop, layout)
-js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts)
+            kpi, sim (loop, layout), rack (racking, storage policy and conveyor for
+            RailRunner and the crane)
+js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts),
+            rack (see-through racking and conveyors)
 js/ui/      ui (panels, inspector, labels, scanning)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
             slotting), render, ui (KPI tiles, settings, stack inspector)

@@ -1,76 +1,30 @@
-/* RailRunner view: racking drawn see-through so the shuttles running inside the
- * aisles stay visible, a lift tower at the front of every aisle, and the
- * pre-zone conveyor carrying totes to the stations and back. The racking with
- * its totes is a cached layer (redrawn when totes move or the camera changes);
- * shuttles, lifts, buffers and conveyors are drawn every frame on top. */
+/* RailRunner view: the shared see-through racking (WS.RackRenderer) with a pair
+ * of shuttle rails per level, shuttles running inside the aisles, a lift tower
+ * at the front of every aisle, and the pre-zone conveyor to the stations. */
 (function (WS) {
   'use strict';
-  const { shade, STATE_COLORS, CLASS_COLORS } = WS;
-  const TOTE_H = 0.9; // render levels
+  const { shade, STATE_COLORS } = WS;
+  const TOTE_H = WS.RACK_TOTE_H;
 
-  class ShuttleRenderer extends WS.IsoRenderer {
-    drawScene(alpha) {
+  class ShuttleRenderer extends WS.RackRenderer {
+    drawScene() {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();
-      this.drawCached('racks', g.version + '|' + this.opts.heat + '|' + this.reqKey(), () => this.renderRacks());
+      this.drawRacking();
       this.drawShuttles();
       this.drawSelectedCell();
       const items = [];
       for (const aisle of sim.aisles) items.push({ d: g.laneX(aisle.a) + g.B, fn: () => this.drawLift(aisle) });
-      items.push({ d: g.B + 1.4, fn: () => this.drawPreZone() });
-      for (const it of sim.conv) {
-        const q = sim.posOnPath(it);
-        items.push({ d: q.x + q.y + 0.3, fn: () => this.drawBin(q.x, q.y, it.back ? 1.4 : 2.0, it.bin.id, { w: 0.26, d: 0.3 }) });
-      }
+      this.conveyorItems(items);
       this.drawStations(items);
     }
-    // requested totes are drawn white, so the cache must notice new requests
-    reqKey() { let n = 0; for (const b of this.sim.binsWithRequests) n += b.loc === 'grid' ? 1 : 0; return n; }
-
-    toteColor(b) {
-      if (b.requests.length) return '#f8fafc';
-      return this.opts.heat ? CLASS_COLORS[this.sim.inv.binClass(b)] : '#4a5a70';
-    }
-
-    // Racking drawn see-through: each rack side is a tinted volume with the ends
-    // of its totes showing on the aisle side and at the front, steel beams per
-    // level and uprights every two bays. Shuttles are drawn solid on top.
-    renderRacks() {
-      const sim = this.sim, g = sim.grid, inv = sim.inv, P = this.P.bind(this), B = g.B, c = this.ctx;
-      for (const aisle of sim.aisles) {
-        const a = aisle.a;
-        for (const s of [0, 1]) {
-          const x0 = a * 3 + s * 2, x1 = x0 + 1, faceX = s === 0 ? x1 : x0; // tote ends face the aisle
-          this.quadTop(x0, 0, x1, B, 0.01, 'rgba(0,0,0,0.3)');
-          c.globalAlpha = 0.18;
-          this.box(x0, 0, g.Z0 - 0.2, x1, B, g.Z, '#334155');
-          c.globalAlpha = 1;
-          for (let l = 0; l < g.L; l++) {
-            const z = g.levelZ(l);
-            for (let b = 0; b < B - 2; b++) {
-              const id = aisle.slot[sim.si(l, s, b)];
-              if (!id) continue;
-              const col = this.toteColor(inv.binById.get(id));
-              this.faceX(faceX, b + 0.1, b + 0.9, z + 0.06, z + 0.06 + TOTE_H, WS.rgba(col, 0.85));
-              this.faceX(faceX, b + 0.08, b + 0.92, z + 0.06 + TOTE_H - 0.18, z + 0.06 + TOTE_H, shade(col, 0.2));
-              if (b === B - 3) this.faceY(B - 2, x0 + 0.1, x1 - 0.1, z + 0.06, z + 0.06 + TOTE_H, shade(col, -0.15));
-            }
-            this.line(P(x1, 0, z), P(x1, B, z), 'rgba(203,213,225,0.35)', 1);
-            this.line(P(x0, B, z), P(x1, B, z), 'rgba(203,213,225,0.5)', 1);
-          }
-          for (let b = 0; b <= B; b += 2) this.line(P(x1, b, 0), P(x1, b, g.Z), 'rgba(148,163,184,0.4)', 1);
-          for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) this.line(P(px, py, 0), P(px, py, g.Z), '#94a3b8', 1.6);
-          this.line(P(x0, B, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
-          this.line(P(x1, 0, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
-          this.line(P(x0, 0, g.Z), P(x0, B, g.Z), 'rgba(148,163,184,0.6)', 1);
-        }
-        // shuttle rails along the lane, one pair per level
-        const lx = a * 3 + 1;
-        for (let l = 0; l < g.L; l++) {
-          const z = g.levelZ(l);
-          this.line(P(lx + 0.12, 0, z), P(lx + 0.12, B, z), 'rgba(250,204,21,0.35)', 1);
-          this.line(P(lx + 0.88, 0, z), P(lx + 0.88, B, z), 'rgba(250,204,21,0.35)', 1);
-        }
+    // shuttle rails along the lane, one pair per level
+    drawLaneRails(a) {
+      const g = this.sim.grid, P = this.P.bind(this), lx = a * 3 + 1, B = g.B;
+      for (let l = 0; l < g.L; l++) {
+        const z = g.levelZ(l);
+        this.line(P(lx + 0.12, 0, z), P(lx + 0.12, B, z), 'rgba(250,204,21,0.35)', 1);
+        this.line(P(lx + 0.88, 0, z), P(lx + 0.88, B, z), 'rgba(250,204,21,0.35)', 1);
       }
     }
 
@@ -100,15 +54,6 @@
         }
       }
     }
-    drawSelectedCell() {
-      const s = this.selected, sim = this.sim, g = sim.grid;
-      if (!s || s.kind !== 'cell') return;
-      const c = sim.mapGrid.at(s.id);
-      if (!c) return;
-      const x0 = c.a * 3 + c.part, z = c.part === 3 ? 0 : g.levelZ(c.level);
-      if (c.part === 0 || c.part === 2) this.quadTop(x0, 0, x0 + 1, g.B - 2, z + 0.02, 'rgba(56,189,248,0.15)', '#38bdf8', 2.5);
-    }
-
     // Lift tower in front of the aisle with its carriage and the I/O transfer.
     drawLift(aisle) {
       const g = this.sim.grid, lift = aisle.lift, x0 = aisle.a * 3 + 1.08, x1 = aisle.a * 3 + 1.92, y0 = g.B + 0.06, y1 = g.B + 0.94;
@@ -124,39 +69,13 @@
       // totes waiting to go up
       aisle.inQ.slice(0, 2).forEach((it, k) => this.drawBin(g.laneX(aisle.a), g.B + 0.55 + k * 0.6, 1.4, it.bin.id, { w: 0.26, d: 0.28 }));
     }
-    // Conveyor lines: to the stations (higher) and back to the aisles (lower).
-    drawPreZone() {
-      const sim = this.sim, g = sim.grid, last = sim.ports[sim.ports.length - 1].drop.x;
-      this.conveyor([{ x: g.laneX(0), y: g.retY }, { x: last + 1.5, y: g.retY }], 0.42, 1.4, '#2b3646');
-      for (const aisle of sim.aisles) this.conveyor([{ x: g.laneX(aisle.a), y: g.B + 0.5 }, { x: g.laneX(aisle.a), y: g.outY }], 0.4, 2.0);
-      for (const p of sim.ports) {
-        this.conveyor([{ x: p.drop.x + 1.5, y: g.retY }, { x: p.drop.x + 1.5, y: g.D }], 0.4, 1.4, '#2b3646');
-        this.conveyor([{ x: p.drop.x + 0.5, y: g.outY }, { x: p.drop.x + 0.5, y: g.D }], 0.4, 2.0);
+    machinePoints() {
+      const g = this.sim.grid, out = [];
+      for (const aisle of this.sim.aisles) {
+        for (const sh of aisle.shuttles) out.push({ id: sh.id, x: g.laneX(aisle.a), y: sh.pos, z: g.levelZ(sh.l) + 0.3 });
+        out.push({ id: aisle.lift.id, x: g.laneX(aisle.a), y: g.B + 0.5, z: aisle.lift.z });
       }
-      this.conveyor([{ x: g.laneX(0), y: g.outY }, { x: last + 0.5, y: g.outY }], 0.42, 2.0);
-    }
-
-    drawLabels() {
-      super.drawLabels();
-      const g = this.sim.grid;
-      for (const aisle of this.sim.aisles) this.text(`AISLE ${aisle.a + 1}`, g.laneX(aisle.a), g.B + 0.5, g.Z + 1.8, { size: 10, bg: 'rgba(15,23,42,0.82)', color: '#fde68a' });
-    }
-
-    pick(sx, sy) {
-      const sim = this.sim, g = sim.grid, near = (x, y, z) => { const [px, py] = this.P(x, y, z); return Math.hypot(this.cam.x + px * this.cam.zoom - sx, this.cam.y + py * this.cam.zoom - sy); };
-      let best = null, bd = 16 * Math.max(1, this.cam.zoom);
-      for (const aisle of sim.aisles) {
-        for (const sh of aisle.shuttles) { const d = near(g.laneX(aisle.a), sh.pos, g.levelZ(sh.l) + 0.3); if (d < bd) { bd = d; best = { kind: 'robot', id: sh.id }; } }
-        const d = near(g.laneX(aisle.a), g.B + 0.5, aisle.lift.z); if (d < bd) { bd = d; best = { kind: 'robot', id: aisle.lift.id }; }
-      }
-      if (best) return best;
-      // a rack side at some level: try levels from the top down
-      for (let l = g.L - 1; l >= 0; l--) {
-        const w = this.toWorld(sx, sy, g.levelZ(l) + 0.5), a = Math.floor(w.x / 3), part = Math.floor(w.x - a * 3);
-        if (a < 0 || a >= g.A || w.y < 0 || w.y >= g.B || part === 1) continue;
-        return { kind: 'cell', id: sim.mapGrid.idx(a * 4 + part, g.L - 1 - l) };
-      }
-      return this.pickStations(this.toWorld(sx, sy, 1.5));
+      return out;
     }
   }
 
