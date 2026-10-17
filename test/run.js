@@ -1,28 +1,48 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle]
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
-const files = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/robot.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js',
-  'js/cube/config.js', 'js/cube/grid.js', 'js/cube/tasks.js', 'js/cube/sim.js', 'js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js'];
+const files = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/robot.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/machine.js',
+  'js/cube/config.js', 'js/cube/grid.js', 'js/cube/tasks.js', 'js/cube/sim.js', 'js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js',
+  'js/shuttle/config.js', 'js/shuttle/sim.js'];
 for (const f of files) vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });
 const WS = globalThis.WS;
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
-const sim = kind === 'pod' ? new WS.PodSim({ seed }) : new WS.CubeSim({ seed });
+const sim = new { cube: WS.CubeSim, pod: WS.PodSim, shuttle: WS.ShuttleSim }[kind]({ seed });
 const g = sim.grid;
 function check() {
   // single occupancy: each robot's current cell claimed by itself, no two robots on same cell
   const seen = new Map();
-  for (const r of sim.robots) {
+  for (const r of kind === 'shuttle' ? [] : sim.robots) {
     const i = g.idx(r.x, r.y);
     if (g.claim[i] !== r.id) throw new Error(`t=${sim.time.toFixed(1)} ${r.name} cell not claimed by itself (claim=${g.claim[i]})`);
     if (seen.has(i)) throw new Error('two robots on cell ' + i);
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'shuttle') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
     if (oh !== p.onHand || res !== p.reserved) throw new Error(`stock mismatch ${p.gtin} oh ${oh}/${p.onHand} res ${res}/${p.reserved}`);
+  }
+}
+// shuttle: every tote in exactly one place — a rack slot, a shuttle, a buffer,
+// the lift, the conveyor, an aisle's queue or a station
+function checkRacking() {
+  const where = new Map(), put = (id, w) => { if (where.has(id)) throw new Error(`${id} in ${where.get(id)} and ${w}`); where.set(id, w); };
+  for (const a of sim.aisles) {
+    a.slot.forEach((id, i) => { if (id) put(id, 'slot'); });
+    a.outBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'outBuf')));
+    a.inBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'inBuf')));
+    a.inQ.forEach((it) => put(it.bin.id, 'inQ'));
+    for (const r of [...a.shuttles, a.lift]) if (r.bin) put(r.bin, r.name);
+  }
+  sim.conv.forEach((it) => put(it.bin.id, 'conveyor'));
+  for (const p of sim.ports) { p.inQ.forEach((q) => put(q.bin.id, p.code)); if (p.pick) put(p.pick.id, p.code); p.outQ.forEach((b) => put(b.id, p.code)); }
+  for (const b of sim.inv.bins) {
+    if (!where.has(b.id)) throw new Error(`tote ${b.id} (${b.loc}) is nowhere`);
+    if (b.loc === 'grid' && where.get(b.id) !== 'slot') throw new Error(`${b.id} loc grid but in ${where.get(b.id)}`);
+    if (b.loc === 'grid' && sim.aisles[b.aisle].slot[sim.si(b.level, b.side, b.bay)] !== b.id) throw new Error('slot mismatch ' + b.id);
   }
 }
 // pods: every stored pod on exactly one cell, every other pod on a robot
