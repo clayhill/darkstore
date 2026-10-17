@@ -7,11 +7,6 @@
   const { shade, rgba, STATE_COLORS, CLASS_COLORS } = WS;
 
   class CubeRenderer extends WS.IsoRenderer {
-    constructor(canvas, app) {
-      super(canvas, app);
-      this.xcache = document.createElement('canvas'); this.xkey = ''; this.xtime = 0; this.xcam = null;
-    }
-
     pick(sx, sy) {
       const sim = this.sim, g = sim.grid;
       // robots (projected centre)
@@ -80,27 +75,9 @@
     }
 
     // X-ray: every bin of the [X][Y][Z] matrix, coloured by ABC class.
-    drawXray() {
-      const g = this.sim.grid, now = performance.now();
-      const key = g.version + '|' + this.w + 'x' + this.h + '|' + this.opts.xray;
-      const camKey = this.cam.x.toFixed(1) + ',' + this.cam.y.toFixed(1) + ',' + this.cam.zoom.toFixed(4);
-      const stale = key !== this.xkey || camKey !== this.xcamKey;
-      if (stale && (now - this.xtime > 180 || !this.xcam)) {
-        this.renderXrayCache(); this.xkey = key; this.xcamKey = camKey; this.xtime = now;
-        this.xcam = { x: this.cam.x, y: this.cam.y, zoom: this.cam.zoom };
-      }
-      const c = this.ctx, s = this.cam.zoom / this.xcam.zoom;
-      c.save();
-      c.setTransform(1, 0, 0, 1, 0, 0);
-      const ox = (this.cam.x - this.xcam.x * s) * this.dpr, oy = (this.cam.y - this.xcam.y * s) * this.dpr;
-      c.drawImage(this.xcache, ox, oy, this.xcache.width * s, this.xcache.height * s);
-      c.restore();
-    }
-    renderXrayCache() {
-      const cv = this.xcache, sim = this.sim, g = sim.grid, inv = sim.inv;
-      cv.width = this.canvas.width; cv.height = this.canvas.height;
-      const saved = this.ctx; const c = cv.getContext('2d'); this.ctx = c;
-      c.setTransform(this.dpr * this.cam.zoom, 0, 0, this.dpr * this.cam.zoom, this.dpr * this.cam.x, this.dpr * this.cam.y);
+    drawXray() { this.drawCached('xray', this.sim.grid.version + '|' + this.opts.heat, () => this.renderXray()); }
+    renderXray() {
+      const sim = this.sim, g = sim.grid, inv = sim.inv;
       const P = this.P.bind(this);
       // ghost frame
       this.poly([P(0, g.D, 0), P(g.W, g.D, 0), P(g.W, 0, 0), P(0, 0, 0)], 'rgba(15,23,42,0.6)');
@@ -116,7 +93,6 @@
       this.line(P(0, g.D, g.Z), P(g.W, g.D, g.Z), 'rgba(148,163,184,0.5)', 1);
       this.line(P(g.W, 0, g.Z), P(g.W, g.D, g.Z), 'rgba(148,163,184,0.5)', 1);
       for (const [x, y] of [[0, g.D], [g.W, g.D], [g.W, 0]]) this.line(P(x, y, 0), P(x, y, g.Z), 'rgba(148,163,184,0.5)', 1);
-      this.ctx = saved;
     }
 
     drawTopSurface() {

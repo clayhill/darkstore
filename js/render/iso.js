@@ -6,7 +6,7 @@
   'use strict';
   const TW = 64, TH = 32, LV = 17;
   const STATE_COLORS = {
-    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', LIFTING_POD: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
+    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', LIFTING_POD: '#f59e0b', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
     AT_PORT: '#2dd4bf', STORING: '#a78bfa', RESTACKING: '#fb923c', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
     TO_CHARGER: '#facc15', CHARGING: '#fde047', YIELDING: '#cbd5e1',
   };
@@ -33,6 +33,7 @@
       this.opts = { xray: false, heat: false, paths: true, claims: true, labels: true };
       this.selected = null; this.hover = null;
       this.t = 0; this.CZ = 2.2; // conveyor height (levels)
+      this.layers = new Map(); // cached static layers, see drawCached()
       this.bindInput();
     }
     get sim() { return this.app.sim; }
@@ -42,7 +43,7 @@
       const r = this.canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
       this.w = r.width; this.h = r.height; this.dpr = dpr;
       this.canvas.width = Math.max(1, Math.round(r.width * dpr)); this.canvas.height = Math.max(1, Math.round(r.height * dpr));
-      this.xkey = '';
+      this.resetCaches();
     }
     worldBounds() {
       const g = this.sim.grid, L = this.sim.layout, d = L.dock();
@@ -63,6 +64,30 @@
       const a = wx / (TW / 2), b = wy / (TH / 2);
       return { x: (a + b) / 2, y: (b - a) / 2 };
     }
+
+    // Draw an expensive, mostly static layer from an offscreen canvas. It is
+    // re-rendered (at most every 180 ms) when `key` or the camera changes; in
+    // between, the cached image is scaled and moved to follow the camera.
+    drawCached(name, key, render) {
+      let L = this.layers.get(name);
+      if (!L) { L = { cv: document.createElement('canvas'), key: '', camKey: '', time: 0, cam: null }; this.layers.set(name, L); }
+      const now = performance.now(), full = key + '|' + this.w + 'x' + this.h;
+      const camKey = this.cam.x.toFixed(1) + ',' + this.cam.y.toFixed(1) + ',' + this.cam.zoom.toFixed(4);
+      if ((full !== L.key || camKey !== L.camKey) && (now - L.time > 180 || !L.cam)) {
+        L.cv.width = this.canvas.width; L.cv.height = this.canvas.height;
+        const saved = this.ctx; this.ctx = L.cv.getContext('2d');
+        this.ctx.setTransform(this.dpr * this.cam.zoom, 0, 0, this.dpr * this.cam.zoom, this.dpr * this.cam.x, this.dpr * this.cam.y);
+        render();
+        this.ctx = saved;
+        Object.assign(L, { key: full, camKey, time: now, cam: { x: this.cam.x, y: this.cam.y, zoom: this.cam.zoom } });
+      }
+      const c = this.ctx, s = this.cam.zoom / L.cam.zoom;
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.drawImage(L.cv, (this.cam.x - L.cam.x * s) * this.dpr, (this.cam.y - L.cam.y * s) * this.dpr, L.cv.width * s, L.cv.height * s);
+      c.restore();
+    }
+    resetCaches() { this.layers.forEach((L) => (L.key = '')); }
 
     // ---------------------------------------------------------------- input
     bindInput() {

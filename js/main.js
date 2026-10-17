@@ -35,7 +35,7 @@
     },
     restart(cfg) {
       this.sim = new this.Kind.Sim(cfg);
-      this.iso.selected = null; this.iso.xkey = '';
+      this.iso.selected = null; this.iso.resetCaches();
       this.ui.onRestart();
       this.iso.fit();
       this.ui.toast('Simulation restarted');
@@ -72,6 +72,7 @@
   const KINDS = {
     cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer }),
     pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer }),
+    shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

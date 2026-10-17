@@ -6,7 +6,7 @@
   'use strict';
   const U = WS.U, BC = WS.Barcode, esc = U.esc;
   const $ = (s, r) => (r || document).querySelector(s);
-  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', LIFTING_POD: 'Lifting pod', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
+  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', LIFTING_POD: 'Lifting pod', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
   const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
   const SEV_ICON = { critical: '⛔', warning: '⚠️', info: 'ℹ️' };
   const LOG_COL = { order: '#7dd3fc', release: '#93c5fd', pick: '#86efac', pack: '#c4b5fd', ship: '#4ade80', inbound: '#fde68a', warn: '#fca5a5', penalty: '#fb923c', robot: '#facc15', system: '#e2e8f0' };
@@ -88,11 +88,11 @@
         this.kpiTile('Throughput', Math.round(k.rate('presented')), tm.units + '/h', `${k.presented} ${tm.units} presented`),
         this.kpiTile('Order lines', Math.round(k.rate('lines')), 'LPH', `${k.unitsPicked} units picked`),
         this.kpiTile('Orders shipped', Math.round(k.rate('shipped')), '/h', `${k.ordersShipped} total`),
-        this.kpiTile('Robot utilization', Math.round(u.work * 100), '%', `now ${Math.round(ur.work * 100)}% · waiting ${Math.round(u.wait * 100)}%`),
+        this.kpiTile((tm.machine || 'Robot') + ' utilization', Math.round(u.work * 100), '%', `now ${Math.round(ur.work * 100)}% · waiting ${Math.round(u.wait * 100)}%`),
         ...this.type.kpiTiles(this),
         this.kpiTile('Order cycle', k.cycleN ? U.fmtDur(k.cycleSum / k.cycleN) : '—', '', 'receipt → truck'),
         this.kpiTile('Orders in process', open.length, '', `${back ? back + ' backordered · ' : ''}${onTruck} on truck`),
-        this.kpiTile('Fleet battery', Math.round(sim.robots.reduce((s, r) => s + r.battery, 0) / sim.robots.length), '%', `${charging} charging`),
+        sim.cfg.chargers ? this.kpiTile('Fleet battery', Math.round(sim.robots.reduce((s, r) => s + r.battery, 0) / sim.robots.length), '%', `${charging} charging`) : '',
       ].join('');
     }
     renderPorts() {
@@ -114,6 +114,8 @@
     }
     taskText(r) {
       const t = r.task; if (!t) return '<span class="faint">—</span>';
+      const own = this.type.taskText && this.type.taskText(this, r);
+      if (own) return own;
       const p = t.port != null ? this.sim.ports[t.port].code : '';
       if (t.type === 'RETRIEVE') return `Retrieve ${t.bin.id} → ${p}`;
       if (t.type === 'STORE') return `Store from ${p}${r.bin ? ' (' + r.bin + ')' : ''}`;
@@ -359,14 +361,13 @@
       const bars = Object.entries(r.stateTime).filter(([, v]) => v / tot > 0.01).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i style="width:${(v / tot) * 100}%;background:${WS.STATE_COLORS[k]}" title="${this.stateLabel(k)} ${Math.round((v / tot) * 100)}%"></i>`).join('');
       const T = this.type;
       const dest = r.goal && r.op && r.op.op === 'move' ? `${r.goal.x}, ${r.goal.y}` : '—';
-      return `<div class="hd"><span class="sdot" style="background:${WS.STATE_COLORS[st]};width:12px;height:12px"></span><b>Robot ${r.name}</b><span class="pill">${this.stateLabel(st)}</span><button class="close">×</button></div>
-        <dl class="kv"><dt>Position</dt><dd>X ${r.x} · Y ${r.y}${r.busy ? ' <span class="pill BACKORDER">cell blocked</span>' : ''}</dd>
-        <dt>Speed</dt><dd>${(r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${T.motion(r)}</dd>
+      return `<div class="hd"><span class="sdot" style="background:${WS.STATE_COLORS[st]};width:12px;height:12px"></span><b>${this.terms.machine || 'Robot'} ${r.name}</b><span class="pill">${this.stateLabel(st)}</span><button class="close">×</button></div>
+        <dl class="kv"><dt>Position</dt><dd>${T.position ? T.position(r) : `X ${r.x} · Y ${r.y}`}${r.busy ? ' <span class="pill BACKORDER">cell blocked</span>' : ''}</dd>
+        <dt>Speed</dt><dd>${(T.speed ? T.speed(r) : r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${T.motion(r)}</dd>
         <dt>Destination</dt><dd>${dest}</dd><dt>Task</dt><dd>${this.taskText(r)}</dd>
         <dt>Carrying</dt><dd>${r.bin ? `<a href="#" data-open="bin:${r.bin}">${r.bin}</a>` : '—'}</dd>
         ${T.mechanism(r)}
-        <dt>Battery</dt><dd>${this.battBar(r.battery)}</dd>
-        <dt>Reserved cells</dt><dd>${r.claims.size}</dd>
+        ${T.power ? `<dt>Power</dt><dd>${T.power(r)}</dd>` : `<dt>Battery</dt><dd>${this.battBar(r.battery)}</dd><dt>Reserved cells</dt><dd>${r.claims.size}</dd>`}
         <dt>Tasks done</dt><dd>${r.tasksDone} · ${r.lifts} ${T.liftsLabel}</dd>
         <dt>Distance</dt><dd>${(r.distance * sim.cfg.cellSize / 1000).toFixed(2)} km</dd></dl>
         <h3>Time by state</h3><div class="bar" style="height:10px">${bars}</div>`;
@@ -377,6 +378,8 @@
       return `<div class="sb" data-open="bin:${id}" style="border-left-color:${WS.CLASS_COLORS[cls]}"><span class="faint">${this.type.depthTag(depth)}</span><span class="mono">${id}${b.requests.length ? ' ★' : ''}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${content}</span></div>`;
     }
     inspectCell(i) { return this.type.inspectCell(this, i); }
+    // all compartments of a unit side by side (types with other layouts override unitView)
+    compGrid(b, cell) { return `<div class="comps ${b.ncomp > 1 ? 'n' + b.ncomp : ''}">${b.comps.map((c, k) => cell(k)).join('')}</div>`; }
     compCell(b, k, hl) {
       const c = b.comps[k];
       return `<div class="comp ${hl ? 'hl' : ''}"><span class="faint">#${k + 1}</span><b>${c.qty}</b>${c.gtin ? esc(this.sim.inv.byGtin.get(c.gtin).name) : '<span class="faint">empty</span>'}</div>`;
@@ -385,7 +388,8 @@
       const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine, tm = this.terms;
       let hmi = `<div class="hmi"><div class="muted">Waiting for next ${tm.unit}…</div></div>`;
       if (j) {
-        const b = j.bin, comps = this.type.unitView(this, b, p, (k) => this.compCell(b, k, ln && ln.comp === k));
+        const b = j.bin, cell = (k) => this.compCell(b, k, ln && ln.comp === k);
+        const comps = this.type.unitView ? this.type.unitView(this, b, p, cell) : this.compGrid(b, cell);
         let task;
         if (ln) {
           const prod = inv.byGtin.get(ln.gtin);
@@ -445,12 +449,12 @@
       const inv = this.sim.inv, b = inv.findBin(id); if (!b) return this.toast('Unknown bin ' + id, true);
       const T = this.type;
       const cell = (k) => { const c = b.comps[k]; return `<div class="comp"><span class="faint">#${k + 1}</span><b>${c.qty}${c.incoming ? `<span class="faint" style="font-size:11px"> +${c.incoming}</span>` : ''}</b>${c.gtin ? `<a href="#" data-open="prod:${c.gtin}">${esc(inv.byGtin.get(c.gtin).name)}</a><br><span class="faint">${c.reserved} reserved</span>` : '<span class="faint">empty</span>'}</div>`; };
-      const comps = T.unitComps(this, b, cell);
+      const comps = T.unitComps ? T.unitComps(this, b, cell) : this.compGrid(b, cell);
       this.modal(`Storage ${this.terms.unit} ` + b.id, `<div class="bcwrap">${BC.gs1SVG([['8003', b.grai]], { height: 50 })}</div><div class="note">GS1-128 · AI 8003 GRAI (returnable asset)</div>
         <dl class="kv" style="margin-top:10px"><dt>Location</dt><dd>${this.binLocation(b)}</dd><dt>Gross weight</dt><dd>${inv.binWeight(b).toFixed(1)} kg</dd><dt>Class</dt><dd>${inv.binClass(b)}</dd><dt>Presentations</dt><dd>${b.presentations}</dd>
         <dt>Requests</dt><dd>${b.requests.map((q) => this.sim.ports[q.port].code + ' (' + q.lines.length + ' lines)').join(', ') || '—'}</dd></dl>
         ${comps}
-        ${b.loc === 'grid' ? `<div class="btns"><button class="btn" data-open="cell:${this.sim.grid.idx(b.x, b.y)}">Show ${T.cellWord}</button></div>` : ''}`);
+        ${b.loc === 'grid' ? `<div class="btns"><button class="btn" data-open="cell:${this.sim.unitCell(b)}">Show ${T.cellWord}</button></div>` : ''}`);
     }
     showOrder(id) {
       const o = this.sim.oms.byId.get(id); if (!o) return this.toast('Unknown order ' + id, true);

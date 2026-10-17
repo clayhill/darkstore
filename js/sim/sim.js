@@ -70,6 +70,8 @@
     compLabel(k) { return 'compartment ' + (k + 1); }
     // depth of a stored unit counted from the top (1 = directly reachable)
     unitDepth(bin) { return this.grid.depthOf(this.inv.binColumn(bin), bin.id); }
+    // cell the inspector opens for a stored unit
+    unitCell(bin) { return this.grid.idx(bin.x, bin.y); }
     onPortOut() {}
 
     // ---------------------------------------------------------------- seeding helpers

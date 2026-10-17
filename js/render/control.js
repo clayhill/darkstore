@@ -31,14 +31,16 @@
       });
     }
     get sim() { return this.app.sim; }
+    // a type may give the control room its own map (RailRunner draws levels × aisles)
+    get grid() { return this.sim.mapGrid || this.sim.grid; }
 
     mapGeom(w, h) {
-      const g = this.sim.grid, pad = 18;
+      const g = this.grid, pad = 18;
       const s = Math.min((w - pad * 2) / g.W, (h - pad * 2 - 14) / (g.D + 0.6));
       return { s, ox: (w - s * g.W) / 2, oy: pad + 14 + (h - pad * 2 - 14 - s * (g.D + 0.6)) / 2 };
     }
     pickMap(mx, my) {
-      const g = this.sim.grid, r = this.map.getBoundingClientRect(), m = this.mapGeom(r.width, r.height);
+      const g = this.grid, r = this.map.getBoundingClientRect(), m = this.mapGeom(r.width, r.height);
       for (const rb of this.sim.robots) {
         const cx = m.ox + (rb.rx + 0.5) * m.s, cy = m.oy + (rb.ry + 0.5) * m.s;
         if (Math.abs(mx - cx) < m.s * 0.5 && Math.abs(my - cy) < m.s * 0.5) return { kind: 'robot', id: rb.id };
@@ -50,7 +52,7 @@
     }
 
     drawMap(alpha) {
-      const { c, w, h } = setup(this.map), sim = this.sim, g = sim.grid, m = this.mapGeom(w, h), s = m.s;
+      const { c, w, h } = setup(this.map), sim = this.sim, g = this.grid, m = this.mapGeom(w, h), s = m.s;
       const t = performance.now() / 1000;
       c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
       c.font = '600 11px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.fillStyle = C.muted; c.textAlign = 'left';

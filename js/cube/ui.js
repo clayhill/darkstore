@@ -49,9 +49,6 @@
         <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to port</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>
         ${s.length ? `<h3>Stack — top (Z=1) to bottom</h3><div class="stack">${s.slice().reverse().map((id, k) => ui.binRow(id, k + 1)).join('')}</div><div class="note">★ = requested by a port. Colour = ABC class of contents.</div>` : ''}`;
     },
-    // all compartments side by side
-    unitView(ui, b, p, cell) { return `<div class="comps ${b.ncomp > 1 ? 'n' + b.ncomp : ''}">${b.comps.map((c, k) => cell(k)).join('')}</div>`; },
-    unitComps(ui, b, cell) { return this.unitView(ui, b, null, cell); },
     locate(ui, b) {
       const g = ui.sim.grid;
       return `Grid X${b.x} Y${b.y} · depth ${ui.sim.inv.binDepth(b)} (Z level ${g.stacks[g.idx(b.x, b.y)].indexOf(b.id) + 1} from floor)`;
