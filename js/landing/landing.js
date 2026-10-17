@@ -4,10 +4,11 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
+    shuttle: [`${SC.aisles} aisles`, `${SC.levels} levels`, `${SC.aisles * SC.levels} shuttles`, `${SC.aisles} lifts`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
     for (const s of specs[ul.dataset.specs] || []) {
@@ -323,6 +324,83 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview };
+  /* ---------- shuttle AS/RS preview ---------- */
+  // Wireframe racking; a shuttle on every level runs to a tote and back to the
+  // aisle front, the lift carries totes down to the conveyor towards a station.
+  function shuttlePreview(canvas) {
+    const A = 3, B = 8, L = 5, LH = 0.75, Z0 = 0.9, GW = A * 3 + 3, GD = B + 2.4;
+    const kit = isoKit(canvas, GW, GD, Z0 + L * LH + 0.8, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(9), HUES = ['#38bdf8', '#e879f9', '#facc15'];
+    const slots = new Map();
+    for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B - 1; b++) {
+      const r = rand(); if (r < 0.7) slots.set([a, s2, l, b].join(), r < 0.08 ? HUES[Math.floor(rand() * 3)] : null);
+    }
+    const shuttles = [];
+    for (let a = 0; a < A; a++) for (let l = 0; l < L; l++) shuttles.push({ a, l, y: B - 0.5, to: B - 0.5, wait: rand() * 3, tote: false });
+    const lifts = [...Array(A)].map((_, a) => ({ a, z: 0.4, to: 0.4, wait: a * 0.9, tote: false }));
+    const totes = []; // on the conveyor: x position
+    const front = B - 0.5, conveyorY = B + 1.4, station = GW - 1.2;
+    let glow = 0;
+    function step(dt) {
+      for (const sh of shuttles) {
+        if (sh.wait > 0) { sh.wait -= dt; continue; }
+        const d = sh.to - sh.y, m = 3.2 * dt;
+        if (Math.abs(d) > m) { sh.y += Math.sign(d) * m; continue; }
+        sh.y = sh.to; sh.wait = 0.6 + rand() * 0.6;
+        if (sh.to === front) { sh.tote = false; sh.to = 0.5 + Math.floor(rand() * (B - 2)); } else { sh.tote = true; sh.to = front; }
+      }
+      for (const lf of lifts) {
+        if (lf.wait > 0) { lf.wait -= dt; continue; }
+        const d = lf.to - lf.z, m = 2.6 * dt;
+        if (Math.abs(d) > m) { lf.z += Math.sign(d) * m; continue; }
+        lf.z = lf.to; lf.wait = 0.5;
+        if (lf.to === 0.4) { if (lf.tote) totes.push(lf.a * 3 + 1.5); lf.tote = false; lf.to = Z0 + Math.floor(rand() * L) * LH; }
+        else { lf.tote = true; lf.to = 0.4; }
+      }
+      for (let k = totes.length - 1; k >= 0; k--) { totes[k] += 1.6 * dt; if (totes[k] >= station) { totes.splice(k, 1); glow = 1.2; } }
+      glow = Math.max(0, glow - dt);
+    }
+    function rack(a, s2) {
+      const x0 = a * 3 + s2 * 2, x1 = x0 + 1, fx = s2 ? x0 : x1, top = Z0 + L * LH;
+      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B, 0), P(x0, B, 0)], 'rgba(56,189,248,.05)');
+      for (let l = 0; l < L; l++) {
+        const z = Z0 + l * LH;
+        for (let b = 0; b < B - 1; b++) {
+          if (!slots.has([a, s2, l, b].join())) continue;
+          const c = slots.get([a, s2, l, b].join());
+          quad([P(fx, b + 0.12, z + 0.05), P(fx, b + 0.88, z + 0.05), P(fx, b + 0.88, z + LH * 0.8), P(fx, b + 0.12, z + LH * 0.8)], c ? c + '44' : 'rgba(30,42,61,.7)', c ? c + 'aa' : 'rgba(56,189,248,.18)');
+        }
+        quad([P(x1, 0, z), P(x1, B, z)], null, 'rgba(56,189,248,.28)');
+      }
+      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
+      for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) quad([P(px, py, 0), P(px, py, top)], null, 'rgba(125,211,252,.75)', 1.2);
+      quad([P(x0, B, top), P(x1, B, top), P(x1, 0, top), P(x0, 0, top)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
+      ctx.restore();
+    }
+    function drawShuttle(sh) {
+      const x = sh.a * 3 + 1, z = Z0 + sh.l * LH, moving = Math.abs(sh.to - sh.y) > 0.01 && sh.wait <= 0;
+      box(x + 0.12, sh.y - 0.4, x + 0.88, sh.y + 0.4, z, z + 0.22, '#0f172a', '#facc15', '#b48a0c', 'rgba(250,204,21,.8)');
+      if (sh.tote) box(x + 0.2, sh.y - 0.3, x + 0.8, sh.y + 0.3, z + 0.22, z + 0.62, 'rgba(56,189,248,.5)', 'rgba(56,189,248,.35)', 'rgba(56,189,248,.25)', '#38bdf8');
+      if (moving) { ctx.save(); ctx.shadowColor = '#facc15'; ctx.shadowBlur = 10; quad([P(x + 0.12, sh.y + 0.4, z + 0.08), P(x + 0.88, sh.y + 0.4, z + 0.08)], null, '#facc15', 2); ctx.restore(); }
+    }
+    animate(canvas, kit, step, () => {
+      // conveyor and station in front
+      quad([P(1, conveyorY - 0.25, 0.4), P(station + 0.6, conveyorY - 0.25, 0.4), P(station + 0.6, conveyorY + 0.25, 0.4), P(1, conveyorY + 0.25, 0.4)], 'rgba(56,189,248,.08)', 'rgba(125,211,252,.5)');
+      for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) {
+        rack(a, s2);
+        if (s2 === 0) shuttles.filter((sh) => sh.a === a).forEach(drawShuttle);
+      }
+      for (const lf of lifts) {
+        const x = lf.a * 3 + 1, top = Z0 + L * LH + 0.4;
+        for (const px of [x + 0.1, x + 0.9]) quad([P(px, B + 0.1, 0), P(px, B + 0.1, top)], null, 'rgba(232,121,249,.8)', 1.4);
+        box(x + 0.1, B + 0.1, x + 0.9, B + 0.9, lf.z, lf.z + 0.12, 'rgba(232,121,249,.5)', 'rgba(232,121,249,.35)', 'rgba(232,121,249,.25)', '#e879f9');
+        if (lf.tote) box(x + 0.2, B + 0.2, x + 0.8, B + 0.8, lf.z + 0.12, lf.z + 0.52, 'rgba(56,189,248,.5)', 'rgba(56,189,248,.35)', 'rgba(56,189,248,.25)', '#38bdf8');
+      }
+      for (const x of totes) box(x - 0.3, conveyorY - 0.22, x + 0.3, conveyorY + 0.22, 0.4, 0.8, 'rgba(56,189,248,.5)', 'rgba(56,189,248,.35)', 'rgba(56,189,248,.25)', '#38bdf8');
+      box(station, conveyorY - 0.6, station + 0.9, conveyorY + 0.6, 0, 0.9, glow ? 'rgba(74,222,128,.55)' : 'rgba(74,222,128,.15)', 'rgba(74,222,128,.25)', 'rgba(74,222,128,.15)', '#4ade80');
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DarkStore — Goods-to-Person Warehouse Simulator</title>
   <meta name="description" content="DarkStore simulates automated goods-to-person warehouses in the browser. Pick a system and watch robots, operators and orders move through it.">
-  <link rel="stylesheet" href="css/landing.css?v=20261018b">
+  <link rel="stylesheet" href="css/landing.css?v=20261019">
 </head>
 <body>
   <div class="backdrop" aria-hidden="true"><div class="floor"></div></div>
@@ -55,15 +55,29 @@
             <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </a>
+        <a class="card" href="railrunner.html">
+          <div class="preview">
+            <canvas data-preview="shuttle" role="img" aria-label="Animated preview: shuttles running along the levels of a rack aisle and lifts bringing totes down to a conveyor"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Shuttle AS/RS</p>
+            <h3>RailRunner</h3>
+            <p class="desc">Aisles of racking with a shuttle on every level. Shuttles fetch totes to the front of the aisle, lifts bring them down and a conveyor feeds the stations.</p>
+            <ul class="specs" data-specs="shuttle"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
       </div>
     </section>
   </main>
 
   <footer>DarkStore is a simulation and teaching tool, not control software for real systems · Apache-2.0</footer>
 
-  <script src="js/core/config.js?v=20261018b"></script>
-  <script src="js/cube/config.js?v=20261018b"></script>
-  <script src="js/pod/config.js?v=20261018b"></script>
-  <script src="js/landing/landing.js?v=20261018b"></script>
+  <script src="js/core/config.js?v=20261019"></script>
+  <script src="js/cube/config.js?v=20261019"></script>
+  <script src="js/pod/config.js?v=20261019"></script>
+  <script src="js/shuttle/config.js?v=20261019"></script>
+  <script src="js/landing/landing.js?v=20261019"></script>
 </body>
 </html>
