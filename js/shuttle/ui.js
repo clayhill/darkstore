@@ -46,11 +46,11 @@
       if (t.type === 'IN') return `Take ${t.bin.id} up`;
       return t.type;
     },
-    cellWord: 'rack position',
-    depthTag(depth) { return 'bay ' + depth; },
+    cellWord: WS.RackUI.cellWord,
+    depthTag: WS.RackUI.depthTag,
     inspectCell(ui, i) {
       const sim = ui.sim, c = sim.mapGrid.at(i);
-      if (!c) return `<div class="hd"><b>Conveyor and stations</b><button class="close">×</button></div><dl class="kv"><dt>Totes on the conveyor</dt><dd>${sim.conv.length}</dd></dl>`;
+      if (!c) return WS.RackUI.conveyorHTML(ui);
       const aisle = sim.aisles[c.a], L = c.level;
       if (c.part === 1 || c.part === 3) {
         const m = c.part === 1 ? aisle.shuttles[L] : aisle.lift;
@@ -59,12 +59,8 @@
           <dt>Outbound buffer</dt><dd>${aisle.outBuf[L].length} / ${sim.cfg.bufferSize}</dd><dt>Inbound buffer</dt><dd>${aisle.inBuf[L].length} / ${sim.cfg.bufferSize}</dd>
           <dt>Retrievals queued</dt><dd>${aisle.shuttles[L].jobs.length}</dd><dt>Totes waiting for the lift</dt><dd>${aisle.inQ.length}</dd></dl>`;
       }
-      const s = c.part / 2, ids = [];
-      for (let b = sim.cfg.bays - 3; b >= 0; b--) { const id = aisle.slot[sim.si(L, s, b)]; if (id) ids.push([id, b + 1]); }
-      return `<div class="hd"><b>Aisle ${c.a + 1} · level ${L + 1} · ${s ? 'right' : 'left'} side</b><button class="close">×</button></div>
-        <dl class="kv"><dt>Totes</dt><dd>${ids.length} / ${sim.cfg.bays - 2}</dd><dt>Shuttle</dt><dd><a href="#" data-open="robot:${aisle.shuttles[L].id}">${aisle.shuttles[L].name}</a></dd></dl>
-        ${ids.length ? `<h3>Front of the aisle first</h3><div class="stack">${ids.map(([id, b]) => ui.binRow(id, b)).join('')}</div><div class="note">★ = requested by a station. Colour = ABC class of contents.</div>` : ''}`;
+      return WS.RackUI.sideHTML(ui, c.a, L, c.part / 2, `<dt>Shuttle</dt><dd><a href="#" data-open="robot:${aisle.shuttles[L].id}">${aisle.shuttles[L].name}</a></dd>`);
     },
-    locate(ui, b) { return `Aisle ${b.aisle + 1} · level ${b.level + 1} · ${b.side ? 'right' : 'left'} side · bay ${b.bay + 1}`; },
+    locate: WS.RackUI.locate,
   };
 })((globalThis.WS = globalThis.WS || {}));

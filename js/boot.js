@@ -20,7 +20,12 @@
     shuttle: {
       name: 'RailRunner', sub: 'Shuttle AS/RS', scan: 'tote, order, machine', click: 'shuttles, lifts, racks, stations',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
-      sim: ['js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/render/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js'],
+      sim: ['js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/render/rack.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js'],
+    },
+    crane: {
+      name: 'SkyStack', sub: 'Stacker crane AS/RS', scan: 'tote, order, crane', click: 'cranes, racks, stations',
+      map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Crane',
+      sim: ['js/crane/config.js', 'js/crane/sim.js'], view: ['js/render/rack.js', 'js/ui/rack.js', 'js/crane/render.js', 'js/crane/ui.js'],
     },
   };
   const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',

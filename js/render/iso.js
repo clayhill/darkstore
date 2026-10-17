@@ -265,8 +265,9 @@
       for (let x = Math.ceil(x0); x <= x1; x += 2) this.line(P(x, y0, 0), P(x, y1, 0), '#222d3f', 1);
       for (let y = Math.ceil(y0); y <= y1; y += 2) this.line(P(x0, y, 0), P(x1, y, 0), '#222d3f', 1);
       c.globalAlpha = 1;
-      // grid shadow + safety walkway
-      this.poly([P(-0.3, -0.3, 0), P(g.W + 0.6, -0.3, 0), P(g.W + 0.6, g.D + 0.6, 0), P(-0.3, g.D + 0.6, 0)], 'rgba(0,0,0,0.35)');
+      // shadow under the storage (racking: only as wide as the aisles) + safety walkway
+      const sw = g.shadowW || g.W;
+      this.poly([P(-0.3, -0.3, 0), P(sw + 0.6, -0.3, 0), P(sw + 0.6, g.D + 0.6, 0), P(-0.3, g.D + 0.6, 0)], 'rgba(0,0,0,0.35)');
       const ys = g.D + 2.75;
       c.setLineDash([6, 6]);
       this.line(P(0, ys + 1.4, 0), P(g.W + 1.2, ys + 1.4, 0), 'rgba(250,204,21,0.45)', 2);

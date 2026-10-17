@@ -6,10 +6,11 @@ simulation and name:
 - **CubeFlow**: cube storage, a grid-based AS/RS where bins are stacked and robots dig from above.
 - **PodSwarm**: pod robots that lift shelving units off the floor and carry them to stations.
 - **RailRunner**: a shuttle AS/RS with a shuttle on every rack level and a lift per aisle.
+- **SkyStack**: a stacker crane AS/RS with one crane per aisle of high racking.
 
 The specs are in [`specs/`](specs/README.txt). `common.txt` holds the rules shared by every storage
-type, and `cube.txt`, `pod.txt` and `shuttle.txt` describe the three types implemented here. Specs for
-ACR and stacker crane systems are written but not implemented yet.
+type, and `cube.txt`, `pod.txt`, `shuttle.txt` and `crane.txt` describe the four types implemented here.
+A spec for ACR (case-handling robots) is written but not implemented yet.
 
 ### CubeFlow
 
@@ -40,18 +41,27 @@ ACR and stacker crane systems are written but not implemented yet.
 | ![Close-up of the aisle fronts: shuttles carrying totes, lifts and the pick stations](docs/screenshots/rail-closeup.png) | ![RailRunner control room: lift utilization, shuttle cycles and a levels-by-aisles map](docs/screenshots/rail-control.png) |
 | **Close-up:** shuttles bring totes to the aisle front, lifts take them down to the stations | **Control room:** lift utilization, shuttle cycles and a map of every level of every aisle |
 
+### SkyStack
+
+![SkyStack: high see-through racking with a stacker crane in each aisle and the stations in front](docs/screenshots/sky-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the cranes: masts on floor rails, carriages carrying totes](docs/screenshots/sky-closeup.png) | ![SkyStack control room: crane cycles, cycle time against the FEM 9.851 reference, I/O queues](docs/screenshots/sky-control.png) |
+| **Close-up:** each crane moves along the aisle and up the mast at the same time | **Control room:** crane cycles, cycle time next to the FEM 9.851 reference and I/O queues |
+
 ## Run
 
 Open `index.html` in Safari (or any modern browser). It has no build step, no
 dependencies and no network calls, so double-clicking the file works.
 
 `index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
-name and page: **CubeFlow** at `cubeflow.html`, **PodSwarm** at `podswarm.html` and **RailRunner** at
-`railrunner.html`.
+name and page: **CubeFlow** at `cubeflow.html`, **PodSwarm** at `podswarm.html`, **RailRunner** at
+`railrunner.html` and **SkyStack** at `skystack.html`.
 
 ![Landing page with the simulation cards](docs/screenshots/landing.png)
 
-Optional URL parameters for both simulation pages (handy for demos):
+Optional URL parameters for every simulation page (handy for demos):
 
 | Parameter | Effect |
 |---|---|
@@ -167,6 +177,31 @@ fast movers are stored near the aisle front.
 and shuttle cycles per hour. Not modelled yet: roaming shuttles, double-deep storage and putting totes
 in sequence on the conveyor.
 
+## What is modelled: SkyStack
+
+SkyStack uses the same racking, storage policy and conveyor as RailRunner (`js/sim/rack.js`), with one
+stacker crane per aisle instead of shuttles and lifts.
+
+**Crane.** The crane drives along a floor rail while its carriage moves up or down the mast, each with
+its own speed and acceleration, so a trip takes the longer of the two. After arriving it settles,
+then the forks go out for a fixed fork cycle per tote. The load handler holds two totes.
+
+**Cycles.** Every cycle starts and ends at the I/O point in front of the aisle. Returning totes wait
+on the infeed. A single command stores or retrieves; a dual command stores first and then retrieves
+on the way back. With two totes on the handler a cycle can do two stores and two retrievals. Stores
+are visited in the order that keeps the crane moving least; retrievals are chosen by crane time from
+where the last store left the crane, with a head start for totes that have waited.
+
+**Storage policy.** Positions are ranked by crane time from the I/O point, so the fastest positions
+form a rectangle low and close to the front. With the velocity policy, A items go to the fastest
+positions, then B, then C, in the aisle with the least work.
+
+**KPIs.** SkyStack reports crane cycles per hour and the share of dual commands, the mean single and
+dual cycle time next to the FEM 9.851 reference cycles for the rack, and the I/O queues. Set the load
+handler to one tote for a like-for-like comparison with FEM; with the velocity policy the measured
+cycles come out shorter than the reference, which assumes random locations. Not modelled yet:
+double-deep storage, aisle-changing cranes and a limit on the I/O conveyor.
+
 ## Time model
 
 The simulation advances in fixed 100 ms ticks and also has a small discrete-event queue. Rendering
@@ -177,23 +212,24 @@ with the default 16 robots.
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, railrunner.html
+cubeflow.html, podswarm.html, railrunner.html, skystack.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet member base),
             robot (battery robot state machine,
-            shared tasks), machine (shuttles, lifts), ports, orders (OMS, packing, dock),
+            shared tasks), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout), rack (racking, storage policy and conveyor for
-            RailRunner and the crane)
+            RailRunner and SkyStack)
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts),
             rack (see-through racking and conveyors)
-js/ui/      ui (panels, inspector, labels, scanning)
+js/ui/      ui (panels, inspector, labels, scanning), rack (rack inspector for both rack types)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
             slotting), render, ui (KPI tiles, settings, stack inspector)
 js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, ui
-js/shuttle/ RailRunner: config, sim (racking, shuttles, lifts, conveyor), render, ui
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle]
+js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
+js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, and compares a
             fingerprint of stock, fleet, orders and KPIs with test/golden/<type>.txt
 ```

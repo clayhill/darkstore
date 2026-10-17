@@ -16,7 +16,7 @@ once, in common.txt.
   acr.txt       case-handling robots: floor robots with a mast that pick
                 totes from ordinary shelving, several per trip
   crane.txt     stacker crane AS/RS: one crane per aisle, mini-load (totes)
-                or unit-load (pallets)
+                or unit-load (pallets) (mini-load implemented as SkyStack)
 
 Each type spec follows the same outline:
 

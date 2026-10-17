@@ -111,8 +111,10 @@ h1 span { background: linear-gradient(180deg, #7dd3fc 20%, #0ea5e9); -webkit-bac
 .go svg { transition: transform .25s; }
 .card:hover .go svg { transform: translateX(4px); }
 
-/* While there is only one simulation, show it as a wide feature card. */
 @media (min-width: 900px) {
+  /* four cards: two by two rather than three and one */
+  .cards:has(> .card:nth-child(4):last-child) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 520px)); }
+  /* one simulation: a wide feature card */
   .cards:has(> .card:only-child) { grid-template-columns: minmax(0, 960px); }
   .card:only-child { flex-direction: row; }
   .card:only-child .preview { flex: 1.3; aspect-ratio: auto; min-height: 340px; border-bottom: 0; border-right: 1px solid var(--line); }

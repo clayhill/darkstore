@@ -4,11 +4,12 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
     shuttle: [`${SC.aisles} aisles`, `${SC.levels} levels`, `${SC.aisles * SC.levels} shuttles`, `${SC.aisles} lifts`],
+    crane: [`${KC.aisles} aisles`, `${KC.levels} levels`, `${KC.aisles} cranes`, `twin load handler`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
     for (const s of specs[ul.dataset.specs] || []) {
@@ -401,6 +402,72 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview };
+  // High racking with a stacker crane in each aisle: the mast drives along the
+  // aisle while the carriage climbs, fetches a tote and brings it to the
+  // conveyor at the front.
+  function cranePreview(canvas) {
+    const A = 3, B = 9, L = 7, LH = 0.62, Z0 = 0.2, TOP = Z0 + L * LH, GW = A * 3 + 3, GD = B + 2.4;
+    const kit = isoKit(canvas, GW, GD, TOP + 0.6, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(21), HUES = ['#38bdf8', '#e879f9', '#facc15'];
+    const slots = new Map();
+    for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B; b++) {
+      const r = rand(); if (r < 0.72) slots.set([a, s2, l, b].join(), r < 0.08 ? HUES[Math.floor(rand() * 3)] : null);
+    }
+    const io = { y: B + 0.5, z: 0.4 };
+    const cranes = [...Array(A)].map((_, a) => ({ a, y: io.y, z: io.z, ty: io.y, tz: io.z, wait: a * 1.1, tote: false }));
+    const totes = [], conveyorY = B + 1.4, station = GW - 1.2;
+    let glow = 0;
+    function step(dt) {
+      for (const cr of cranes) {
+        if (cr.wait > 0) { cr.wait -= dt; continue; }
+        const dy = cr.ty - cr.y, dz = cr.tz - cr.z, my = 3.6 * dt, mz = 1.8 * dt;
+        cr.y = Math.abs(dy) > my ? cr.y + Math.sign(dy) * my : cr.ty;
+        cr.z = Math.abs(dz) > mz ? cr.z + Math.sign(dz) * mz : cr.tz;
+        if (cr.y !== cr.ty || cr.z !== cr.tz) continue;
+        cr.wait = 0.7;
+        if (cr.ty === io.y) {
+          if (cr.tote) totes.push(cr.a * 3 + 1.5);
+          cr.tote = false; cr.ty = 0.5 + Math.floor(rand() * B); cr.tz = Z0 + Math.floor(rand() * L) * LH;
+        } else { cr.tote = true; cr.ty = io.y; cr.tz = io.z; }
+      }
+      for (let k = totes.length - 1; k >= 0; k--) { totes[k] += 1.6 * dt; if (totes[k] >= station) { totes.splice(k, 1); glow = 1.2; } }
+      glow = Math.max(0, glow - dt);
+    }
+    function rack(a, s2) {
+      const x0 = a * 3 + s2 * 2, x1 = x0 + 1, fx = s2 ? x0 : x1;
+      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B, 0), P(x0, B, 0)], 'rgba(56,189,248,.05)');
+      for (let l = 0; l < L; l++) {
+        const z = Z0 + l * LH;
+        for (let b = 0; b < B; b++) {
+          if (!slots.has([a, s2, l, b].join())) continue;
+          const c = slots.get([a, s2, l, b].join());
+          quad([P(fx, b + 0.12, z + 0.05), P(fx, b + 0.88, z + 0.05), P(fx, b + 0.88, z + LH * 0.8), P(fx, b + 0.12, z + LH * 0.8)], c ? c + '44' : 'rgba(30,42,61,.7)', c ? c + 'aa' : 'rgba(56,189,248,.18)');
+        }
+        quad([P(x1, 0, z), P(x1, B, z)], null, 'rgba(56,189,248,.28)');
+      }
+      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
+      for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) quad([P(px, py, 0), P(px, py, TOP)], null, 'rgba(125,211,252,.75)', 1.2);
+      quad([P(x0, B, TOP), P(x1, B, TOP), P(x1, 0, TOP), P(x0, 0, TOP)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
+      ctx.restore();
+    }
+    function drawCrane(cr) {
+      const x = cr.a * 3 + 1.5, moving = cr.wait <= 0 && (cr.y !== cr.ty || cr.z !== cr.tz);
+      quad([P(x, 0, 0.02), P(x, B + 1, 0.02)], null, 'rgba(250,204,21,.5)', 1.2);
+      ctx.save(); if (moving) { ctx.shadowColor = '#facc15'; ctx.shadowBlur = 10; }
+      quad([P(x, cr.y - 0.4, 0), P(x, cr.y - 0.4, TOP + 0.3)], null, '#facc15', 2.2);
+      ctx.restore();
+      box(x - 0.3, cr.y - 0.5, x + 0.3, cr.y + 0.5, 0, 0.2, '#0f172a', '#facc15', '#b48a0c', 'rgba(250,204,21,.8)');
+      box(x - 0.4, cr.y - 0.35, x + 0.4, cr.y + 0.45, cr.z, cr.z + 0.1, 'rgba(232,121,249,.5)', 'rgba(232,121,249,.35)', 'rgba(232,121,249,.25)', '#e879f9');
+      if (cr.tote) box(x - 0.3, cr.y - 0.25, x + 0.3, cr.y + 0.35, cr.z + 0.1, cr.z + 0.5, 'rgba(56,189,248,.5)', 'rgba(56,189,248,.35)', 'rgba(56,189,248,.25)', '#38bdf8');
+    }
+    animate(canvas, kit, step, () => {
+      quad([P(1, conveyorY - 0.25, 0.4), P(station + 0.6, conveyorY - 0.25, 0.4), P(station + 0.6, conveyorY + 0.25, 0.4), P(1, conveyorY + 0.25, 0.4)], 'rgba(56,189,248,.08)', 'rgba(125,211,252,.5)');
+      for (let a = 0; a < A; a++) { rack(a, 0); drawCrane(cranes[a]); rack(a, 1); }
+      for (const x of totes) box(x - 0.3, conveyorY - 0.22, x + 0.3, conveyorY + 0.22, 0.4, 0.8, 'rgba(56,189,248,.5)', 'rgba(56,189,248,.35)', 'rgba(56,189,248,.25)', '#38bdf8');
+      box(station, conveyorY - 0.6, station + 0.9, conveyorY + 0.6, 0, 0.9, glow ? 'rgba(74,222,128,.55)' : 'rgba(74,222,128,.15)', 'rgba(74,222,128,.25)', 'rgba(74,222,128,.15)', '#4ade80');
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

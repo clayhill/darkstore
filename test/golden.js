@@ -31,7 +31,7 @@ if (process.argv[2] === '--one') {
 const update = process.argv.includes('--update');
 const kinds = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 let failed = 0;
-for (const kind of kinds.length ? kinds : ['cube', 'pod', 'shuttle']) {
+for (const kind of kinds.length ? kinds : ['cube', 'pod', 'shuttle', 'crane']) {
   const t0 = Date.now();
   const out = execFileSync(process.execPath, [__filename, '--one', kind], { encoding: 'utf8' });
   const file = path.join(dir, kind + '.txt'), secs = ((Date.now() - t0) / 1000).toFixed(1) + ' s';

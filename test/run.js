@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind]({ seed });
@@ -6,29 +6,30 @@ const g = sim.grid;
 function check() {
   // single occupancy: each robot's current cell claimed by itself, no two robots on same cell
   const seen = new Map();
-  for (const r of kind === 'shuttle' ? [] : sim.fleet) {
+  for (const r of sim.fleet.filter((x) => x.claims)) {
     const i = g.idx(r.x, r.y);
     if (g.claim[i] !== r.id) throw new Error(`t=${sim.time.toFixed(1)} ${r.name} cell not claimed by itself (claim=${g.claim[i]})`);
     if (seen.has(i)) throw new Error('two robots on cell ' + i);
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'shuttle') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'shuttle' || kind === 'crane') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
     if (oh !== p.onHand || res !== p.reserved) throw new Error(`stock mismatch ${p.gtin} oh ${oh}/${p.onHand} res ${res}/${p.reserved}`);
   }
 }
-// shuttle: every tote in exactly one place — a rack slot, a shuttle, a buffer,
-// the lift, the conveyor, an aisle's queue or a station
+// shuttle and crane: every tote in exactly one place — a rack slot, a shuttle,
+// a buffer, the lift, the crane, the conveyor, an aisle's queue or a station
 function checkRacking() {
   const where = new Map(), put = (id, w) => { if (where.has(id)) throw new Error(`${id} in ${where.get(id)} and ${w}`); where.set(id, w); };
   for (const a of sim.aisles) {
     a.slot.forEach((id, i) => { if (id) put(id, 'slot'); });
+    a.inQ.forEach((it) => put(it.bin.id, 'inQ'));
+    if (a.crane) { a.crane.load.forEach((id) => put(id, a.crane.name)); continue; }
     a.outBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'outBuf')));
     a.inBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'inBuf')));
-    a.inQ.forEach((it) => put(it.bin.id, 'inQ'));
     for (const r of [...a.shuttles, a.lift]) if (r.bin) put(r.bin, r.name);
   }
   sim.conv.forEach((it) => put(it.bin.id, 'conveyor'));

@@ -446,6 +446,7 @@
       if (b.loc === 'grid') return this.type.locate(this, b);
       if (b.loc === 'robot') return `On robot ${this.sim.fleet[b.robot].name}`;
       if (b.loc === 'port') return `At port ${this.sim.ports[b.port].code}`;
+      if (b.loc === 'crane') return `On crane ${this.sim.fleet[b.robot].name}`;
       return b.loc;
     }
     showProduct(gtin) {

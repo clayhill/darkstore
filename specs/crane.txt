@@ -95,9 +95,14 @@ On top of the common output:
 
 8. Parameters
 
-Mini-load:
-  aisles              4
-  rack                60 bays x 15 levels per side, 0.65 m bays,
+Mini-load (the defaults in js/crane/config.js, implemented as SkyStack).
+A typical rack is 60 bays x 15 levels; the simulator uses a shorter rack
+so the 3D view stays readable, and five aisles so the cranes keep some
+headroom at the default order rate. A larger rack is one settings change
+away.
+
+  aisles              5
+  rack                28 bays x 12 levels per side, 0.65 m bays,
                       0.40 m levels
   load                tote 600 x 400 mm, up to 50 kg
   horizontal          5 m/s, 2 m/s2

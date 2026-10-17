@@ -73,6 +73,7 @@
     cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer }),
     pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer }),
     shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer }),
+    crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

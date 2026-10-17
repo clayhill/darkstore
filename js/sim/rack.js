@@ -23,7 +23,7 @@
       this.outY = B + 2.2; this.retY = B + 1.3; // pre-zone lines: to the stations, back to the aisles
       const nPorts = cfg.pickPorts + cfg.goodsInPorts;
       // stations in a row in front of the racking
-      this.W = Math.max(A * 3, 1 + nPorts * 6); this.D = B + 3;
+      this.W = Math.max(A * 3, 1 + nPorts * 6); this.D = B + 3; this.shadowW = A * 3;
       this.ports = [];
       for (let k = 0; k < nPorts; k++) {
         const sx = 1 + k * 6;
