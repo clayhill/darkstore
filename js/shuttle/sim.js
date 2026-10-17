@@ -201,18 +201,11 @@
       const all = [];
       for (let a = 0; a < A; a++) for (let l = 0; l < L; l++) for (let s = 0; s < 2; s++) for (let b = 0; b < B - 2; b++) {
         if (rng() >= cfg.rackFill) continue;
-        const r = rng(), bin = inv.createBin(r < 0.45 ? 1 : r < 0.8 ? 2 : 4, { prefix: 'ST' });
+        const bin = this.newBin({ prefix: 'ST' });
         this.place(bin, a, l, s, b);
         all.push(bin);
       }
-      const stocked = all.filter(() => rng() < cfg.stockedRatio), next = this.productStream();
-      for (const bin of stocked) {
-        const nfill = bin.ncomp === 1 || rng() < 0.6 ? 1 : 2;
-        for (let c = 0; c < nfill; c++) {
-          const p = next();
-          if (!bin.comps.some((x) => x.gtin === p.gtin)) this.stockComp(bin, c, p);
-        }
-      }
+      this.stockBins(all);
       this.seedDemand();
       let id = 0;
       for (const aisle of this.aisles) for (let l = 0; l < L; l++) { const sh = new Shuttle(this, id++, aisle.a, l); aisle.shuttles.push(sh); this.robots.push(sh); }
@@ -322,13 +315,12 @@
     dispatch() {
       const cfg = this.cfg;
       this.createRetrievals();
-      const now = this.time, eff = (t) => t.priority + (now - t.created) / 60;
-      for (const t of this.tasks.filter((x) => x.robot < 0).sort((a, b) => eff(b) - eff(a))) {
+      for (const t of this.pendingTasks()) {
         const bin = t.bin;
         if (bin.loc !== 'grid') continue;
         t.port = bin.requests[0].port;
         const port = this.ports[t.port];
-        if (port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= cfg.portInboundCap) continue;
+        if (this.portFull(port)) continue;
         const sh = this.aisles[bin.aisle].shuttles[bin.level];
         sh.jobs.push(t); t.robot = sh.id; port.inbound++;
       }

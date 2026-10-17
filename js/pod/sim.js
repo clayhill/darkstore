@@ -200,19 +200,16 @@
     }
 
     dispatch() {
-      const cfg = this.cfg;
       this.createRetrievals();
       this.dispatchCharging();
       let idle = this.idleRobots();
       if (!idle.length) return;
-      const now = this.time, eff = (t) => t.priority + (now - t.created) / 60;
-      const pending = this.tasks.filter((t) => t.robot < 0).sort((a, b) => eff(b) - eff(a));
-      for (const t of pending) {
+      for (const t of this.pendingTasks()) {
         if (!idle.length) break;
         if (t.type !== 'RETRIEVE' || t.bin.loc !== 'grid') continue;
         t.port = t.bin.requests[0].port;
         const port = this.ports[t.port];
-        if (port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= cfg.portInboundCap) continue;
+        if (this.portFull(port)) continue;
         const best = this.nearestRobot(idle, t.bin.x, t.bin.y);
         port.inbound++;
         idle = idle.filter((r) => r !== best);

@@ -31,20 +31,12 @@
       for (const i of cols) {
         const h = WS.U.clamp(Math.round(g.Z * cfg.initialFill + (rng() - 0.5) * 4), 1, g.Z);
         for (let z = 0; z < h; z++) {
-          const r = rng(), bin = inv.createBin(r < 0.45 ? 1 : r < 0.8 ? 2 : 4);
+          const bin = this.newBin();
           this.placeOnStack(bin, i);
           allBins.push(bin);
         }
       }
-      // stock: every product in at least one bin, then demand-weighted
-      const stocked = allBins.filter(() => rng() < cfg.stockedRatio), next = this.productStream();
-      for (const bin of stocked) {
-        const nfill = bin.ncomp === 1 || rng() < 0.6 ? 1 : 2;
-        for (let c = 0; c < nfill; c++) {
-          const p = next();
-          if (!bin.comps.some((x) => x.gtin === p.gtin)) this.stockComp(bin, c, p);
-        }
-      }
+      this.stockBins(allBins);
       this.seedDemand();
       // robots on random free storage cells
       const free = cols.slice();
@@ -61,19 +53,17 @@
 
     // ---------------------------------------------------------------- dispatch
     dispatch() {
-      const g = this.grid, cfg = this.cfg;
+      const g = this.grid;
       this.createRetrievals();
       this.dispatchCharging();
       let idle = this.idleRobots();
       if (!idle.length) return;
-      // priority ageing (1 point per waiting minute) so no port starves; restacks don't age
-      const now = this.time, eff = (t) => t.priority + (t.type === 'RESTACK' ? 0 : (now - t.created) / 60);
+      const now = this.time;
       for (let k = this.tasks.length - 1; k >= 0; k--) {
         const t = this.tasks[k];
         if (t.type === 'RESTACK' && t.robot < 0 && now - t.created > 900) this.tasks.splice(k, 1); // stale: leave bins where they are
       }
-      const pending = this.tasks.filter((t) => t.robot < 0).sort((a, b) => eff(b) - eff(a));
-      for (const t of pending) {
+      for (const t of this.pendingTasks()) {
         if (!idle.length) break;
         let sx, sy;
         if (t.type === 'RETRIEVE') {
@@ -81,7 +71,7 @@
           if (col < 0 || g.colLock[col] >= 0) continue;
           t.port = t.bin.requests[0].port;
           const port = this.ports[t.port];
-          if (port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= cfg.portInboundCap) continue;
+          if (this.portFull(port)) continue;
           sx = g.cx(col); sy = g.cy(col);
         } else if (t.type === 'STORE') { const p = this.ports[t.port]; sx = p.lift.x; sy = p.lift.y; }
         else if (t.type === 'RESTACK') {
@@ -101,6 +91,8 @@
       }
       this.parkIdle(idle);
     }
+    // restacks don't age: they only use robots nothing else needs
+    taskPriority(t) { return t.type === 'RESTACK' ? t.priority : super.taskPriority(t); }
     // idle robots clear ports, chargers and the cells right next to ports
     needsParking(r) {
       const g = this.grid, i = g.idx(r.x, r.y);

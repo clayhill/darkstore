@@ -87,6 +87,21 @@
       inv.setComp(bin, c, p.gtin);
       bin.comps[c].qty = q; p.onHand += q;
     }
+    // A storage bin or tote with 1, 2 or 4 compartments.
+    newBin(o) { const r = this.rng(); return this.inv.createBin(r < 0.45 ? 1 : r < 0.8 ? 2 : 4, o); }
+    // Stock a share of the bins: every product at least once, then
+    // demand-weighted; one product per bin, sometimes a second one.
+    stockBins(bins) {
+      const cfg = this.cfg, rng = this.rng;
+      const stocked = bins.filter(() => rng() < cfg.stockedRatio), next = this.productStream();
+      for (const bin of stocked) {
+        const nfill = bin.ncomp === 1 || rng() < 0.6 ? 1 : 2;
+        for (let c = 0; c < nfill; c++) {
+          const p = next();
+          if (!bin.comps.some((x) => x.gtin === p.gtin)) this.stockComp(bin, c, p);
+        }
+      }
+    }
     // Velocity prior and min/max replenishment levels from expected demand.
     seedDemand() {
       const cfg = this.cfg, prods = this.inv.products, dTot = prods.reduce((s, p) => s + p.demand, 0);
@@ -118,6 +133,12 @@
         if (ch) { ch.robot = r.id; this.assignTask(r, { type: 'CHARGE', charger: ch, priority: 9 }); this.log('robot', `${r.name} battery ${r.battery.toFixed(0)}% → charger ${ch.id + 1}`); }
       }
     }
+    // Tasks still waiting for a robot or machine, most urgent first. Priority
+    // grows by one point per waiting minute, so no station starves.
+    taskPriority(t) { return t.priority + (this.time - t.created) / 60; }
+    pendingTasks() { return this.tasks.filter((t) => t.robot < 0).sort((a, b) => this.taskPriority(b) - this.taskPriority(a)); }
+    // A station already has as many units on their way as it may have.
+    portFull(port) { return port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= this.cfg.portInboundCap; }
     idleRobots() { return this.robots.filter((r) => !r.task && r.battery >= this.cfg.battLow * 0.5); }
     nearestRobot(list, x, y) {
       let best = null, bd = Infinity;
