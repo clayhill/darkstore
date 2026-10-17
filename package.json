@@ -1,0 +1,10 @@
+{
+  "name": "darkstore",
+  "private": true,
+  "description": "DarkStore: a goods-to-person warehouse simulator",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node test/golden.js",
+    "soak": "node test/run.js"
+  }
+}

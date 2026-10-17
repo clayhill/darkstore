@@ -191,7 +191,12 @@ js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, d
 js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, ui
 js/shuttle/ RailRunner: config, sim (racking, shuttles, lifts, conveyor), render, ui
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle]
+test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, and compares a
+            fingerprint of stock, fleet, orders and KPIs with test/golden/<type>.txt
 ```
+
+A refactor must leave `npm test` passing. A change that is meant to alter behaviour updates the
+golden files with `node test/golden.js --update`, and the diff of those files goes in the same commit.
 
 ## Disclaimer
 
