@@ -1,0 +1,116 @@
+CubeFlow - stacker crane AS/RS
+==============================
+
+Read common.txt first.
+
+1. Overview
+
+High-bay racking with aisles. In each aisle runs one stacker crane: a mast on
+a floor rail, with a carriage that travels up and down the mast and a load
+handler (telescopic forks or a tote handler) that reaches into the rack on
+both sides. At the end of the aisle is an input/output point (I/O point)
+where loads come in and go out, linked by conveyor to the workstations.
+
+Two sizes, same model:
+
+- mini-load: totes or trays, racks up to about 25 m
+- unit-load: pallets, racks up to 40 m and more
+
+For goods-to-person picking the pallet or tote goes to a pick station and
+comes back. A unit-load system can also just send full pallets to shipping.
+
+2. Layout
+
+- A location is [aisle][side][bay][level][depth]. Depth is 1 (single deep),
+  2 (double deep), or more with a satellite vehicle that drives into a
+  channel.
+- Each aisle has one I/O point, at floor level at the front, with separate
+  in and out positions. Sometimes there is a second one at the back or at a
+  higher level.
+
+3. Equipment
+
+- The crane drives along the aisle and moves the carriage up or down at the
+  same time. So the travel time to a location is the larger of the two:
+  t = max(t_horizontal, t_vertical), each with its own acceleration, speed and
+  braking.
+- After arriving there is a short settling time before the forks go out.
+- The load handler takes a fixed time per fork cycle, longer for the back
+  position in double deep.
+- A mini-load handler can often hold two totes, so one trip can do two
+  retrievals or two stores.
+- Powered by rail, no battery.
+- Variant: an aisle-changing crane that serves several aisles through a curve
+  in the rail. Changing aisle costs time, and only one crane can be in a
+  curve at a time.
+
+4. Retrieval
+
+The basic unit of work is a crane cycle:
+
+- single command: from the I/O point to one location and back, storing or
+  retrieving one load.
+- dual command: from the I/O point, store a load at one location, drive to a
+  second location, retrieve a load, return. Saves a lot of empty travel.
+- with a two-tote handler: up to two stores and two retrievals in one cycle.
+
+The dispatcher should make dual command cycles whenever both the store queue
+and the retrieve queue have work, and pick the retrieval that is closest (in
+crane time) to the store location.
+
+Double deep: same relocation rule as the shuttle. If the front load is in the
+way, move it to a free location in the same aisle first.
+
+The standard way to check crane cycle times is FEM 9.851. The simulator can
+report the FEM reference cycle next to the measured one, as a sanity check.
+
+5. Traffic
+
+- One crane per aisle, so cranes never meet.
+- With two cranes in one aisle, they can't pass each other. Split the aisle
+  into zones, or plan with a safety distance.
+- Aisle-changing cranes reserve the curve and the target aisle.
+- The I/O point has a small number of positions. When the outfeed conveyor is
+  full the crane can't drop its load and has to wait.
+
+6. Storage policy
+
+- Use crane time, not distance, to rank locations. Because the crane moves in
+  both directions at once, the best locations form a rectangle near the I/O
+  point, not a strip along the floor.
+- Class-based storage: A items in the fastest zone, then B, then C.
+- Alternatives to compare: closest open location, and random.
+- Spread each SKU over aisles, the same as in the shuttle spec.
+
+7. Output
+
+On top of the common output:
+
+- Cycles per hour per crane, split into single command, dual command and
+  relocation.
+- Mean cycle time, measured and FEM 9.851 reference.
+- Crane utilization.
+- Relocation ratio (double deep).
+- Queue lengths at the I/O points.
+
+8. Parameters
+
+Mini-load:
+  aisles              4
+  rack                60 bays x 15 levels per side, 0.65 m bays,
+                      0.40 m levels
+  load                tote 600 x 400 mm, up to 50 kg
+  horizontal          5 m/s, 2 m/s2
+  vertical            3 m/s, 3 m/s2
+  settling            0.5 s
+  handler             4 s per fork cycle, holds 2 totes
+
+Unit-load:
+  aisles              3
+  rack                50 bays x 10 levels per side, 1.4 m bays,
+                      1.8 m levels
+  load                pallet 1200 x 800 mm, up to 1000 kg
+  horizontal          3 m/s, 0.5 m/s2
+  vertical            1 m/s, 0.5 m/s2
+  settling            1 s
+  handler             10 s per fork cycle, holds 1 pallet

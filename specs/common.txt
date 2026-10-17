@@ -1,0 +1,92 @@
+CubeFlow - shared simulation rules
+==================================
+
+Everything in this file applies to every storage type, unless a type spec
+says otherwise.
+
+1. Time and state
+
+- Fixed time steps of 100 ms, plus an event queue for things that happen at a
+  known time. The steps need to be small enough to show travel, lifting and
+  picking times properly.
+- Every machine (robot, shuttle, lift, crane) runs its own state machine. The
+  state names differ per type, but each one should map onto the common
+  buckets used in the output: working, waiting, idle, charging, fault.
+- A run with the same seed and the same settings gives the same result.
+- The renderer only reads the state and interpolates between steps. It never
+  changes the simulation.
+
+2. Words used in all specs
+
+  storage unit   the thing that is moved to a workstation. A bin in cube
+                 storage, a tote or tray in a shuttle system, a pod (shelf)
+                 for pod robots, a tote or carton for ACR, a tote or pallet
+                 for a crane.
+  location       the place where a storage unit sits when it is stored.
+  workstation    where a person (or a picking robot) takes items out of a
+                 storage unit or puts them in. Pick stations and goods-in
+                 stations.
+  presentation   one storage unit arriving at a workstation and being worked.
+
+3. Parts that every type shares
+
+Order management
+  - Orders stream in without waves, from a Poisson process or entered by hand.
+    An order has one or more lines (SKU, quantity).
+  - An order is released to the least loaded pick station that has a free
+    put-wall slot and an empty order tote.
+  - The operator picks to light from the storage unit into the order tote.
+    A complete tote goes by conveyor to packing, gets an SSCC label, and goes
+    to the dock. The truck leaves when it is full or at the cut-off time.
+
+Inventory (IMS)
+  - Item master, storage units with 1, 2 or 4 compartments (pods have shelves
+    and faces instead, see pod.txt), stock per compartment.
+  - Stock is reserved per order line. The IMS chooses which storage unit to
+    fetch. When several units hold the SKU, prefer one that is already on its
+    way to that station, then the one that is cheapest to fetch.
+  - Pick velocity per SKU, decaying over time, and ABC classes (top 20 %,
+    next 30 %, rest). Each type uses this in its own storage policy.
+  - Inbound works from an ASN: the IMS reserves compartment space, filling
+    same-SKU compartments first, and the storage units go to a goods-in
+    station to be filled. Optional min/max replenishment creates ASNs on its
+    own.
+
+Workstations
+  - A station has a small queue of storage units waiting in front of it. The
+    operator time per pick and per put is a setting.
+  - A storage unit that is needed at more than one station goes straight from
+    one to the next before it is stored again.
+
+Barcodes
+  - GS1: GTIN on items, GRAI on storage units and totes, SSCC on shipping
+    labels, all under the demo company prefix 9521234.
+
+Energy
+  - Battery machines drain by activity and go to a charger on their own when
+    they get low. Machines on power rails (most shuttles, all cranes) skip
+    this.
+
+4. Output
+
+Every type reports at least:
+
+- Throughput: storage units presented per hour, and order lines picked per
+  hour (LPH).
+- Order cycle time, from release to packed.
+- Machine utilization, split into working, waiting, idle, charging and fault.
+- Workstation utilization, and how long stations sit starved (nothing to
+  work on) or blocked (nowhere to send the unit).
+- Bottleneck alerts: busy areas, starved stations, backorders, tote
+  shortage, low battery.
+
+5. Comparing types
+
+The point of having several types is comparing them. So the same order
+profile, SKU set and number of workstations should run on any type. For the
+comparison, every type also reports:
+
+- storage density: storage units (and units of stock) per m2 of floor
+- units presented per hour per machine
+- the share of moves that do not deliver anything (digging in a cube,
+  relocations in double-deep racking, pod returns, empty trips)

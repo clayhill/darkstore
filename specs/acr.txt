@@ -1,0 +1,102 @@
+CubeFlow - case-handling robots (ACR)
+=====================================
+
+Read common.txt first.
+
+1. Overview
+
+Storage is ordinary shelving with narrow aisles, up to around 10 m high.
+Totes or cartons sit on the shelves. Robots drive on the warehouse floor
+through the aisles. Each robot has a tall mast with a lifting tote handler,
+and a column of shelves on its back where it can carry several totes at
+once. It collects a batch of totes on one trip and drops them at a port that
+feeds the workstations.
+
+A second variant has robots that climb the racking itself instead of using a
+mast. The model below works for both: the only difference is how vertical
+movement is timed and whether a robot blocks the aisle while it climbs.
+
+2. Layout
+
+- A location is [row][bay][level][depth], where a row is one side of an
+  aisle. Depth is 1 or 2.
+- The floor is a grid: aisle cells, cross-aisle cells, port cells, charger
+  cells. Aisles are one robot wide.
+- Ports sit at the front of the storage area. A port takes totes from the
+  robot (one by one, or all at once from the back shelves) and sends them on
+  a conveyor to a workstation. Returning totes come back to the port and are
+  loaded onto a robot.
+
+3. Equipment
+
+- Robots drive forward and backward and turn on the spot at aisle ends.
+- The tote handler moves up and down the mast, turns to face left or right,
+  and pulls a tote off the shelf with an arm or clamp. It then puts the tote
+  on one of the back shelves.
+- The number of back shelves (the onboard buffer) is a setting, usually 5 to
+  9.
+- The robot only lifts or handles totes while standing still.
+- Physics: acceleration and braking, mast speed, handler cycle, battery use
+  with charging trips.
+
+4. Retrieval
+
+A trip is a list of stops:
+
+1. The system builds a batch: up to N totes, chosen so that they are close
+   together in the racking and are needed soon at the same port.
+2. The robot carries returning totes from the port, if there are any. It
+   stores them in free locations near the retrieval stops, so it can drop and
+   pick in the same aisle.
+3. It drives the route (a short travelling-salesman tour through the stops),
+   and at each stop it lifts the handler, swaps totes, and lowers it again.
+4. At the port it hands over all totes it is carrying, takes on the returning
+   ones, and starts the next trip.
+
+Double deep: the same relocation as the shuttle. If the front tote is in the
+way, it goes onto a free back shelf of the robot or into a nearby free
+location first.
+
+5. Traffic
+
+- One robot per floor cell.
+- Aisles are one robot wide, so two robots can't pass each other in an aisle.
+  Either make aisles one-way, or lock an aisle (or part of it) for one robot
+  at a time. Make this a setting and compare.
+- A robot that is handling a tote blocks its aisle cell until the handler is
+  done. A climbing robot blocks the rack face it is on.
+- Queues form at the ports. A robot waiting at a busy port blocks the cross
+  aisle behind it, so give each port a short waiting lane.
+
+6. Storage policy
+
+- Fast movers low (short mast travel) and in the aisles nearest the ports.
+- Keep a share of free locations spread over every aisle, so returning totes
+  can be stored where the robot is already working.
+- Inbound totes are stored the same way: near the next likely pick for that
+  SKU, or near the ports if the SKU is fast.
+
+7. Output
+
+On top of the common output:
+
+- Totes per trip, and how full the onboard buffer is on average.
+- Trip time split into driving, mast travel, handling, port handover and
+  waiting.
+- Aisle waits: how often and how long robots waited for another robot in an
+  aisle.
+- Port utilization and port queue length.
+- Relocations (double deep).
+
+8. Parameters
+
+  racking            12 aisles x 30 bays, 1.2 m bays, 20 levels, 0.35 m
+                     apart (about 7.5 m high)
+  depth              single deep (double deep as an option)
+  tote               600 x 400 mm, up to 30 kg
+  robots             12
+  onboard buffer     8 totes
+  drive              2 m/s, accelerate 0.5 m/s2
+  mast               0.8 m/s up and down
+  handler            8 s to take or place one tote
+  ports              3, 1 goods-in, handover 2 s per tote

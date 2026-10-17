@@ -1,0 +1,102 @@
+CubeFlow - pod robots
+=====================
+
+Read common.txt first. This is the system Kiva made well known: robots that
+carry whole shelving units to the operator.
+
+1. Overview
+
+Stock sits on pods: free-standing shelving units on legs, with shelves and
+bins on all four sides. The pods stand on the floor in blocks. Small flat
+robots drive under a pod, lift it a few centimetres and carry it to a
+workstation. The operator picks from the side of the pod that faces them.
+Then the robot takes the pod back to a free spot, which doesn't have to be
+the spot it came from.
+
+2. Layout
+
+- The floor is a grid of square cells, each about the size of a pod. Every
+  cell has a type:
+  - storage: a pod may stand here
+  - highway: kept free for driving
+  - queue: the lane in front of a workstation
+  - station: where the pod is presented
+  - charger
+  - blocked: columns, walls
+- Storage cells come in blocks, usually 2 cells deep so every pod touches a
+  highway. Highways can be one-way to make traffic simpler.
+- A pod has 4 faces. Each face has shelves, each shelf has bins. Stock is
+  stored per bin. One SKU is usually spread over many pods.
+
+3. Equipment
+
+- Robots drive forward and backward and rotate on the spot. Unlike the cube
+  robot they can turn, but turning takes time.
+- While a robot rotates under a lifted pod, it can either keep the pod still
+  (a turntable that counter-rotates) or turn the pod with it. Turning the pod
+  is how a different face is shown to the operator.
+- A robot without a pod is low enough to drive under standing pods. Whether
+  it may do that (tunnelling) is a setting. A robot carrying a pod has to stay
+  on highways and empty cells.
+- Physics: acceleration and braking, rotation speed, lift and lower time,
+  heavier pods mean slower acceleration, battery use with charging trips.
+
+4. Retrieval
+
+1. The station has a set of open order lines. The system picks the pod that
+   covers the most of them (hit rate), with the travel time as a tie-breaker.
+2. A free robot drives to the pod, lifts it, and drives it to the queue of
+   that station.
+3. At the station the robot turns the pod to the right face. If lines are on
+   more than one face, it turns again after the first face is done.
+4. When all lines for this pod are picked, the robot takes the pod back to
+   storage, or straight to the next station that needs it.
+
+There is no digging: any pod can be reached directly. The cost is that a
+whole pod (hundreds of kg) moves for a few picks, so hit rate matters a lot.
+
+5. Traffic
+
+- One robot per cell per time step.
+- Plan in space and time: a robot reserves (cell, time) pairs along its route
+  before it drives. Space-time A*, or conflict-based search for groups.
+  Count rotations as time in the plan.
+- Station queues are first in, first out. A robot at the head of the queue
+  blocks the lane until the operator is done.
+- Watch for deadlocks at highway crossings and in front of busy stations.
+  Same remedies as the cube fleet manager: re-route after a timeout, ask idle
+  robots to move out of the way.
+
+6. Storage policy
+
+- When a pod goes back, choose the spot by how popular the pod is now: busy
+  pods close to the stations, quiet pods further out. Pods move closer over
+  time as they get used more, without anyone planning it.
+- Inbound: a goods-in station fills bins on a pod. Spread a new SKU over
+  several pods so that one pod being busy at a station doesn't block it.
+- Optional: re-sort pods in quiet hours.
+
+7. Output
+
+On top of the common output:
+
+- Hit rate: units picked per pod presentation, and lines per presentation.
+- Pod presentations per hour per station.
+- Average trip time and distance per presentation.
+- Queue length in front of each station.
+- Congestion map of the floor.
+- Empty trips: robot moves without a pod (fetching, returning to charge),
+  as a share of all moves.
+
+8. Parameters
+
+  floor               30 x 20 cells, 1.2 m cell
+  storage blocks      2 cells deep, 1-cell highways between blocks
+  pod                 1 m square, 4 faces, 5 shelves, 3 bins per shelf
+                      per face, up to 450 kg loaded
+  robots              24
+  drive               1.5 m/s, accelerate 1 m/s2 (0.7 m/s2 with a full pod)
+  rotate              90 degrees in 1.5 s
+  lift / lower        1.5 s each
+  tunnelling          on
+  stations            4 pick, 1 goods-in, queue of 4 pods each

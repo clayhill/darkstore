@@ -1,7 +1,9 @@
 # CubeFlow — Cube AS/RS warehouse simulator
 
 A browser simulation of a grid-based (cube storage) automated storage and retrieval
-system, following `input.txt` (robot principles) and `sim_input.txt` (simulation spec).
+system. The specs are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared by
+every storage type and `cube.txt` describes the type implemented here. Specs for shuttle, pod,
+ACR and stacker crane systems are written but not implemented yet.
 
 ![Floor view: robots on the grid, pick ports, pack stations and the outbound dock](docs/screenshots/floor.png)
 

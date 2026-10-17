@@ -1,0 +1,88 @@
+CubeFlow - cube storage
+=======================
+
+Read common.txt first. This is the type the simulator implements today.
+
+1. Overview
+
+The warehouse is a cube storage system, a grid-based AS/RS. Stock is kept in
+bins that are stacked directly on top of each other inside an aluminium grid,
+with no aisles and no space between the stacks. Robots drive on the top of the
+grid and reach the bins from above.
+
+2. Layout
+
+- The grid is a 3D array [X][Y][Z]. X and Y are positions on the top surface,
+  Z is the depth of a stack (real systems go up to around 16 bins deep).
+- Ports sit on the edge of the grid. Chargers sit on another edge.
+
+3. Equipment
+
+- Small rectangular robots, each one grid cell in size.
+- Two sets of wheels at right angles: one set drives along X, the other along Y.
+  To change direction the robot stops and lowers the other set (a pneumatic
+  shift). It never turns or drives diagonally, only straight X or Y moves.
+- A robot always occupies exactly one cell while driving.
+- Each robot has a cavity with a winch and a gripper on four bands. It parks
+  over a stack, lowers the gripper and latches onto the top bin.
+- Physics:
+  - acceleration and braking
+  - winch speed, slower when it carries a heavy bin than when it is empty
+  - battery use, with robots driving to the chargers at the edge of the grid
+    on their own when they run low
+
+4. Retrieval (digging)
+
+Only the top bin of a stack can be lifted. If the bin you want is fifth from
+the top, the robot first lifts bins 1 to 4 one at a time and sets each one down
+on a neighbouring stack. Then it can lift bin 5.
+
+After that the moved bins have to go somewhere. Either a robot puts them back
+on the original stack in their original order, or they stay where they are and
+the grid slowly re-sorts itself as bins come and go. The simulator should
+support both.
+
+Bins are delivered to ports on the edge of the grid. The robot lowers the bin
+into the port, and a person (or a picking robot) takes items out or puts them
+in.
+
+5. Traffic
+
+- One robot per [X][Y] cell at any time step.
+- Robots reserve the cells ahead of them before they drive into them. Path
+  planning can use A*, or something like conflict-based search.
+- While a robot is digging, its cell can't be passed by anyone until the winch
+  is back up.
+- The fleet manager re-routes robots when needed, so they don't collide and
+  don't end up in gridlock or deadlock.
+- State examples: IDLE, MOVING_TO_TARGET, DIGGING_BIN, TRANSPORTING_TO_PORT,
+  WAITING_IN_TRAFFIC.
+
+6. Storage policy
+
+Track how popular each product is. Fast movers should be stored near the top
+(Z=1) and near the ports. When a fast mover ends up deep in a stack, say at
+Z=10 because other bins were put on top of it, log the extra digging time as
+a burial penalty.
+
+7. Output
+
+On top of the common output:
+
+- Dig ratio: moves that only shift bins out of the way, divided by moves that
+  deliver the bin that was asked for.
+- Burial penalties.
+- Traffic hotspots on the grid.
+
+8. Parameters
+
+These are the defaults in js/core/config.js.
+
+  grid               26 x 14 cells, 12 bins deep, 0.70 m cell
+  fill               80 % of positions hold a bin
+  robots             16, 5 chargers
+  drive              3.1 m/s, accelerate 0.8 m/s2, brake 1.2 m/s2
+  wheel set change   0.7 s
+  winch              1.6 m/s empty, 1.1 m/s at the 30 kg maximum payload
+  gripper            0.6 s to latch or unlatch
+  battery low        go charging below 25 %, stop charging at 92 %

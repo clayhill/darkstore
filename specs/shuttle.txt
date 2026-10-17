@@ -1,0 +1,121 @@
+CubeFlow - shuttle AS/RS
+========================
+
+Read common.txt first.
+
+1. Overview
+
+Storage is racking with aisles. Each aisle has a rack on both sides, with many
+levels. Totes (or trays) sit on shelf locations along the aisle. On each level
+a shuttle runs on rails up and down the aisle, and pulls totes out of the rack
+or pushes them in. At the front of the aisle one or two lifts move totes
+between the levels and the conveyor that feeds the workstations.
+
+So a retrieval is a relay: shuttle to the level buffer, lift down, conveyor to
+the station. Coming back it is the same in reverse.
+
+2. Layout
+
+- A location is [aisle][level][side][bay][depth].
+  - side is left or right of the aisle
+  - bay is the position along the aisle
+  - depth is 1 (single deep) or 1..2 (double deep)
+- At the front of every level, on each side, a small buffer (transfer
+  position) holds totes between the shuttle and the lift. Usually 1 to 3 totes
+  per side for outbound and the same for inbound.
+- A conveyor loop in front of the aisles (the pre-zone) connects the lift
+  outputs with the workstations. Totes can circle the loop when they are early
+  or when the station is full.
+
+3. Equipment
+
+Shuttle
+  - Runs along one level. Two variants, the simulator should support both:
+    - captive: one shuttle per level, it never leaves its level
+    - roaming: fewer shuttles than levels, a shuttle changes level by riding
+      a lift (a separate shuttle lift, or the tote lift if it can carry one)
+  - Telescopic load handler with fingers that reach single or double deep.
+    Some handlers hold two totes and can do a swap (put one, take one) in one
+    stop.
+  - Powered by rail or supercaps. No battery charging trips.
+  - Physics: acceleration and braking along the aisle, a fixed time to
+    position precisely at the bay, and a load handler cycle per tote.
+
+Lift
+  - Moves vertically at the front of the aisle. Carries 1 or 2 totes.
+  - Acceleration and braking, plus a transfer time at each end.
+  - The lift is usually the bottleneck of an aisle, so model it carefully.
+
+Conveyor
+  - Fixed speed, accumulating zones, one tote per zone.
+
+4. Retrieval
+
+1. The IMS picks a tote and reserves a slot in the outbound buffer of its
+   level.
+2. The shuttle drives to the bay, pulls the tote, and drives to the front.
+   It drops the tote in the outbound buffer. If the buffer is full, it waits.
+3. The lift collects totes from the buffers and brings them down to the
+   conveyor.
+4. The conveyor takes the tote to the station queue.
+
+Double deep: if the wanted tote is in the back position and the front
+position holds another tote, the shuttle first moves the front tote to a free
+location on the same level (a relocation), then fetches the wanted one. This
+is the shuttle version of digging, but only ever one tote deep.
+
+The shuttle should combine work where it can: on its way out to fetch a tote,
+it carries a returning tote and stores it near the retrieval location.
+
+Sequencing: pick stations often want totes in a set order (for example, all
+totes for one order together, or in the order the operator will pick them).
+The lift order and the conveyor loop are where the sequence is fixed. A tote
+that arrives too early goes around the loop.
+
+5. Traffic
+
+- Captive shuttles never meet each other.
+- Roaming shuttles: one shuttle per level at a time. A shuttle can't pass
+  another on the same level. Level changes need the shuttle lift, which has to
+  be reserved.
+- Lifts serve requests from all levels, so they need their own queue and
+  dispatch rule (oldest first, or nearest level first, or sequence first).
+- When the conveyor or the station queue is full, totes back up into the lift
+  and then into the level buffers, and the shuttles wait. Track this as
+  blocked time, not idle time.
+
+6. Storage policy
+
+- Spread each SKU over several aisles, so the load is shared and one broken
+  aisle doesn't make a SKU unavailable.
+- Within an aisle, put fast movers close to the front (short shuttle trip).
+  With captive shuttles all levels are equal, so balance by level as well.
+- Double deep: put slow movers in the back position, fast movers in front.
+- When a tote comes back, store it in the aisle that has the least work queued.
+
+7. Output
+
+On top of the common output:
+
+- Cycles per hour per aisle (in and out), and per lift.
+- Utilization of every shuttle and every lift.
+- Relocation ratio (double deep): relocation moves divided by retrievals.
+- Sequence misses: totes that arrived out of order, and how long they
+  circled.
+- Time that shuttles were blocked by a full buffer.
+
+8. Parameters
+
+  aisles               4
+  levels               20, 0.40 m apart
+  aisle length         40 bays, 0.65 m per bay, both sides
+  depth                single deep (double deep as an option)
+  tote                 600 x 400 mm
+  shuttle              4 m/s, accelerate and brake 2 m/s2
+  bay positioning      0.5 s
+  load handler         3.5 s per pull or push, single deep
+                       5 s for the back position
+  level buffer         2 totes out, 2 totes in, per side
+  lift                 1 or 2 totes, 5 m/s, 7 m/s2, 2 s per transfer
+  lifts per aisle      1
+  conveyor             0.6 m/s, 0.8 m zones
