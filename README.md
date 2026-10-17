@@ -5,10 +5,11 @@ simulation and name:
 
 - **CubeFlow**: cube storage, a grid-based AS/RS where bins are stacked and robots dig from above.
 - **PodSwarm**: pod robots that lift shelving units off the floor and carry them to stations.
+- **RailRunner**: a shuttle AS/RS with a shuttle on every rack level and a lift per aisle.
 
 The specs are in [`specs/`](specs/README.txt). `common.txt` holds the rules shared by every storage
-type, and `cube.txt` and `pod.txt` describe the two types implemented here. Specs for shuttle, ACR and
-stacker crane systems are written but not implemented yet.
+type, and `cube.txt`, `pod.txt` and `shuttle.txt` describe the three types implemented here. Specs for
+ACR and stacker crane systems are written but not implemented yet.
 
 ### CubeFlow
 
@@ -30,15 +31,25 @@ stacker crane systems are written but not implemented yet.
 | ![Close-up of pick stations: pods presented to operators, the pocket to pick from lit green](docs/screenshots/pod-closeup.png) | ![PodSwarm control room: hit rate, pod returns, floor map with queue lanes](docs/screenshots/pod-control.png) |
 | **Close-up:** pods queue in a lane and are turned to show the operator the right face | **Control room:** hit rate, pod returns and the live floor map |
 
+### RailRunner
+
+![RailRunner: see-through racking with a shuttle on every level, lifts at the aisle fronts and stations in front](docs/screenshots/rail-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the aisle fronts: shuttles carrying totes, lifts and the pick stations](docs/screenshots/rail-closeup.png) | ![RailRunner control room: lift utilization, shuttle cycles and a levels-by-aisles map](docs/screenshots/rail-control.png) |
+| **Close-up:** shuttles bring totes to the aisle front, lifts take them down to the stations | **Control room:** lift utilization, shuttle cycles and a map of every level of every aisle |
+
 ## Run
 
 Open `index.html` in Safari (or any modern browser). It has no build step, no
 dependencies and no network calls, so double-clicking the file works.
 
 `index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
-name and page: **CubeFlow** at `cubeflow.html` and **PodSwarm** at `podswarm.html`.
+name and page: **CubeFlow** at `cubeflow.html`, **PodSwarm** at `podswarm.html` and **RailRunner** at
+`railrunner.html`.
 
-![Landing page with the CubeFlow and PodSwarm simulation cards](docs/screenshots/landing.png)
+![Landing page with the simulation cards](docs/screenshots/landing.png)
 
 Optional URL parameters for both simulation pages (handy for demos):
 
@@ -133,6 +144,29 @@ velocity policy, busy pods end up near the stations; *nearest* and *random* are 
 **KPIs.** Instead of dig ratio and burial penalties, PodSwarm reports the hit rate (order lines picked
 per pod presentation) and pod returns.
 
+## What is modelled: RailRunner
+
+RailRunner shares the order flow, inbound, inventory, stations, packing, dock, barcodes and control
+room with the other two. Instead of robots it has fixed machines on rails.
+
+**Racking.** Aisles of racking with totes single deep on both sides, several levels high. The two
+front bays of each level are buffers: outbound on the left, inbound on the right.
+
+**Shuttles and lifts.** Every level of every aisle has its own shuttle. It drives to a tote, pulls it
+with its load handler, drives to the aisle front and drops it in the level's outbound buffer, waiting
+if the buffer is full. The aisle's lift collects totes from the buffers and brings them down to the
+pre-zone conveyor; on the way back it carries returning totes up to an inbound buffer, and it combines
+a put-away and a retrieval on the same level when it can. Travel uses acceleration and braking for
+both.
+
+**Conveyor and storage policy.** The conveyor carries totes from the aisles to the stations and back.
+A returning tote goes to the aisle and level with the least work queued; with the velocity policy,
+fast movers are stored near the aisle front.
+
+**KPIs.** RailRunner reports lift utilization (the lift is usually the bottleneck of a shuttle aisle)
+and shuttle cycles per hour. Not modelled yet: roaming shuttles, double-deep storage and putting totes
+in sequence on the conveyor.
+
 ## Time model
 
 The simulation advances in fixed 100 ms ticks and also has a small discrete-event queue. Rendering
@@ -143,23 +177,26 @@ with the default 16 robots.
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, css/style.css simulator pages
+cubeflow.html, podswarm.html, railrunner.html, css/style.css
+                                            simulator pages
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), robot (state machine,
-            shared tasks), ports, orders (OMS, packing, dock), kpi, sim (loop, layout)
+            shared tasks), machine (shuttles, lifts), ports, orders (OMS, packing, dock),
+            kpi, sim (loop, layout)
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts)
 js/ui/      ui (panels, inspector, labels, scanning)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
             slotting), render, ui (KPI tiles, settings, stack inspector)
 js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, ui
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod]
+js/shuttle/ RailRunner: config, sim (racking, shuttles, lifts, conveyor), render, ui
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle]
 ```
 
 ## Disclaimer
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
-systems, and it must not be used as such. It is inspired by cube-storage AS/RS and pod-robot systems
-in general and is not affiliated with, endorsed by or derived from any vendor of such systems. All
+systems, and it must not be used as such. It is inspired by cube-storage AS/RS, pod-robot and shuttle
+systems in general and is not affiliated with, endorsed by or derived from any vendor of such systems. All
 company names, addresses, products and barcodes in the simulation are fictional.
 
 ## License

@@ -106,16 +106,24 @@ On top of the common output:
 
 8. Parameters
 
-  aisles               4
-  levels               20, 0.40 m apart
-  aisle length         40 bays, 0.65 m per bay, both sides
-  depth                single deep (double deep as an option)
-  tote                 600 x 400 mm
-  shuttle              4 m/s, accelerate and brake 2 m/s2
+These are the defaults in js/shuttle/config.js. A larger system (more
+levels, longer aisles) is one settings change away; these values keep the
+3D view readable.
+
+  aisles               6
+  levels               10, 0.40 m apart
+  aisle length         22 bays, 0.65 m per bay, both sides; the two
+                       front bays of each level are the buffers
+  depth                single deep
+  tote                 600 x 400 mm, 1, 2 or 4 compartments
+  shuttle              captive, 4 m/s, accelerate and brake 2 m/s2
   bay positioning      0.5 s
-  load handler         3.5 s per pull or push, single deep
-                       5 s for the back position
-  level buffer         2 totes out, 2 totes in, per side
-  lift                 1 or 2 totes, 5 m/s, 7 m/s2, 2 s per transfer
+  load handler         3.5 s per pull or push
+  level buffer         2 totes out (left side), 2 totes in (right side)
+  lift                 1 tote, 5 m/s, 7 m/s2, 2 s per transfer
   lifts per aisle      1
-  conveyor             0.6 m/s, 0.8 m zones
+  conveyor             1 m/s, no accumulation zones
+  stations             3 pick, 1 goods-in, 6 totes in flight per station
+
+Not modelled yet: roaming shuttles, double deep, two-tote lifts and load
+handlers, sequencing on the conveyor loop.

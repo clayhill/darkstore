@@ -10,6 +10,7 @@ once, in common.txt.
   cube.txt      cube storage: bins stacked in a grid, robots on top
                 (implemented as CubeFlow)
   shuttle.txt   shuttle AS/RS: aisles of racking, a shuttle per level, lifts
+                (implemented as RailRunner)
   pod.txt       pod robots: floor robots that carry whole shelving units
                 (the Kiva-style system, implemented as PodSwarm)
   acr.txt       case-handling robots: floor robots with a mast that pick
