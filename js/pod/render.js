@@ -347,5 +347,4 @@
   }
 
   WS.PodRenderer = PodRenderer;
-  WS.Kind = { Sim: WS.PodSim, Renderer: PodRenderer };
 })((globalThis.WS = globalThis.WS || {}));

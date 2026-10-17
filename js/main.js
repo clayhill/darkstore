@@ -6,8 +6,14 @@
     acc: 0, last: 0,
 
     start() {
-      // the page picks the storage type; CubeFlow is the default
-      this.Kind = WS.Kind || { Sim: WS.Sim, Renderer: WS.IsoRenderer };
+      // each simulation page names its storage type on <body data-kind>
+      const kind = document.body.dataset.kind, K = KINDS[kind] && KINDS[kind]();
+      if (!K || !K.Sim || !K.Renderer) {
+        const t = document.getElementById('toast');
+        t.textContent = `The ${kind} simulation did not load. Reload the page (in Safari: ⌥⌘R).`; t.className = 'toast show err';
+        return;
+      }
+      this.Kind = K;
       this.sim = new this.Kind.Sim();
       this.iso = new this.Kind.Renderer(document.getElementById('iso'), this);
       this.cr = new WS.ControlRoom(this, document.getElementById('crmap'), document.getElementById('chT'), document.getElementById('chU'));
@@ -62,6 +68,10 @@
       if (this.uiClock > 0.25) { this.uiClock = 0; this.ui.refresh(); }
       requestAnimationFrame((tt) => this.frame(tt));
     },
+  };
+  const KINDS = {
+    cube: () => ({ Sim: WS.Sim, Renderer: WS.IsoRenderer }),
+    pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {
