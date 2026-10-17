@@ -603,7 +603,7 @@
               const n = Math.max(0, Math.min(8, open - k * 8));
               for (let j = 0; j < n; j++) {
                 const cx = px + 0.05 + (j % 2) * 0.56, cy = yy + 0.05 + (((j >> 1) % 2) * 0.56), cz = 0.4 + Math.floor(j / 4) * 1.1;
-                this.parcel(cx, cy, cz, cx + 0.53, cy + 0.53, 1.05);
+                this.parcel(cx, cy, cx + 0.53, cy + 0.53, cz, 1.05);
               }
             }
           });
