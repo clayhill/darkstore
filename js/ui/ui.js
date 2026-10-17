@@ -312,13 +312,26 @@
 
     // ----- settings
     tab_settings() {
-      const c = this.sim.cfg;
+      const c = this.sim.cfg, tm = this.terms;
       const num = (k, label, step, min, max) => `<div class="field"><label>${label}</label><input type="number" data-cfg="${k}" value="${c[k]}" step="${step || 1}" min="${min ?? 0}" ${max ? `max="${max}"` : ''}></div>`;
       const sel = (k, label, opts) => `<div class="field"><label>${label}</label><select data-cfg="${k}">${opts.map(([v, t]) => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
-      return this.type.settings(this, c, num, sel);
+      const t = this.type.settings(this, c, num, sel);
+      return `<div class="sect"><h3>Live policies</h3><div class="card">
+        ${t.live}
+        <div class="row2">${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>
+        <div class="row2">${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}${c.chargers ? num('battLow', 'Charge below (%)', 1, 5, 80) : ''}</div>
+        <div class="note">Applied immediately. Each ${tm.port} can be switched to manual operation from its inspector (click a ${tm.port}).</div></div></div>
+      <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
+        ${t.scenario}
+        <div class="row2">${num('pickPorts', 'Pick ' + tm.ports, 1, 1, 7)}${num('goodsInPorts', 'Goods-in ' + tm.ports, 1, 0, 3)}</div>
+        <div class="row2">${num('packStations', 'Pack stations', 1, 1, 5)}${num('products', 'SKUs', 10, 20, 2000)}</div>
+        ${num('seed', 'Random seed', 1, 1)}
+        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
+        ${t.note ? `<div class="note">${t.note}</div>` : ''}</div></div>
+      <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">${t.about}</div></div>`;
     }
     bind_settings(b) {
-      const live = this.type.live; // settings that apply without a restart
+      const live = ['pickPerUnit', 'truckCapacity', 'truckCutoff', 'battLow', ...this.type.live]; // apply without a restart
       b.querySelectorAll('[data-cfg]').forEach((el) => {
         const k = el.dataset.cfg;
         if (live.includes(k)) el.addEventListener('change', () => { this.sim.cfg[k] = el.tagName === 'SELECT' ? el.value : +el.value; this.toast('Applied: ' + k); });

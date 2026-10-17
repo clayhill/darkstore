@@ -12,30 +12,22 @@
       ];
     },
     settings(ui, c, num, sel) {
-      return `<div class="sect"><h3>Live policies</h3><div class="card">
-        ${sel('putawayPolicy', 'Where pods go back', [['velocity', 'Velocity-based (busy pods near the stations)'], ['nearest', 'Nearest free cell'], ['random', 'Random free cell']])}
+      return {
+        live: `${sel('putawayPolicy', 'Where pods go back', [['velocity', 'Velocity-based (busy pods near the stations)'], ['nearest', 'Nearest free cell'], ['random', 'Random free cell']])}
         ${sel('tunnelling', 'Empty robots under stored pods', [['on', 'Allowed (tunnelling)'], ['off', 'Not allowed — highways and empty cells only']])}
-        <div class="row2">${num('podRotate', 'Turn pod 90° (s)', 0.1, 0.3, 6)}${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}</div>
-        <div class="row2">${num('battLow', 'Charge below (%)', 1, 5, 80)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>
-        ${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}
-        <div class="note">Applied immediately. Stations can be switched to manual operation from their inspector (click a station).</div></div></div>
-      <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
-        <div class="row2">${num('floorW', 'Floor X (cells)', 1, 18, 60)}${num('floorD', 'Floor Y (cells)', 1, 10, 40)}</div>
+        ${num('podRotate', 'Turn pod 90° (s)', 0.1, 0.3, 6)}`,
+        scenario: `<div class="row2">${num('floorW', 'Floor X (cells)', 1, 18, 60)}${num('floorD', 'Floor Y (cells)', 1, 10, 40)}</div>
         <div class="row2">${num('podFill', 'Share of storage cells with a pod', 0.05, 0.3, 0.95)}${num('robots', 'Robots', 1, 1, 80)}</div>
-        <div class="row2">${num('pickPorts', 'Pick stations', 1, 1, 7)}${num('goodsInPorts', 'Goods-in stations', 1, 0, 3)}</div>
         <div class="row2">${num('portInboundCap', 'Pods in flight per station', 1, 2, 10)}${num('toteSlots', 'Put-wall slots', 1, 2, 12)}</div>
-        <div class="row2">${num('chargers', 'Chargers', 1, 1, 12)}${num('packStations', 'Pack stations', 1, 1, 5)}</div>
-        <div class="row2">${num('products', 'SKUs', 10, 20, 2000)}${num('stockedRatio', 'Share of pod bins stocked', 0.05, 0.1, 0.95)}</div>
+        <div class="row2">${num('chargers', 'Chargers', 1, 1, 12)}${num('stockedRatio', 'Share of pod bins stocked', 0.05, 0.1, 0.95)}</div>
         <div class="row2">${num('vmax', 'Robot top speed (m/s)', 0.1, 0.5, 3)}${num('accel', 'Acceleration (m/s²)', 0.1, 0.2, 3)}</div>
-        <div class="row2">${num('wheelShift', 'Turn 90° on the spot (s)', 0.1, 0.3, 5)}${num('liftTime', 'Lift / lower pod (s)', 0.1, 0.3, 5)}</div>
-        ${num('seed', 'Random seed', 1, 1)}
-        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
-        <div class="note">A station's queue lane holds all but one of its pods in flight; each pick station needs that many cells plus three along the front edge.</div></div></div>
-      <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">
-        Pod robots: shelving pods stand on a ${c.floorW}×${c.floorD} floor in blocks two cells deep, with highways between them. A robot drives under a pod, lifts it and carries it to a station, where it joins a queue lane. At the station the robot turns the pod to show the operator the face with the next pick. Afterwards the pod goes back to a free cell chosen by the storage policy, so busy pods drift towards the stations. Robots turn on the spot to change direction; empty robots may drive under stored pods. 100 ms fixed time step; moving-block cell reservations, A* routing, yield and evasive manoeuvres. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on pods and totes, GS1-128 SSCC on shipping labels.</div></div>`;;
+        <div class="row2">${num('wheelShift', 'Turn 90° on the spot (s)', 0.1, 0.3, 5)}${num('liftTime', 'Lift / lower pod (s)', 0.1, 0.3, 5)}</div>`,
+        note: "A station's queue lane holds all but one of its pods in flight; each pick station needs that many cells plus three along the front edge.",
+        about: `Pod robots: shelving pods stand on a ${c.floorW}×${c.floorD} floor in blocks two cells deep, with highways between them. A robot drives under a pod, lifts it and carries it to a station, where it joins a queue lane. At the station the robot turns the pod to show the operator the face with the next pick. Afterwards the pod goes back to a free cell chosen by the storage policy, so busy pods drift towards the stations. Robots turn on the spot to change direction; empty robots may drive under stored pods. 100 ms fixed time step; moving-block cell reservations, A* routing, yield and evasive manoeuvres. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on pods and totes, GS1-128 SSCC on shipping labels.`,
+      };
     },
     // pods in flight per station sets the lane length, so it needs a restart
-    live: ['putawayPolicy', 'pickPerUnit', 'battLow', 'truckCapacity', 'truckCutoff', 'tunnelling', 'podRotate'],
+    live: ['putawayPolicy', 'tunnelling', 'podRotate'],
     motion(r) { return `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}`; },
     mechanism(r) { return `<dt>Lift</dt><dd>${r.state === 'LIFTING_POD' ? (r.bin ? 'lowering' : 'lifting') : r.bin ? 'raised, carrying a pod' : 'down'}</dd>`; },
     liftsLabel: 'pods lifted',

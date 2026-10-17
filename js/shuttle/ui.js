@@ -19,27 +19,19 @@
       ];
     },
     settings(ui, c, num, sel) {
-      return `<div class="sect"><h3>Live policies</h3><div class="card">
-        ${sel('putawayPolicy', 'Where totes go back', [['velocity', 'Velocity-based (fast movers near the aisle front, least busy aisle)'], ['nearest', 'Nearest to the aisle front'], ['random', 'Random free position']])}
-        <div class="row2">${num('handlerTime', 'Load handler (s)', 0.1, 0.5, 10)}${num('liftTransfer', 'Lift transfer (s)', 0.1, 0.3, 6)}</div>
-        <div class="row2">${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>
-        ${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}
-        <div class="note">Applied immediately. Stations can be switched to manual operation from their inspector (click a station).</div></div></div>
-      <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
-        <div class="row2">${num('aisles', 'Aisles', 1, 1, 10)}${num('levels', 'Levels', 1, 2, 30)}</div>
+      return {
+        live: `${sel('putawayPolicy', 'Where totes go back', [['velocity', 'Velocity-based (fast movers near the aisle front, least busy aisle)'], ['nearest', 'Nearest to the aisle front'], ['random', 'Random free position']])}
+        <div class="row2">${num('handlerTime', 'Load handler (s)', 0.1, 0.5, 10)}${num('liftTransfer', 'Lift transfer (s)', 0.1, 0.3, 6)}</div>`,
+        scenario: `<div class="row2">${num('aisles', 'Aisles', 1, 1, 10)}${num('levels', 'Levels', 1, 2, 30)}</div>
         <div class="row2">${num('bays', 'Bays per side', 1, 8, 60)}${num('rackFill', 'Share of positions with a tote', 0.05, 0.2, 0.95)}</div>
-        <div class="row2">${num('pickPorts', 'Pick stations', 1, 1, 7)}${num('goodsInPorts', 'Goods-in stations', 1, 0, 3)}</div>
         <div class="row2">${num('portInboundCap', 'Totes in flight per station', 1, 1, 12)}${num('toteSlots', 'Put-wall slots', 1, 2, 12)}</div>
-        <div class="row2">${num('bufferSize', 'Level buffer (totes)', 1, 1, 4)}${num('packStations', 'Pack stations', 1, 1, 5)}</div>
+        <div class="row2">${num('bufferSize', 'Level buffer (totes)', 1, 1, 4)}${num('stockedRatio', 'Share of totes stocked', 0.05, 0.1, 0.95)}</div>
         <div class="row2">${num('shuttleV', 'Shuttle speed (m/s)', 0.1, 0.5, 6)}${num('shuttleA', 'Shuttle accel. (m/s²)', 0.1, 0.3, 5)}</div>
-        <div class="row2">${num('liftV', 'Lift speed (m/s)', 0.1, 0.5, 8)}${num('liftA', 'Lift accel. (m/s²)', 0.1, 0.5, 10)}</div>
-        <div class="row2">${num('products', 'SKUs', 10, 20, 2000)}${num('stockedRatio', 'Share of totes stocked', 0.05, 0.1, 0.95)}</div>
-        ${num('seed', 'Random seed', 1, 1)}
-        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div></div></div>
-      <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">
-        Shuttle AS/RS: ${c.aisles} aisles of racking, ${c.levels} levels high and ${c.bays} bays long on each side, totes stored single deep. Every level has its own shuttle (captive); it pulls a tote, drives it to the front of the aisle and drops it in the level's outbound buffer. The aisle's lift takes it down to the pre-zone conveyor, which carries it to a station. Returning totes go to the aisle with the least work, the lift brings them up to an inbound buffer and the shuttle puts them away. The lift serves the longest-waiting tote first and combines a put-away with a retrieval on the same level. Not modelled yet: roaming shuttles, double-deep storage, tote sequencing on the conveyor. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on totes, GS1-128 SSCC on shipping labels.</div></div>`;
+        <div class="row2">${num('liftV', 'Lift speed (m/s)', 0.1, 0.5, 8)}${num('liftA', 'Lift accel. (m/s²)', 0.1, 0.5, 10)}</div>`,
+        about: `Shuttle AS/RS: ${c.aisles} aisles of racking, ${c.levels} levels high and ${c.bays} bays long on each side, totes stored single deep. Every level has its own shuttle (captive); it pulls a tote, drives it to the front of the aisle and drops it in the level's outbound buffer. The aisle's lift takes it down to the pre-zone conveyor, which carries it to a station. Returning totes go to the aisle with the least work, the lift brings them up to an inbound buffer and the shuttle puts them away. The lift serves the longest-waiting tote first and combines a put-away with a retrieval on the same level. Not modelled yet: roaming shuttles, double-deep storage, tote sequencing on the conveyor. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on totes, GS1-128 SSCC on shipping labels.`,
+      };
     },
-    live: ['putawayPolicy', 'handlerTime', 'liftTransfer', 'pickPerUnit', 'truckCapacity', 'truckCutoff'],
+    live: ['putawayPolicy', 'handlerTime', 'liftTransfer'],
     position(r) {
       const g = r.sim.grid;
       if (r.axis === 'y') return `Aisle ${r.a + 1} · level ${r.l + 1} · bay ${Math.max(1, Math.round(r.pos + 0.5))}`;

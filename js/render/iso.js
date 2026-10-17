@@ -87,7 +87,7 @@
       c.drawImage(L.cv, (this.cam.x - L.cam.x * s) * this.dpr, (this.cam.y - L.cam.y * s) * this.dpr, L.cv.width * s, L.cv.height * s);
       c.restore();
     }
-    resetCaches() { this.layers.forEach((L) => (L.key = '')); }
+    resetCaches() { this.layers.forEach((L) => { L.key = ''; L.time = 0; }); } // redraw on the next frame
 
     // ---------------------------------------------------------------- input
     bindInput() {
