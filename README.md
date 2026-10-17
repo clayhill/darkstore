@@ -177,8 +177,9 @@ with the default 16 robots.
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, railrunner.html, css/style.css
-                                            simulator pages
+cubeflow.html, podswarm.html, railrunner.html
+            one line each: js/boot.js builds the shared page for that type and
+            loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), robot (state machine,
             shared tasks), machine (shuttles, lifts), ports, orders (OMS, packing, dock),

@@ -79,5 +79,6 @@
     const t = document.getElementById('toast');
     if (t) { t.textContent = 'Error: ' + e.message + (e.lineno ? ` (${(e.filename || '').split('/').pop()}:${e.lineno})` : ''); t.className = 'toast show err'; }
   });
-  window.addEventListener('DOMContentLoaded', () => app.start());
+  // scripts are added by js/boot.js, possibly after the document finished loading
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', () => app.start()); else app.start();
 })((globalThis.WS = globalThis.WS || {}));

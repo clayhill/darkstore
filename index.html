@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- ?v= on scripts and styles: bump when they change, so cached copies are not mixed in -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DarkStore — Goods-to-Person Warehouse Simulator</title>
   <meta name="description" content="DarkStore simulates automated goods-to-person warehouses in the browser. Pick a system and watch robots, operators and orders move through it.">
-  <link rel="stylesheet" href="css/landing.css?v=20261019">
+  <link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
   <div class="backdrop" aria-hidden="true"><div class="floor"></div></div>
@@ -74,10 +73,9 @@
 
   <footer>DarkStore is a simulation and teaching tool, not control software for real systems · Apache-2.0</footer>
 
-  <script src="js/core/config.js?v=20261019"></script>
-  <script src="js/cube/config.js?v=20261019"></script>
-  <script src="js/pod/config.js?v=20261019"></script>
-  <script src="js/shuttle/config.js?v=20261019"></script>
-  <script src="js/landing/landing.js?v=20261019"></script>
+  <script>
+    // load fresh copies, so the cards always match the current simulations
+    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
+  </script>
 </body>
 </html>
