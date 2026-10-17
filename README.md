@@ -1,10 +1,16 @@
 # DarkStore — a goods-to-person warehouse simulator
 
-A browser simulator for goods-to-person warehouse automation. It currently models a
-grid-based (cube storage) automated storage and retrieval system. The specs are in
-[`specs/`](specs/README.txt): `common.txt` holds the rules shared by every storage type and
-`cube.txt` describes the type implemented here. Specs for shuttle, pod, ACR and stacker crane
-systems are written but not implemented yet.
+A browser simulator for goods-to-person warehouse automation. Each type of system has its own
+simulation and name:
+
+- **CubeFlow**: cube storage, a grid-based AS/RS where bins are stacked and robots dig from above.
+- **PodSwarm**: pod robots that lift shelving units off the floor and carry them to stations.
+
+The specs are in [`specs/`](specs/README.txt). `common.txt` holds the rules shared by every storage
+type, and `cube.txt` and `pod.txt` describe the two types implemented here. Specs for shuttle, ACR and
+stacker crane systems are written but not implemented yet.
+
+### CubeFlow
 
 ![Floor view: robots on the grid, pick ports, pack stations and the outbound dock](docs/screenshots/floor.png)
 
@@ -15,30 +21,39 @@ systems are written but not implemented yet.
 | ![Close-up of robots digging and delivering bins to the pick ports](docs/screenshots/closeup.png) | ![GS1 logistics label with SSCC barcode](docs/screenshots/shipping-label.png) |
 | **Close-up:** robots digging (winch depth shown) and pick ports | **Shipping label:** GS1 logistics label with SSCC |
 
+### PodSwarm
+
+![PodSwarm floor view: shelving pods in blocks, robots carrying pods to the pick stations](docs/screenshots/pod-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of pick stations: pods presented to operators, the pocket to pick from lit green](docs/screenshots/pod-closeup.png) | ![PodSwarm control room: hit rate, pod returns, floor map with queue lanes](docs/screenshots/pod-control.png) |
+| **Close-up:** pods queue in a lane and are turned to show the operator the right face | **Control room:** hit rate, pod returns and the live floor map |
+
 ## Run
 
 Open `index.html` in Safari (or any modern browser). It has no build step, no
 dependencies and no network calls, so double-clicking the file works.
 
 `index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
-name and page; for now there is one, **CubeFlow** (cube storage), at `cubeflow.html`.
+name and page: **CubeFlow** at `cubeflow.html` and **PodSwarm** at `podswarm.html`.
 
-![Landing page with the CubeFlow simulation card](docs/screenshots/landing.png)
+![Landing page with the CubeFlow and PodSwarm simulation cards](docs/screenshots/landing.png)
 
-Optional URL parameters for `cubeflow.html` (handy for demos):
+Optional URL parameters for both simulation pages (handy for demos):
 
 | Parameter | Effect |
 |---|---|
 | `?warm=1800` | Pre-run 1800 simulated seconds before showing the page |
 | `&view=floor\|split\|control` | Start in a given view |
-| `&xray=1`, `&heat=1` | Turn on X-ray stacks / ABC & heat overlay |
+| `&xray=1`, `&heat=1` | Turn on X-ray stacks (CubeFlow only) / ABC & heat overlay |
 
 Controls: drag to pan, scroll or pinch to zoom, **space** to pause, **Esc** to
-close panels. Click robots, grid cells, ports, pack stations or the dock to inspect them.
-The scan box at the top takes GTINs, SSCCs, bin/tote GRAIs, bin IDs (`B00042`),
+close panels. Click robots, grid cells, pods, ports, pack stations or the dock to inspect them.
+The scan box at the top takes GTINs, SSCCs, bin/pod/tote GRAIs, bin and pod IDs (`B00042`, `POD-0042`),
 order numbers (`SO-100001`), ASNs, robots (`R03`) and ports (`P01`).
 
-## What is modelled
+## What is modelled: CubeFlow
 
 **Grid & robots.** A `[X][Y][Z]` matrix of bin stacks with chargers on the back edge,
 conveyor pick ports on the front face and a goods-in (decant) port on the right face.
@@ -93,6 +108,31 @@ they can never match a real product, asset or shipment.
 It also raises bottleneck alerts: traffic hotspots, starved or blocked ports, backorders, tote
 shortage and low battery.
 
+## What is modelled: PodSwarm
+
+PodSwarm shares the order flow, inbound, inventory, put wall, packing, dock, barcodes and control
+room with CubeFlow. What differs:
+
+**Floor & pods.** A floor of 1.2 m cells: storage blocks two cells deep, highways between them, a
+queue lane in front of each station and chargers on the back wall. Each pod has four faces of
+shelves with fabric bins; one SKU is spread over many pods.
+
+**Robots.** Drive units turn on the spot to change direction (90° in 1.5 s) and lift a pod in 1.5 s.
+An empty robot may drive under stored pods (*tunnelling*, can be switched off); a robot carrying a pod
+keeps to highways and empty cells. Traffic control is the same moving-block reservation and A* as in
+CubeFlow.
+
+**Stations.** A pod joins its station's queue lane and moves up in order. At the station the robot
+turns the pod so the face with the next pick points at the operator; the lines are sorted by face so the
+pod turns as little as possible. Lines that arrive for the same station while a pod is there are picked
+without it leaving.
+
+**Storage policy.** A pod goes back to a free cell, not necessarily its old one. With the default
+velocity policy, busy pods end up near the stations; *nearest* and *random* are there to compare.
+
+**KPIs.** Instead of dig ratio and burial penalties, PodSwarm reports the hit rate (order lines picked
+per pod presentation) and pod returns.
+
 ## Time model
 
 The simulation advances in fixed 100 ms ticks and also has a small discrete-event queue. Rendering
@@ -103,21 +143,23 @@ with the default 16 robots.
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, css/style.css               CubeFlow simulator page
-js/core/    util (RNG, heap), barcode (GS1 encoders), config (defaults)
-js/sim/     grid, inventory (IMS), router (fleet manager), robot (state machine + tasks),
-            ports, orders (OMS, packing, dock), kpi, sim (loop, dispatcher, layout)
+cubeflow.html, podswarm.html, css/style.css simulator pages
+js/core/    util (RNG, heap), barcode (GS1 encoders), config (CubeFlow defaults)
+js/sim/     shared simulation and CubeFlow: grid, inventory (IMS), router (fleet manager),
+            robot (state machine + tasks), ports, orders (OMS, packing, dock), kpi,
+            sim (loop, dispatcher, layout)
+js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render
 js/render/  iso (isometric floor), control (SCADA map + charts)
 js/ui/      ui (panels, inspector, labels, scanning)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod]
 ```
 
 ## Disclaimer
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
-systems, and it must not be used as such. It is inspired by cube-storage AS/RS systems in general and
-is not affiliated with, endorsed by or derived from any vendor of such systems. All company names,
-addresses, products and barcodes in the simulation are fictional.
+systems, and it must not be used as such. It is inspired by cube-storage AS/RS and pod-robot systems
+in general and is not affiliated with, endorsed by or derived from any vendor of such systems. All
+company names, addresses, products and barcodes in the simulation are fictional.
 
 ## License
 
