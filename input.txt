@@ -1,0 +1,41 @@
+CubeFlow - the system being simulated
+=====================================
+
+1. Overview
+
+The warehouse is a cube storage system, a grid-based AS/RS. Stock is kept in
+bins that are stacked directly on top of each other inside an aluminium grid,
+with no aisles and no space between the stacks. Robots drive on the top of the
+grid and reach the bins from above.
+
+2. Robots
+
+- Small rectangular robots, each one grid cell in size.
+- Two sets of wheels at right angles: one set drives along X, the other along Y.
+  To change direction the robot stops and lowers the other set (a pneumatic
+  shift). It never turns or drives diagonally, only straight X or Y moves.
+- A robot always occupies exactly one cell while driving.
+
+3. Digging
+
+Each robot has a cavity with a winch and a gripper on four bands. It parks over
+a stack, lowers the gripper and latches onto the top bin.
+
+Only the top bin of a stack can be lifted. If the bin you want is fifth from
+the top, the robot first lifts bins 1 to 4 one at a time and sets each one down
+on a neighbouring stack. Then it can lift bin 5.
+
+After that the moved bins have to go somewhere. Either a robot puts them back
+on the original stack in their original order, or they stay where they are and
+the grid slowly re-sorts itself as bins come and go. The simulator should
+support both.
+
+4. Traffic
+
+- Robots reserve the cells ahead of them before they drive into them. Path
+  planning can use A*, or something like conflict-based search.
+- A robot that is lifting or lowering a bin blocks its cell for everyone until
+  the gripper is back up.
+- Bins are delivered to ports on the edge of the grid. The robot lowers the bin
+  into the port, and a person (or a picking robot) takes items out or puts them
+  in.

@@ -1,0 +1,52 @@
+CubeFlow - how the simulation should work
+=========================================
+
+1. Time and state
+
+- Fixed time steps of 100 ms, plus an event queue for things that happen at a
+  known time. The steps need to be small enough to show travel, winch and
+  picking times properly.
+- Every robot runs its own state machine, with states such as IDLE,
+  MOVING_TO_TARGET, DIGGING_BIN, TRANSPORTING_TO_PORT and WAITING_IN_TRAFFIC.
+- The grid is a 3D array [X][Y][Z]. X and Y are positions on the top surface,
+  Z is the depth of a stack (real systems go up to around 16 bins deep).
+
+2. Parts of the system
+
+Fleet manager (routing)
+  Plans paths over the top of the grid and re-routes robots when needed, so
+  they don't collide and don't end up in gridlock or deadlock.
+
+Inventory system
+  Knows which product (SKU) is in which bin and how deep each bin is. Reserves
+  stock for orders and decides which bins have to be fetched, and by which
+  robot.
+
+Physics
+  - acceleration and braking
+  - winch speed, slower when it carries a heavy bin than when it is empty
+  - battery use, with robots driving to the chargers at the edge of the grid
+    on their own when they run low
+
+3. Rules
+
+- One robot per [X][Y] cell at any time step.
+- While a robot is digging, its cell can't be passed by anyone until the winch
+  is back up.
+- Track how popular each product is. Fast movers should be stored near the
+  top (Z=1). When a fast mover ends up deep in a stack, say at Z=10 because
+  other bins were put on top of it, log the extra digging time as a burial
+  penalty.
+
+4. Output
+
+The point of the simulator is the numbers. It should report at least:
+
+- Throughput: bins delivered to the ports per hour, and order lines picked per
+  hour (LPH).
+- Robot utilization: share of time spent working, compared with idle time and
+  time stuck waiting in traffic.
+- Dig ratio: moves that only shift bins out of the way, divided by moves that
+  deliver the bin that was asked for.
+- Bottleneck alerts: highlight grid areas with heavy traffic and ports that
+  keep waiting for bins.
