@@ -8,10 +8,10 @@ once, in common.txt.
 
   common.txt    shared rules, read this first
   cube.txt      cube storage: bins stacked in a grid, robots on top
-                (this is the one the simulator implements today)
+                (implemented as CubeFlow)
   shuttle.txt   shuttle AS/RS: aisles of racking, a shuttle per level, lifts
   pod.txt       pod robots: floor robots that carry whole shelving units
-                (the Kiva-style system)
+                (the Kiva-style system, implemented as PodSwarm)
   acr.txt       case-handling robots: floor robots with a mast that pick
                 totes from ordinary shelving, several per trip
   crane.txt     stacker crane AS/RS: one crane per aisle, mini-load (totes)

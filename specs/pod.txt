@@ -90,13 +90,22 @@ On top of the common output:
 
 8. Parameters
 
-  floor               30 x 20 cells, 1.2 m cell
-  storage blocks      2 cells deep, 1-cell highways between blocks
-  pod                 1 m square, 4 faces, 5 shelves, 3 bins per shelf
-                      per face, up to 450 kg loaded
-  robots              24
-  drive               1.5 m/s, accelerate 1 m/s2 (0.7 m/s2 with a full pod)
-  rotate              90 degrees in 1.5 s
+These are the defaults in js/pod/config.js.
+
+  floor               26 x 15 cells, 1.2 m cell, 82 % of storage cells
+                      hold a pod
+  storage blocks      2 cells deep, 5 wide, 1-cell highways between them
+  pod                 4 faces, 4 shelves, 2 bins per shelf per face,
+                      30 L per bin, up to 450 kg loaded
+  robots              16, 5 chargers
+  drive               1.5 m/s, accelerate 1 m/s2, brake 1.2 m/s2
+  turn on the spot    90 degrees in 1.5 s
+  turn a pod          90 degrees in 1.5 s at the station
   lift / lower        1.5 s each
   tunnelling          on
-  stations            4 pick, 1 goods-in, queue of 4 pods each
+  stations            3 pick, 1 goods-in, 6 pods in flight per station
+                      (a queue lane of 5 plus the station), put wall of
+                      8 order totes
+
+Not modelled yet: slower acceleration with a heavy pod, and re-sorting
+pods in quiet hours.

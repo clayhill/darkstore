@@ -4,7 +4,7 @@
   'use strict';
   const U = WS.U, BC = WS.Barcode, esc = U.esc;
   const $ = (s, r) => (r || document).querySelector(s);
-  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
+  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', LIFTING_POD: 'Lifting pod', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
   const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
   const SEV_ICON = { critical: '⛔', warning: '⚠️', info: 'ℹ️' };
   const LOG_COL = { order: '#7dd3fc', release: '#93c5fd', pick: '#86efac', pack: '#c4b5fd', ship: '#4ade80', inbound: '#fde68a', warn: '#fca5a5', penalty: '#fb923c', robot: '#facc15', system: '#e2e8f0' };
@@ -16,6 +16,8 @@
       this.init();
     }
     get sim() { return this.app.sim; }
+    get terms() { return this.sim.terms; }
+    stateLabel(k) { return (this.sim.stateLabels || {})[k] || STATE_LABEL[k]; }
 
     init() {
       const app = this.app;
@@ -50,7 +52,8 @@
         else if (k === 'label') this.showLabel(id); else if (k === 'asn') this.showReceipt(id);
         else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
       });
-      $('#legend').innerHTML = Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING').map((k) => `<span><i style="background:${WS.STATE_COLORS[k]}"></i>${STATE_LABEL[k]}</span>`).join('') +
+      const legend = this.sim.legendStates || Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING' && k !== 'LIFTING_POD');
+      $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.STATE_COLORS[k]}"></i>${this.stateLabel(k)}</span>`).join('') +
         `<span class="faint">· ABC: <i style="background:${WS.CLASS_COLORS.A}"></i> A <i style="background:${WS.CLASS_COLORS.B}"></i> B <i style="background:${WS.CLASS_COLORS.C}"></i> C</span>`;
       this.setTab('inbound');
     }
@@ -76,14 +79,20 @@
       const open = sim.oms.orders.filter((o) => o.status !== 'SHIPPED' && o.status !== 'LOADED');
       const onTruck = sim.oms.truck.parcels.length;
       const back = open.filter((o) => o.status === 'BACKORDER').length;
-      const charging = sim.robots.filter((r) => r.bucket === 'CHARGE').length;
+      const charging = sim.robots.filter((r) => r.bucket === 'CHARGE').length, tm = this.terms;
+      const typeTiles = sim.kind === 'pod' ? [
+        this.kpiTile('Hit rate', (k.linesPicked / (k.presentedPick || 1)).toFixed(2), 'lines/pod', `${k.presentedPick} pick presentations`),
+        this.kpiTile('Pod returns', k.stores, '', `${sim.inv.bins.filter((b) => b.loc !== 'grid').length} pods off the floor now`),
+      ] : [
+        this.kpiTile('Dig ratio', k.digRatio.toFixed(2), '', `${k.shuffles} shuffles / ${k.productive} productive`),
+        this.kpiTile('Burial penalties', k.penaltyEvents, '', `${U.fmtDur(k.penaltyTime)} shuffling on A-items`),
+      ];
       $('#kpis').innerHTML = [
-        this.kpiTile('Throughput', Math.round(k.rate('presented')), 'bins/h', `${k.presented} bins presented`),
+        this.kpiTile('Throughput', Math.round(k.rate('presented')), tm.units + '/h', `${k.presented} ${tm.units} presented`),
         this.kpiTile('Order lines', Math.round(k.rate('lines')), 'LPH', `${k.unitsPicked} units picked`),
         this.kpiTile('Orders shipped', Math.round(k.rate('shipped')), '/h', `${k.ordersShipped} total`),
         this.kpiTile('Robot utilization', Math.round(u.work * 100), '%', `now ${Math.round(ur.work * 100)}% · waiting ${Math.round(u.wait * 100)}%`),
-        this.kpiTile('Dig ratio', k.digRatio.toFixed(2), '', `${k.shuffles} shuffles / ${k.productive} productive`),
-        this.kpiTile('Burial penalties', k.penaltyEvents, '', `${U.fmtDur(k.penaltyTime)} shuffling on A-items`),
+        ...typeTiles,
         this.kpiTile('Order cycle', k.cycleN ? U.fmtDur(k.cycleSum / k.cycleN) : '—', '', 'receipt → truck'),
         this.kpiTile('Orders in process', open.length, '', `${back ? back + ' backordered · ' : ''}${onTruck} on truck`),
         this.kpiTile('Fleet battery', Math.round(sim.robots.reduce((s, r) => s + r.battery, 0) / sim.robots.length), '%', `${charging} charging`),
@@ -99,8 +108,8 @@
         return `<div class="pcard" data-open="port:${p.idx}"><div class="row"><span class="name">${p.code} · ${esc(p.name)}</span>${status}</div>
           <div class="row meta"><span>${p.inbound} inbound · ${slots}</span><span class="qdots">${dots}</span></div>
           <div class="bar" title="busy ${Math.round(busy * 100)}% · starved ${Math.round(starve * 100)}%"><i style="width:${busy * 100}%;background:#3987e5"></i><i style="width:${starve * 100}%;background:#d95926"></i></div>
-          <div class="row meta"><span>busy ${Math.round(busy * 100)}% · starved ${Math.round(starve * 100)}%</span><span>${p.stats.presented} bins · ${p.stats.lines} lines</span></div></div>`;
-      }).join('') + `<div class="note">Bar: operator busy (blue) vs. waiting for bins with demand queued (orange). Cap ${cfg.portInboundCap} bins in flight per port.</div>`;
+          <div class="row meta"><span>busy ${Math.round(busy * 100)}% · starved ${Math.round(starve * 100)}%</span><span>${p.stats.presented} ${this.terms.units} · ${p.stats.lines} lines</span></div></div>`;
+      }).join('') + `<div class="note">Bar: operator busy (blue) vs. waiting for ${this.terms.units} with demand queued (orange). Cap ${cfg.portInboundCap} ${this.terms.units} in flight per ${this.terms.port}.</div>`;
     }
     renderAlerts() {
       const a = this.sim.kpi.alerts;
@@ -119,8 +128,8 @@
     renderFleet() {
       $('#fleet').innerHTML = '<tr><th>Robot</th><th>State</th><th>Battery</th><th>Task</th><th class="r">Util</th></tr>' + this.sim.robots.map((r) => {
         const st = r.displayState, tot = Object.values(r.stateTime).reduce((a, b) => a + b, 0) || 1;
-        const work = ['MOVING_TO_TARGET', 'DIGGING_BIN', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING'].reduce((s, k) => s + r.stateTime[k], 0);
-        return `<tr class="click" data-open="robot:${r.id}"><td><b>${r.name}</b></td><td><span class="sdot" style="background:${WS.STATE_COLORS[st]}"></span>${STATE_LABEL[st]}</td><td>${this.battBar(r.battery)}</td><td>${this.taskText(r)}</td><td class="r">${Math.round((work / tot) * 100)}%</td></tr>`;
+        const work = Object.entries(r.stateTime).reduce((s, [k, v]) => s + (WS.ROBOT_BUCKET[k] === 'WORK' ? v : 0), 0);
+        return `<tr class="click" data-open="robot:${r.id}"><td><b>${r.name}</b></td><td><span class="sdot" style="background:${WS.STATE_COLORS[st]}"></span>${this.stateLabel(st)}</td><td>${this.battBar(r.battery)}</td><td>${this.taskText(r)}</td><td class="r">${Math.round((work / tot) * 100)}%</td></tr>`;
       }).join('');
     }
     renderLog() {
@@ -147,21 +156,21 @@
     parseGtin(v) { const m = String(v).match(/\d{13}/); return m && this.sim.inv.byGtin.has(m[0]) ? m[0] : null; }
     linesHtml(lines, withBin) {
       if (!lines.length) return '<div class="faint" style="font-size:12px">No lines yet — scan or pick a product.</div>';
-      return lines.map((l, k) => { const p = this.sim.inv.byGtin.get(l.gtin); return `<div class="ln"><span><span class="mono">${l.gtin}</span><br><span class="muted">${esc(p.name)}${withBin && l.bin ? ' → bin ' + esc(l.bin) : ''}</span></span><b>× ${l.qty}</b><button class="x" data-del="${k}">✕</button></div>`; }).join('');
+      return lines.map((l, k) => { const p = this.sim.inv.byGtin.get(l.gtin); return `<div class="ln"><span><span class="mono">${l.gtin}</span><br><span class="muted">${esc(p.name)}${withBin && l.bin ? ` → ${this.terms.unit} ` + esc(l.bin) : ''}</span></span><b>× ${l.qty}</b><button class="x" data-del="${k}">✕</button></div>`; }).join('');
     }
 
     // ----- inbound
     tab_inbound() {
-      const cfg = this.sim.cfg;
+      const cfg = this.sim.cfg, tm = this.terms, sample = (this.sim.inv.bins[41] || this.sim.inv.bins[0]).id;
       return `${this.productOptions()}
       <div class="sect"><h3>Receive goods · advance shipping notice</h3><div class="card">
         <div class="field"><label>Supplier</label><input type="text" id="rc-sup" value="Acme Distribution"></div>
         <div class="row3"><div class="field"><label>Product (scan GTIN-13 / EAN)</label><input type="text" id="rc-prod" list="prodlist" placeholder="9521234…"></div>
           <div class="field"><label>Qty</label><input type="number" id="rc-qty" value="24" min="1"></div><div class="field"><button class="btn" id="rc-add">Add</button></div></div>
-        <div class="field"><label>Target storage bin (optional — leave empty for system slotting)</label><input type="text" id="rc-bin" placeholder="e.g. B00042"></div>
+        <div class="field"><label>Target storage ${tm.unit} (optional — leave empty for system slotting)</label><input type="text" id="rc-bin" placeholder="e.g. ${sample}"></div>
         <div class="lines" id="rc-lines"></div>
-        <div class="btns"><button class="btn primary" id="rc-go">Create receipt &amp; call bins to goods-in</button></div>
-        <div class="note">The IMS reserves compartment space (same-SKU top-up first, then empty compartments). Robots bring those bins to the goods-in port, the operator decants and scans each unit, then the bin is stored back using the slotting policy.</div>
+        <div class="btns"><button class="btn primary" id="rc-go">Create receipt &amp; call ${tm.units} to goods-in</button></div>
+        <div class="note">The IMS reserves compartment space (same-SKU top-up first, then empty compartments). Robots bring those ${tm.units} to the goods-in ${tm.port}, the operator decants and scans each unit, then the ${tm.unit} is stored back using the slotting policy.</div>
       </div></div>
       <div class="sect"><h3>New product <span class="sub">assigns a GS1 GTIN-13</span></h3><div class="card">
         <div class="field"><label>Name</label><input type="text" id="np-name" placeholder="e.g. Espresso Cups 4pk"></div>
@@ -178,7 +187,7 @@
       $('#rc-add', b).onclick = () => {
         const g = this.parseGtin($('#rc-prod').value), q = +$('#rc-qty').value, bin = $('#rc-bin').value.trim();
         if (!g) return this.toast('Unknown product — scan a valid GTIN-13', true);
-        if (bin && !this.sim.inv.findBin(bin)) return this.toast('Unknown bin ' + bin, true);
+        if (bin && !this.sim.inv.findBin(bin)) return this.toast(`Unknown ${this.terms.unit} ${bin}`, true);
         if (!(q > 0)) return this.toast('Quantity must be positive', true);
         this.rcLines.push({ gtin: g, qty: q, bin: bin || null }); $('#rc-prod').value = ''; redraw();
       };
@@ -186,7 +195,7 @@
       $('#rc-lines', b).onclick = (e) => { const d = e.target.closest('[data-del]'); if (d) { this.rcLines.splice(+d.dataset.del, 1); redraw(); } };
       $('#rc-go', b).onclick = () => {
         if (!this.rcLines.length) return this.toast('Add at least one line', true);
-        try { const rc = this.sim.oms.createReceipt({ supplier: $('#rc-sup').value || 'Supplier', lines: this.rcLines }); this.rcLines = []; redraw(); this.toast(`${rc.id} created — bins requested at goods-in`); this.refreshTab(true); }
+        try { const rc = this.sim.oms.createReceipt({ supplier: $('#rc-sup').value || 'Supplier', lines: this.rcLines }); this.rcLines = []; redraw(); this.toast(`${rc.id} created — ${this.terms.units} requested at goods-in`); this.refreshTab(true); }
         catch (e) { this.toast(e.message, true); }
       };
       $('#np-go', b).onclick = () => {
@@ -266,7 +275,7 @@
     tab_inventory() {
       return `<div class="sect"><div class="stats" id="inv-stats"></div>
         <div class="field"><input type="text" id="inv-q" placeholder="Filter by name, GTIN or SKU"></div>
-        <div class="row2" style="margin-bottom:8px"><select id="inv-sort"><option value="hits">Sort: velocity</option><option value="name">Sort: name</option><option value="avail">Sort: available</option><option value="bins">Sort: bins</option></select><select id="inv-cls"><option value="">All classes</option><option>A</option><option>B</option><option>C</option></select></div>
+        <div class="row2" style="margin-bottom:8px"><select id="inv-sort"><option value="hits">Sort: velocity</option><option value="name">Sort: name</option><option value="avail">Sort: available</option><option value="bins">Sort: ${this.terms.units}</option></select><select id="inv-cls"><option value="">All classes</option><option>A</option><option>B</option><option>C</option></select></div>
         <div id="inv-list"></div></div>`;
     }
     bind_inventory(b) {
@@ -276,15 +285,15 @@
       const el = $('#inv-list'); if (!el) return;
       if (!force && document.activeElement && document.activeElement.closest('#tab-body') && this._invT && performance.now() - this._invT < 2000) return;
       this._invT = performance.now();
-      const inv = this.sim.inv, g = this.sim.grid;
+      const inv = this.sim.inv, tm = this.terms;
       const empty = inv.bins.filter((b) => inv.isEmpty(b)).length, inGrid = inv.bins.filter((b) => b.loc === 'grid').length;
-      const cap = g.type.reduce((s, t) => s + (t === WS.CELL.STORAGE ? g.Z : 0), 0);
-      $('#inv-stats').innerHTML = [['SKUs', inv.products.length], ['Bins', inv.bins.length], ['Empty bins', empty], ['Grid fill', Math.round((inGrid / cap) * 100) + '%'], ['On hand', inv.products.reduce((s, p) => s + p.onHand, 0)], ['Reserved', inv.products.reduce((s, p) => s + p.reserved, 0)]].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+      const cap = this.sim.storageCapacity();
+      $('#inv-stats').innerHTML = [['SKUs', inv.products.length], [tm.Units, inv.bins.length], ['Empty ' + tm.units, empty], [tm.Store + ' fill', Math.round((inGrid / cap) * 100) + '%'], ['On hand', inv.products.reduce((s, p) => s + p.onHand, 0)], ['Reserved', inv.products.reduce((s, p) => s + p.reserved, 0)]].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
       const q = ($('#inv-q').value || '').toLowerCase(), cls = $('#inv-cls').value, srt = $('#inv-sort').value;
       let ps = inv.products.filter((p) => (!q || p.name.toLowerCase().includes(q) || p.gtin.includes(q) || p.sku.toLowerCase().includes(q)) && (!cls || p.cls === cls));
       const key = { hits: (p) => -p.hits, name: (p) => p.name, avail: (p) => p.onHand - p.reserved, bins: (p) => -p.bins.size }[srt];
       ps.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
-      el.innerHTML = `<table class="tbl"><tr><th>Product</th><th>ABC</th><th class="r">Avail</th><th class="r">Bins</th><th class="r">Lines/h</th></tr>${ps.slice(0, 120).map((p) => `<tr class="click" data-open="prod:${p.gtin}"><td><span class="mono faint">${p.gtin}</span><br>${esc(p.name)}</td><td><span class="pill ${p.cls}">${p.cls}</span></td><td class="r">${p.onHand - p.reserved}${p.incoming ? `<br><span class="faint">+${p.incoming}</span>` : ''}</td><td class="r">${p.bins.size}</td><td class="r">${p.hits.toFixed(1)}</td></tr>`).join('')}</table>${ps.length > 120 ? `<div class="note">${ps.length - 120} more — refine the filter.</div>` : ''}`;
+      el.innerHTML = `<table class="tbl"><tr><th>Product</th><th>ABC</th><th class="r">Avail</th><th class="r">${tm.Units}</th><th class="r">Lines/h</th></tr>${ps.slice(0, 120).map((p) => `<tr class="click" data-open="prod:${p.gtin}"><td><span class="mono faint">${p.gtin}</span><br>${esc(p.name)}</td><td><span class="pill ${p.cls}">${p.cls}</span></td><td class="r">${p.onHand - p.reserved}${p.incoming ? `<br><span class="faint">+${p.incoming}</span>` : ''}</td><td class="r">${p.bins.size}</td><td class="r">${p.hits.toFixed(1)}</td></tr>`).join('')}</table>${ps.length > 120 ? `<div class="note">${ps.length - 120} more — refine the filter.</div>` : ''}`;
     }
 
     // ----- outbound
@@ -307,6 +316,7 @@
       const c = this.sim.cfg;
       const num = (k, label, step, min, max) => `<div class="field"><label>${label}</label><input type="number" data-cfg="${k}" value="${c[k]}" step="${step || 1}" min="${min ?? 0}" ${max ? `max="${max}"` : ''}></div>`;
       const sel = (k, label, opts) => `<div class="field"><label>${label}</label><select data-cfg="${k}">${opts.map(([v, t]) => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
+      if (this.sim.kind === 'pod') return this.podSettings(c, num, sel);
       return `<div class="sect"><h3>Live policies</h3><div class="card">
         ${sel('restackPolicy', 'Blocker handling after a dig', [['origin', 'Consolidate — return blockers to origin column'], ['leave', 'Leave on neighbouring stacks (self-sorting)']])}
         ${sel('putawayPolicy', 'Putaway / slotting', [['velocity', 'Velocity-based (ABC zones, avoid burying fast movers)'], ['nearest', 'Nearest free column'], ['random', 'Random column']])}
@@ -328,8 +338,32 @@
       <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">
         Cube-storage AS/RS: bins stacked in a ${c.gridW}×${c.gridD}×${c.gridZ} [X][Y][Z] grid, robots on top travelling orthogonally (X/Y wheel-set change, no turning), digging out blockers to neighbour columns, delivering to conveyor ports. 100 ms fixed time step; moving-block cell reservations, A* routing, yield and evasive manoeuvres for deadlock resolution. Barcodes: GS1 GTIN-13 (EAN-13) on items, GS1-128 GRAI (AI 8003) on storage bins and totes, GS1-128 SSCC (AI 00) on shipping labels.</div></div>`;
     }
+    podSettings(c, num, sel) {
+      return `<div class="sect"><h3>Live policies</h3><div class="card">
+        ${sel('putawayPolicy', 'Where pods go back', [['velocity', 'Velocity-based (busy pods near the stations)'], ['nearest', 'Nearest free cell'], ['random', 'Random free cell']])}
+        ${sel('tunnelling', 'Empty robots under stored pods', [['on', 'Allowed (tunnelling)'], ['off', 'Not allowed — highways and empty cells only']])}
+        <div class="row2">${num('podRotate', 'Turn pod 90° (s)', 0.1, 0.3, 6)}${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}</div>
+        <div class="row2">${num('battLow', 'Charge below (%)', 1, 5, 80)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>
+        ${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}
+        <div class="note">Applied immediately. Stations can be switched to manual operation from their inspector (click a station).</div></div></div>
+      <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
+        <div class="row2">${num('floorW', 'Floor X (cells)', 1, 18, 60)}${num('floorD', 'Floor Y (cells)', 1, 10, 40)}</div>
+        <div class="row2">${num('podFill', 'Share of storage cells with a pod', 0.05, 0.3, 0.95)}${num('robots', 'Robots', 1, 1, 80)}</div>
+        <div class="row2">${num('pickPorts', 'Pick stations', 1, 1, 7)}${num('goodsInPorts', 'Goods-in stations', 1, 0, 3)}</div>
+        <div class="row2">${num('portInboundCap', 'Pods in flight per station', 1, 2, 10)}${num('toteSlots', 'Put-wall slots', 1, 2, 12)}</div>
+        <div class="row2">${num('chargers', 'Chargers', 1, 1, 12)}${num('packStations', 'Pack stations', 1, 1, 5)}</div>
+        <div class="row2">${num('products', 'SKUs', 10, 20, 2000)}${num('stockedRatio', 'Share of pod bins stocked', 0.05, 0.1, 0.95)}</div>
+        <div class="row2">${num('vmax', 'Robot top speed (m/s)', 0.1, 0.5, 3)}${num('accel', 'Acceleration (m/s²)', 0.1, 0.2, 3)}</div>
+        <div class="row2">${num('wheelShift', 'Turn 90° on the spot (s)', 0.1, 0.3, 5)}${num('liftTime', 'Lift / lower pod (s)', 0.1, 0.3, 5)}</div>
+        ${num('seed', 'Random seed', 1, 1)}
+        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
+        <div class="note">A station's queue lane holds all but one of its pods in flight; each pick station needs that many cells plus three along the front edge.</div></div></div>
+      <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">
+        Pod robots: shelving pods stand on a ${c.floorW}×${c.floorD} floor in blocks two cells deep, with highways between them. A robot drives under a pod, lifts it and carries it to a station, where it joins a queue lane. At the station the robot turns the pod to show the operator the face with the next pick. Afterwards the pod goes back to a free cell chosen by the storage policy, so busy pods drift towards the stations. Robots turn on the spot to change direction; empty robots may drive under stored pods. 100 ms fixed time step; moving-block cell reservations, A* routing, yield and evasive manoeuvres. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on pods and totes, GS1-128 SSCC on shipping labels.</div></div>`;
+    }
     bind_settings(b) {
-      const live = ['restackPolicy', 'putawayPolicy', 'burialDepth', 'portInboundCap', 'pickPerUnit', 'battLow', 'truckCapacity', 'truckCutoff'];
+      const live = ['restackPolicy', 'putawayPolicy', 'burialDepth', 'portInboundCap', 'pickPerUnit', 'battLow', 'truckCapacity', 'truckCutoff', 'tunnelling', 'podRotate'];
+      if (this.sim.kind === 'pod') live.splice(live.indexOf('portInboundCap'), 1); // sets the lane length: restart only
       b.querySelectorAll('[data-cfg]').forEach((el) => {
         const k = el.dataset.cfg;
         if (live.includes(k)) el.addEventListener('change', () => { this.sim.cfg[k] = el.tagName === 'SELECT' ? el.value : +el.value; this.toast('Applied: ' + k); });
@@ -369,26 +403,37 @@
     inspectRobot(r) {
       const st = r.displayState, sim = this.sim;
       const tot = Object.values(r.stateTime).reduce((a, b) => a + b, 0) || 1;
-      const bars = Object.entries(r.stateTime).filter(([, v]) => v / tot > 0.01).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i style="width:${(v / tot) * 100}%;background:${WS.STATE_COLORS[k]}" title="${STATE_LABEL[k]} ${Math.round((v / tot) * 100)}%"></i>`).join('');
+      const bars = Object.entries(r.stateTime).filter(([, v]) => v / tot > 0.01).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i style="width:${(v / tot) * 100}%;background:${WS.STATE_COLORS[k]}" title="${this.stateLabel(k)} ${Math.round((v / tot) * 100)}%"></i>`).join('');
+      const pod = sim.kind === 'pod';
       const dest = r.goal && r.op && r.op.op === 'move' ? `${r.goal.x}, ${r.goal.y}` : '—';
-      return `<div class="hd"><span class="sdot" style="background:${WS.STATE_COLORS[st]};width:12px;height:12px"></span><b>Robot ${r.name}</b><span class="pill">${STATE_LABEL[st]}</span><button class="close">×</button></div>
+      return `<div class="hd"><span class="sdot" style="background:${WS.STATE_COLORS[st]};width:12px;height:12px"></span><b>Robot ${r.name}</b><span class="pill">${this.stateLabel(st)}</span><button class="close">×</button></div>
         <dl class="kv"><dt>Position</dt><dd>X ${r.x} · Y ${r.y}${r.busy ? ' <span class="pill BACKORDER">cell blocked</span>' : ''}</dd>
-        <dt>Speed</dt><dd>${(r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${r.axis.toUpperCase()}-wheels${r.shift > 0 ? ' (shifting)' : ''}</dd>
+        <dt>Speed</dt><dd>${(r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${pod ? `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}` : `${r.axis.toUpperCase()}-wheels${r.shift > 0 ? ' (shifting)' : ''}`}</dd>
         <dt>Destination</dt><dd>${dest}</dd><dt>Task</dt><dd>${this.taskText(r)}</dd>
         <dt>Carrying</dt><dd>${r.bin ? `<a href="#" data-open="bin:${r.bin}">${r.bin}</a>` : '—'}</dd>
-        <dt>Winch</dt><dd>${r.winch > 0.01 ? r.winch.toFixed(2) + ' m down' : 'retracted'}</dd>
+        ${pod ? `<dt>Lift</dt><dd>${r.state === 'LIFTING_POD' ? (r.bin ? 'lowering' : 'lifting') : r.bin ? 'raised, carrying a pod' : 'down'}</dd>` : `<dt>Winch</dt><dd>${r.winch > 0.01 ? r.winch.toFixed(2) + ' m down' : 'retracted'}</dd>`}
         <dt>Battery</dt><dd>${this.battBar(r.battery)}</dd>
         <dt>Reserved cells</dt><dd>${r.claims.size}</dd>
-        <dt>Tasks done</dt><dd>${r.tasksDone} · ${r.lifts} lifts</dd>
+        <dt>Tasks done</dt><dd>${r.tasksDone} · ${r.lifts} ${pod ? 'pods lifted' : 'lifts'}</dd>
         <dt>Distance</dt><dd>${(r.distance * sim.cfg.cellSize / 1000).toFixed(2)} km</dd></dl>
         <h3>Time by state</h3><div class="bar" style="height:10px">${bars}</div>`;
     }
     binRow(id, depth) {
       const inv = this.sim.inv, b = inv.binById.get(id), cls = inv.binClass(b);
       const content = b.comps.filter((c) => c.gtin).map((c) => `${c.qty}× ${esc(inv.byGtin.get(c.gtin).name)}`).join(', ') || '<span class="faint">empty</span>';
-      return `<div class="sb" data-open="bin:${id}" style="border-left-color:${WS.CLASS_COLORS[cls]}"><span class="faint">d${depth}</span><span class="mono">${id}${b.requests.length ? ' ★' : ''}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${content}</span></div>`;
+      return `<div class="sb" data-open="bin:${id}" style="border-left-color:${WS.CLASS_COLORS[cls]}"><span class="faint">${this.sim.kind === 'pod' ? '' : 'd' + depth}</span><span class="mono">${id}${b.requests.length ? ' ★' : ''}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${content}</span></div>`;
+    }
+    inspectFloorCell(i) {
+      const sim = this.sim, g = sim.grid, x = g.cx(i), y = g.cy(i), id = g.podAt[i];
+      const type = { [WS.CELL.STORAGE]: 'Storage cell', [WS.CELL.HIGHWAY]: 'Highway', [WS.CELL.LANE]: 'Queue lane', [WS.CELL.PORT]: 'Station', [WS.CELL.CHARGER]: 'Charger' }[g.type[i]] || 'Wall';
+      const claim = g.claim[i] >= 0 ? sim.robots[g.claim[i]].name : '—', target = g.podTarget[i] >= 0 ? sim.robots[g.podTarget[i]].name : '';
+      return `<div class="hd"><b>Cell X${x} · Y${y}</b><span class="pill">${type}</span><button class="close">×</button></div>
+        <dl class="kv"><dt>Pod</dt><dd>${id ? `<a href="#" data-open="bin:${id}">${id}</a>` : target ? `— (${target} is bringing one back)` : '—'}</dd><dt>Occupied by</dt><dd>${claim}</dd>
+        <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to station</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>
+        ${id ? `<h3>Stock on this pod</h3><div class="stack">${this.binRow(id, 1)}</div><div class="note">Colour = ABC class of contents. Open the pod for its four faces.</div>` : ''}`;
     }
     inspectCell(i) {
+      if (this.sim.kind === 'pod') return this.inspectFloorCell(i);
       const sim = this.sim, g = sim.grid, s = g.stacks[i], x = g.cx(i), y = g.cy(i);
       const type = ['Storage column', 'Port shaft', 'Charger'][g.type[i]];
       const claim = g.claim[i] >= 0 ? sim.robots[g.claim[i]].name : '—', lock = g.colLock[i] >= 0 ? sim.robots[g.colLock[i]].name : '—';
@@ -397,22 +442,34 @@
         <dt>Traffic wait</dt><dd>${g.waitHeat[i].toFixed(1)} s (decaying)</dd><dt>Distance to port</dt><dd>${sim.inv.portDist[i]} cells</dd></dl>
         ${s.length ? `<h3>Stack — top (Z=1) to bottom</h3><div class="stack">${s.slice().reverse().map((id, k) => this.binRow(id, k + 1)).join('')}</div><div class="note">★ = requested by a port. Colour = ABC class of contents.</div>` : ''}`;
     }
+    compCell(b, k, hl) {
+      const c = b.comps[k];
+      return `<div class="comp ${hl ? 'hl' : ''}"><span class="faint">#${k + 1}</span><b>${c.qty}</b>${c.gtin ? esc(this.sim.inv.byGtin.get(c.gtin).name) : '<span class="faint">empty</span>'}</div>`;
+    }
+    // One face of a pod as the operator sees it: top shelf first.
+    podFace(b, f, cell) {
+      const cfg = this.sim.cfg, per = this.sim.perFace, ks = [];
+      for (let j = cfg.podShelves - 1; j >= 0; j--) for (let s = 0; s < cfg.podSlots; s++) ks.push(f * per + j * cfg.podSlots + s);
+      return `<div class="comps" style="grid-template-columns:repeat(${cfg.podSlots},1fr)">${ks.map(cell).join('')}</div>`;
+    }
     inspectPort(p) {
-      const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine;
-      let hmi = '<div class="hmi"><div class="muted">Waiting for next bin…</div></div>';
+      const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine, tm = this.terms;
+      let hmi = `<div class="hmi"><div class="muted">Waiting for next ${tm.unit}…</div></div>`;
       if (j) {
-        const b = j.bin, n = b.ncomp;
-        const comps = b.comps.map((c, k) => `<div class="comp ${ln && ln.comp === k ? 'hl' : ''}"><span class="faint">#${k + 1}</span><b>${c.qty}</b>${c.gtin ? esc(inv.byGtin.get(c.gtin).name) : '<span class="faint">empty</span>'}</div>`).join('');
+        const b = j.bin, n = b.ncomp, pod = sim.kind === 'pod';
+        const face = pod ? (ln ? sim.faceOf(ln.comp) : sim.facing(b, p)) : 0;
+        const comps = pod ? `<div class="muted">Face ${face + 1} of 4, turned towards you</div>` + this.podFace(b, face, (k) => this.compCell(b, k, ln && ln.comp === k))
+          : `<div class="comps ${n > 1 ? 'n' + n : ''}">${b.comps.map((c, k) => this.compCell(b, k, ln && ln.comp === k)).join('')}</div>`;
         let task;
         if (ln) {
           const prod = inv.byGtin.get(ln.gtin);
           task = p.kind === 'PICK'
-            ? `<div class="muted">PICK from compartment ${ln.comp + 1} → put in slot ${ln.order.slot + 1} (tote ${ln.order.tote ? ln.order.tote.id : '—'})</div><div class="big">${ln.qty}×</div><div><b>${esc(prod.name)}</b></div><div class="bcwrap" style="margin-top:6px">${BC.ean13SVG(prod.gtin, { height: 34, module: 1.3 })}</div>`
-            : `<div class="muted">DECANT into compartment ${ln.comp + 1} · ${ln.receipt.id}</div><div class="big">${ln.qty}×</div><div><b>${esc(prod.name)}</b></div><div class="bcwrap" style="margin-top:6px">${BC.ean13SVG(prod.gtin, { height: 34, module: 1.3 })}</div>`;
-        } else task = `<div class="muted">${j.lines.length ? 'All lines done — releasing bin' : 'No lines for this bin'}</div>`;
-        hmi = `<div class="hmi"><div class="row2" style="align-items:center"><div><span class="muted">Bin</span> <b class="mono">${b.id}</b></div><div style="text-align:right" class="muted">line ${Math.min(j.next + 1, j.lines.length)}/${j.lines.length}</div></div>
-          <div class="comps ${n > 1 ? 'n' + n : ''}">${comps}</div>${task}
-          ${p.mode === 'manual' ? `<div class="btns"><button class="btn primary" id="pt-confirm">${ln ? 'Confirm ' + (p.kind === 'PICK' ? 'pick' : 'decant') : 'Release bin'}</button></div>` : `<div class="bar"><i style="width:${Math.min(100, (j.t / j.total) * 100)}%;background:#3987e5"></i></div>`}</div>`;
+            ? `<div class="muted">PICK from ${sim.compLabel(ln.comp)} → put in slot ${ln.order.slot + 1} (tote ${ln.order.tote ? ln.order.tote.id : '—'})</div><div class="big">${ln.qty}×</div><div><b>${esc(prod.name)}</b></div><div class="bcwrap" style="margin-top:6px">${BC.ean13SVG(prod.gtin, { height: 34, module: 1.3 })}</div>`
+            : `<div class="muted">DECANT into ${sim.compLabel(ln.comp)} · ${ln.receipt.id}</div><div class="big">${ln.qty}×</div><div><b>${esc(prod.name)}</b></div><div class="bcwrap" style="margin-top:6px">${BC.ean13SVG(prod.gtin, { height: 34, module: 1.3 })}</div>`;
+        } else task = `<div class="muted">${j.lines.length ? 'All lines done — releasing ' + tm.unit : 'No lines for this ' + tm.unit}</div>`;
+        hmi = `<div class="hmi"><div class="row2" style="align-items:center"><div><span class="muted">${tm.Unit}</span> <b class="mono">${b.id}</b></div><div style="text-align:right" class="muted">line ${Math.min(j.next + 1, j.lines.length)}/${j.lines.length}</div></div>
+          ${comps}${task}
+          ${p.mode === 'manual' ? `<div class="btns"><button class="btn primary" id="pt-confirm">${ln ? 'Confirm ' + (p.kind === 'PICK' ? 'pick' : 'decant') : 'Release ' + tm.unit}</button></div>` : `<div class="bar"><i style="width:${Math.min(100, (j.t / j.total) * 100)}%;background:#3987e5"></i></div>`}</div>`;
       }
       const wall = p.kind === 'PICK' ? `<h3>Put wall</h3><div class="wall">${p.slots.map((o, k) => {
         const on = ln && o && ln.order === o;
@@ -423,7 +480,7 @@
         <div class="toggle"><span>Operator mode</span><select id="pt-mode" style="width:auto"><option value="auto" ${p.mode === 'auto' ? 'selected' : ''}>Simulated operator</option><option value="manual" ${p.mode === 'manual' ? 'selected' : ''}>Manual (you pick)</option></select></div>
         ${hmi}${wall}
         <dl class="kv" style="margin-top:10px"><dt>Queue</dt><dd>${p.inQ.length} in · ${p.pick ? 1 : 0} at pick · ${p.outQ.length} out · ${p.inbound} inbound</dd>
-        <dt>Bins presented</dt><dd>${p.stats.presented}</dd><dt>Lines · units</dt><dd>${p.stats.lines} · ${p.stats.units}</dd><dt>Operator busy</dt><dd>${Math.round(busy * 100)}%</dd><dt>Starved</dt><dd>${Math.round((p.stats.starved / (p.stats.t || 1)) * 100)}% overall · ${Math.round(p.recentStarve * 100)}% recent</dd></dl>`;
+        <dt>${tm.Units} presented</dt><dd>${p.stats.presented}</dd><dt>Lines · units</dt><dd>${p.stats.lines} · ${p.stats.units}</dd><dt>Operator busy</dt><dd>${Math.round(busy * 100)}%</dd><dt>Starved</dt><dd>${Math.round((p.stats.starved / (p.stats.t || 1)) * 100)}% overall · ${Math.round(p.recentStarve * 100)}% recent</dd></dl>`;
     }
     bindPort(el, p) {
       const m = el.querySelector('#pt-mode'); if (m) m.onchange = () => { p.mode = m.value; this.renderInspector(true); };
@@ -444,6 +501,7 @@
     closeModal() { $('#modal').classList.add('hidden'); }
     binLocation(b) {
       const inv = this.sim.inv;
+      if (b.loc === 'grid' && this.sim.kind === 'pod') return `Floor X${b.x} Y${b.y}`;
       if (b.loc === 'grid') return `Grid X${b.x} Y${b.y} · depth ${inv.binDepth(b)} (Z level ${this.sim.grid.stacks[this.sim.grid.idx(b.x, b.y)].indexOf(b.id) + 1} from floor)`;
       if (b.loc === 'robot') return `On robot ${this.sim.robots[b.robot].name}`;
       if (b.loc === 'port') return `At port ${this.sim.ports[b.port].code}`;
@@ -457,16 +515,18 @@
       this.modal(esc(p.name), `<div class="row2"><div><div class="bcwrap">${BC.ean13SVG(p.gtin)}</div><div class="note">GS1 GTIN-13 / EAN-13</div></div>
         <dl class="kv"><dt>SKU</dt><dd>${p.sku}</dd><dt>Class</dt><dd><span class="pill ${p.cls}">${p.cls}</span> · ${p.hits.toFixed(1)} lines/h</dd><dt>Unit</dt><dd>${p.weight} kg · ${p.vol} L</dd>
         <dt>On hand</dt><dd>${p.onHand}</dd><dt>Reserved</dt><dd>${p.reserved}</dd><dt>Incoming</dt><dd>${p.incoming}</dd><dt>Min / max</dt><dd>${p.min || '—'} / ${p.max || '—'}</dd><dt>Picked</dt><dd>${p.lines} lines · ${p.units} units</dd></dl></div>
-        <h3 style="margin-top:12px">Stock locations</h3><table class="tbl"><tr><th>Bin</th><th>Location</th><th class="r">Comp</th><th class="r">Qty</th><th class="r">Resv</th></tr>${rows.map(({ b, k, c }) => `<tr class="click" data-open="bin:${b.id}"><td class="mono">${b.id}</td><td>${this.binLocation(b)}</td><td class="r">${k + 1}/${b.ncomp}</td><td class="r">${c.qty}${c.incoming ? ` +${c.incoming}` : ''}</td><td class="r">${c.reserved}</td></tr>`).join('') || '<tr><td colspan="5" class="faint">No stock</td></tr>'}</table>`);
+        <h3 style="margin-top:12px">Stock locations</h3><table class="tbl"><tr><th>${this.terms.Unit}</th><th>Location</th><th class="r">Comp</th><th class="r">Qty</th><th class="r">Resv</th></tr>${rows.map(({ b, k, c }) => `<tr class="click" data-open="bin:${b.id}"><td class="mono">${b.id}</td><td>${this.binLocation(b)}</td><td class="r">${k + 1}/${b.ncomp}</td><td class="r">${c.qty}${c.incoming ? ` +${c.incoming}` : ''}</td><td class="r">${c.reserved}</td></tr>`).join('') || '<tr><td colspan="5" class="faint">No stock</td></tr>'}</table>`);
     }
     showBin(id) {
       const inv = this.sim.inv, b = inv.findBin(id); if (!b) return this.toast('Unknown bin ' + id, true);
-      const n = b.ncomp;
-      this.modal('Storage bin ' + b.id, `<div class="bcwrap">${BC.gs1SVG([['8003', b.grai]], { height: 50 })}</div><div class="note">GS1-128 · AI 8003 GRAI (returnable asset)</div>
+      const n = b.ncomp, pod = this.sim.kind === 'pod';
+      const cell = (k) => { const c = b.comps[k]; return `<div class="comp"><span class="faint">#${k + 1}</span><b>${c.qty}${c.incoming ? `<span class="faint" style="font-size:11px"> +${c.incoming}</span>` : ''}</b>${c.gtin ? `<a href="#" data-open="prod:${c.gtin}">${esc(inv.byGtin.get(c.gtin).name)}</a><br><span class="faint">${c.reserved} reserved</span>` : '<span class="faint">empty</span>'}</div>`; };
+      const comps = pod ? [0, 1, 2, 3].map((f) => `<h3 style="margin-top:12px">Face ${f + 1}</h3>${this.podFace(b, f, cell)}`).join('') : `<div class="comps ${n > 1 ? 'n' + n : ''}">${b.comps.map((c, k) => cell(k)).join('')}</div>`;
+      this.modal(`Storage ${this.terms.unit} ` + b.id, `<div class="bcwrap">${BC.gs1SVG([['8003', b.grai]], { height: 50 })}</div><div class="note">GS1-128 · AI 8003 GRAI (returnable asset)</div>
         <dl class="kv" style="margin-top:10px"><dt>Location</dt><dd>${this.binLocation(b)}</dd><dt>Gross weight</dt><dd>${inv.binWeight(b).toFixed(1)} kg</dd><dt>Class</dt><dd>${inv.binClass(b)}</dd><dt>Presentations</dt><dd>${b.presentations}</dd>
         <dt>Requests</dt><dd>${b.requests.map((q) => this.sim.ports[q.port].code + ' (' + q.lines.length + ' lines)').join(', ') || '—'}</dd></dl>
-        <div class="comps ${n > 1 ? 'n' + n : ''}">${b.comps.map((c, k) => `<div class="comp"><span class="faint">#${k + 1}</span><b>${c.qty}${c.incoming ? `<span class="faint" style="font-size:11px"> +${c.incoming}</span>` : ''}</b>${c.gtin ? `<a href="#" data-open="prod:${c.gtin}">${esc(inv.byGtin.get(c.gtin).name)}</a><br><span class="faint">${c.reserved} reserved</span>` : '<span class="faint">empty</span>'}</div>`).join('')}</div>
-        ${b.loc === 'grid' ? `<div class="btns"><button class="btn" data-open="cell:${this.sim.grid.idx(b.x, b.y)}">Show column</button></div>` : ''}`);
+        ${comps}
+        ${b.loc === 'grid' ? `<div class="btns"><button class="btn" data-open="cell:${this.sim.grid.idx(b.x, b.y)}">Show ${pod ? 'cell' : 'column'}</button></div>` : ''}`);
     }
     showOrder(id) {
       const o = this.sim.oms.byId.get(id); if (!o) return this.toast('Unknown order ' + id, true);

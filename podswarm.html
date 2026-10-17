@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PodSwarm — DarkStore</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="index.html" title="Back to all DarkStore simulations">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="#0ea5e9"/><path d="M16 2 29 9.5 16 17 3 9.5z" fill="#7dd3fc"/><path d="M16 17v13L3 22.5v-13z" fill="#0369a1"/><rect x="13" y="7.5" width="6" height="4" rx="1" fill="#0c4a6e"/></svg>
+      <div><b>PodSwarm</b><span>DarkStore · Pod robots</span></div>
+    </a>
+    <div class="clock"><span class="lbl">SIM TIME</span><span id="clock">00:00:00</span></div>
+    <div class="transport">
+      <button id="btn-play" class="icon" title="Pause / resume (space)">❚❚</button>
+      <div class="seg" id="speeds"></div>
+    </div>
+    <div class="seg views" id="views">
+      <button data-view="floor" class="on">Floor</button>
+      <button data-view="split">Split</button>
+      <button data-view="control">Control room</button>
+    </div>
+    <form class="scan" id="scan-form" autocomplete="off">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2 4h2v16H2zm3 0h1v16H5zm2 0h2v16H7zm3 0h1v16h-1zm3 0h2v16h-2zm3 0h1v16h-1zm2 0h1v16h-1zm2 0h2v16h-2z"/></svg>
+      <input id="scan" placeholder="Scan or type: GTIN, SSCC, pod, tote, order…" spellcheck="false">
+    </form>
+  </header>
+
+  <main class="layout view-floor" id="layout">
+    <section class="stage">
+      <div class="iso-wrap" id="iso-wrap">
+        <canvas id="iso"></canvas>
+        <div class="iso-tools" id="iso-tools">
+          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
+          <button data-opt="paths" class="on">Paths</button>
+          <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
+          <button data-opt="labels" class="on">Labels</button>
+          <button id="btn-fit">Fit</button>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="hint">Drag to pan · scroll / pinch to zoom · click robots, pods, stations</div>
+      </div>
+      <div class="control" id="control">
+        <div class="kpi-row" id="kpis"></div>
+        <div class="cr-grid">
+          <div class="panel map-panel"><h3>Floor — live <button class="mini" id="btn-mapheat">Heat on</button></h3><canvas id="crmap"></canvas></div>
+          <div class="panel ports-panel"><h3>Stations</h3><div id="portcards" class="portcards"></div></div>
+          <div class="panel chart-panel"><h3>Throughput <span class="sub">rolling 1 h rate</span></h3>
+            <div class="clegend"><span><i style="background:#3987e5"></i>Pods at stations /h</span><span><i style="background:#d95926"></i>Order lines /h</span></div>
+            <canvas id="chT"></canvas></div>
+          <div class="panel chart-panel"><h3>Fleet time split <span class="sub">per 30 s sample</span></h3>
+            <div class="clegend"><span><i style="background:#3987e5"></i>Working</span><span><i style="background:#d95926"></i>Waiting</span><span><i style="background:#199e70"></i>Idle</span><span><i style="background:#c98500"></i>Charging</span></div>
+            <canvas id="chU"></canvas></div>
+          <div class="panel alerts-panel"><h3>Bottleneck alerts</h3><div id="alerts" class="alerts"></div></div>
+          <div class="panel fleet-panel"><h3>Fleet</h3><div class="scroll"><table class="tbl" id="fleet"></table></div></div>
+          <div class="panel log-panel"><h3>Event log</h3><div id="log" class="log"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" id="side">
+      <nav class="tabs" id="tabs">
+        <button data-tab="inbound" class="on">Inbound</button>
+        <button data-tab="orders">Orders</button>
+        <button data-tab="inventory">Inventory</button>
+        <button data-tab="outbound">Outbound</button>
+        <button data-tab="settings">Settings</button>
+      </nav>
+      <div class="tab-body" id="tab-body"></div>
+    </aside>
+  </main>
+
+  <div class="inspector hidden" id="inspector"></div>
+  <div class="modal hidden" id="modal"><div class="modal-card" id="modal-card"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/core/util.js"></script>
+  <script src="js/core/barcode.js"></script>
+  <script src="js/core/config.js"></script>
+  <script src="js/sim/grid.js"></script>
+  <script src="js/sim/inventory.js"></script>
+  <script src="js/sim/router.js"></script>
+  <script src="js/sim/robot.js"></script>
+  <script src="js/sim/ports.js"></script>
+  <script src="js/sim/orders.js"></script>
+  <script src="js/sim/kpi.js"></script>
+  <script src="js/sim/sim.js"></script>
+  <script src="js/pod/config.js"></script>
+  <script src="js/pod/floor.js"></script>
+  <script src="js/pod/sim.js"></script>
+  <script src="js/render/iso.js"></script>
+  <script src="js/render/control.js"></script>
+  <script src="js/pod/render.js"></script>
+  <script src="js/ui/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
