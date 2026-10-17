@@ -1,9 +1,10 @@
-# CubeFlow — Cube AS/RS warehouse simulator
+# DarkStore — a goods-to-person warehouse simulator
 
-A browser simulation of a grid-based (cube storage) automated storage and retrieval
-system. The specs are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared by
-every storage type and `cube.txt` describes the type implemented here. Specs for shuttle, pod,
-ACR and stacker crane systems are written but not implemented yet.
+A browser simulator for goods-to-person warehouse automation. It currently models a
+grid-based (cube storage) automated storage and retrieval system. The specs are in
+[`specs/`](specs/README.txt): `common.txt` holds the rules shared by every storage type and
+`cube.txt` describes the type implemented here. Specs for shuttle, pod, ACR and stacker crane
+systems are written but not implemented yet.
 
 ![Floor view: robots on the grid, pick ports, pack stations and the outbound dock](docs/screenshots/floor.png)
 
@@ -107,7 +108,7 @@ test/run.js headless soak test with invariant checks:  node test/run.js [hours] 
 
 ## Disclaimer
 
-CubeFlow is a simulation and teaching tool. It is not control software for real robots or storage
+DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
 systems, and it must not be used as such. It is inspired by cube-storage AS/RS systems in general and
 is not affiliated with, endorsed by or derived from any vendor of such systems. All company names,
 addresses, products and barcodes in the simulation are fictional.

@@ -483,7 +483,7 @@
       const o = this.sim.oms.byId.get(id); if (!o || !o.sscc) return;
       const units = this.sim.oms.units(o), pc = o.postcode.replace(/\D/g, '');
       this.modal('GS1 logistics label', `<div class="label-sheet">
-        <div class="sec two"><div><div class="t">From</div><b>CubeFlow DC</b><br>Rue de l'Entrepôt 1<br>1000 Brussels, BE</div><div><div class="t">To</div><b>${esc(o.customer)}</b><br>${esc(o.postcode)} ${esc(o.city)}<br>${o.country}</div></div>
+        <div class="sec two"><div><div class="t">From</div><b>DarkStore DC</b><br>Rue de l'Entrepôt 1<br>1000 Brussels, BE</div><div><div class="t">To</div><b>${esc(o.customer)}</b><br>${esc(o.postcode)} ${esc(o.city)}<br>${o.country}</div></div>
         <div class="sec two"><div><div class="t">Carrier</div><div class="big">${o.carrier.name}</div></div><div><div class="t">Order · Units</div><div class="big">${o.id.slice(3)} · ${units}</div></div></div>
         <div class="sec">${BC.gs1SVG([['420', pc || '0000'], ['400', o.id]], { height: 46, module: 1.2 })}</div>
         <div class="sec"><div class="t">SSCC</div><div class="big mono">${o.sscc}</div>${BC.gs1SVG([['00', o.sscc]], { height: 70, module: 1.5 })}</div></div>

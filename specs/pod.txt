@@ -1,5 +1,5 @@
-CubeFlow - pod robots
-=====================
+DarkStore - pod robots
+======================
 
 Read common.txt first. This is the system Kiva made well known: robots that
 carry whole shelving units to the operator.

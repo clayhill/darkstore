@@ -1,5 +1,5 @@
-CubeFlow - specs
-================
+DarkStore - specs
+=================
 
 The simulator should eventually cover several kinds of goods-to-person
 warehouse automation. Each kind gets its own spec. The parts that every kind

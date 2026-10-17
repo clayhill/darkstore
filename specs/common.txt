@@ -1,5 +1,5 @@
-CubeFlow - shared simulation rules
-==================================
+DarkStore - shared simulation rules
+===================================
 
 Everything in this file applies to every storage type, unless a type spec
 says otherwise.
