@@ -4,9 +4,10 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.DEFAULT_CONFIG;
+  const C = WS.DEFAULT_CONFIG, PC = WS.POD_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
+    pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
     for (const s of specs[ul.dataset.specs] || []) {
@@ -23,45 +24,65 @@
     return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
   }
 
-  /* ---------- cube storage preview ---------- */
-  function cubePreview(canvas) {
-    const ctx = canvas.getContext('2d');
-    const GW = 8, GD = 6, GH = 5; // cells along x and y, bins per stack
-    const ZK = 0.62; // vertical scale of one bin relative to a cell
-    const rand = rng(11);
-    const binCol = [];
-    for (let i = 0; i < (GW + GD) * GH; i++) {
-      const r = rand();
-      binCol.push(r < 0.12 ? '#38bdf8' : r < 0.2 ? '#e879f9' : r < 0.27 ? '#facc15' : null);
-    }
-
-    let s = 20, ox = 0, oy = 0;
-    const P = (x, y, z) => [ox + (x - y) * s, oy + (x + y) * s * 0.5 - z * s * ZK];
-
-    function resize() {
-      const dpr = Math.min(devicePixelRatio || 1, 2);
-      const w = canvas.clientWidth, h = canvas.clientHeight;
+  // Isometric drawing kit fitted to a gw × gd floor with things up to ztop high.
+  function isoKit(canvas, gw, gd, ztop, zk) {
+    const ctx = canvas.getContext('2d'), k = { ctx, s: 20, ox: 0, oy: 0 };
+    k.P = (x, y, z) => [k.ox + (x - y) * k.s, k.oy + (x + y) * k.s * 0.5 - z * k.s * zk];
+    k.resize = () => {
+      const dpr = Math.min(devicePixelRatio || 1, 2), w = canvas.clientWidth, h = canvas.clientHeight;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const spanX = GW + GD, spanY = (GW + GD) * 0.5 + (GH + 1.2) * ZK;
-      s = Math.min(w / (spanX * 1.2), h / (spanY * 1.25));
-      ox = w / 2 - (GW - GD) * s / 2;
-      oy = h / 2 - ((GW + GD) * 0.5 - (GH + 1.2) * ZK) * s / 2;
-    }
-
-    function quad(pts, fill, stroke, lw) {
+      const spanX = gw + gd, spanY = (gw + gd) * 0.5 + ztop * zk;
+      k.s = Math.min(w / (spanX * 1.2), h / (spanY * 1.25));
+      k.ox = w / 2 - (gw - gd) * k.s / 2;
+      k.oy = h / 2 - ((gw + gd) * 0.5 - ztop * zk) * k.s / 2;
+    };
+    k.quad = (pts, fill, stroke, lw) => {
       ctx.beginPath();
       pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
       ctx.closePath();
       if (fill) { ctx.fillStyle = fill; ctx.fill(); }
       if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
-    }
+    };
     // Box with its three visible faces: top, left (y = y1) and right (x = x1).
-    function box(x0, y0, x1, y1, z0, z1, top, left, right, stroke) {
-      quad([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], left, stroke);
-      quad([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], right, stroke);
-      quad([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top, stroke);
+    k.box = (x0, y0, x1, y1, z0, z1, top, left, right, stroke) => {
+      const P = k.P;
+      k.quad([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], left, stroke);
+      k.quad([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], right, stroke);
+      k.quad([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top, stroke);
+    };
+    return k;
+  }
+  // Runs step/draw every frame, or draws one still frame for reduced motion.
+  function animate(canvas, kit, step, draw) {
+    let last = 0, t = 0;
+    const frame = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000 || 0);
+      last = now; t += dt;
+      step(dt);
+      kit.ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      draw(t);
+      requestAnimationFrame(frame);
+    };
+    kit.resize();
+    addEventListener('resize', () => { kit.resize(); if (reduced) draw(t); });
+    if (reduced) {
+      // run the robots for a moment off-screen, then show one still frame
+      for (let i = 0; i < 90; i++) { t += 0.05; step(0.05); }
+      draw(t);
+    } else requestAnimationFrame(frame);
+  }
+
+  /* ---------- cube storage preview ---------- */
+  function cubePreview(canvas) {
+    const GW = 8, GD = 6, GH = 5; // cells along x and y, bins per stack
+    const kit = isoKit(canvas, GW, GD, GH + 1.2, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(11);
+    const binCol = [];
+    for (let i = 0; i < (GW + GD) * GH; i++) {
+      const r = rand();
+      binCol.push(r < 0.12 ? '#38bdf8' : r < 0.2 ? '#e879f9' : r < 0.27 ? '#facc15' : null);
     }
 
     // Robots each work their own quarter of the grid so they never collide.
@@ -182,33 +203,126 @@
       quad([P(x + 0.25, y + 0.25, z + 1.05), P(x + 0.75, y + 0.25, z + 1.05), P(x + 0.75, y + 0.75, z + 1.05), P(x + 0.25, y + 0.75, z + 1.05)], 'rgba(4,7,13,.15)', 'rgba(4,7,13,.35)');
     }
 
-    function draw(t) {
-      const w = canvas.clientWidth, h = canvas.clientHeight;
-      ctx.clearRect(0, 0, w, h);
+    animate(canvas, kit, (dt) => robots.forEach((r) => step(r, dt)), (t) => {
       drawBlock(t);
       robots.filter((r) => r.dig > 0).forEach(drawDig);
       robots.slice().sort((a, b) => a.x + a.y - (b.x + b.y)).forEach((r) => drawRobot(r, t));
-    }
-
-    let last = 0, t = 0;
-    function frame(now) {
-      const dt = Math.min(0.05, (now - last) / 1000 || 0);
-      last = now;
-      t += dt;
-      robots.forEach((r) => step(r, dt));
-      draw(t);
-      requestAnimationFrame(frame);
-    }
-
-    resize();
-    addEventListener('resize', () => { resize(); if (reduced) draw(t); });
-    if (reduced) {
-      // Run the robots for a moment off-screen, then show one still frame.
-      for (let i = 0; i < 90; i++) { t += 0.05; robots.forEach((r) => step(r, 0.05)); }
-      draw(t);
-    } else requestAnimationFrame(frame);
+    });
   }
 
-  const previews = { cube: cubePreview };
+  /* ---------- pod robot preview ---------- */
+  // Each robot serves its own station and the pods on either side of that
+  // station's highway, so the choreography never needs collision handling.
+  function podPreview(canvas) {
+    const GW = 11, GD = 7, LEG = 0.5, TOP = 2.7;
+    const kit = isoKit(canvas, GW, GD + 1, TOP + 0.6, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(5), STATIONS = [1, 5, 9];
+    const HUES = ['#38bdf8', '#e879f9', '#4ade80', '#fb923c', '#a78bfa', '#f87171'];
+    const highway = (x, y) => y === 2 || y === 5 || STATIONS.includes(x);
+    const pods = new Map();
+    for (let y = 0; y < 5; y++) for (let x = 0; x < GW; x++) {
+      if (highway(x, y) || rand() < 0.08) continue;
+      const faces = [0, 1, 2, 3].map(() => Array.from({ length: 6 }, () => (rand() < 0.55 ? HUES[Math.floor(rand() * HUES.length)] : null)));
+      pods.set(x + ',' + y, { x, y, angle: Math.floor(rand() * 4) * (Math.PI / 2), faces });
+    }
+    const robots = STATIONS.map((s, k) => ({ s, x: s + (k === 1 ? 1 : -1), y: 1, pod: null, queue: [], wait: 0.6 * k, lift: 0, glow: 0, last: null }));
+    const SPEED = 2.2, TURN = 0.3;
+
+    function plan(r) {
+      const opts = [...pods.values()].filter((p) => Math.abs(p.x - r.s) === 1 && p.y !== 0 && p !== r.last);
+      const p = opts[Math.floor(rand() * opts.length)];
+      const hw = p.y === 4 ? 5 : 2;
+      r.queue = [['go', [[p.x, r.y], [p.x, p.y]]], ['lift', p], ['go', [[p.x, hw], [r.s, hw], [r.s, 6]]], ['present'],
+        ['go', [[r.s, hw], [p.x, hw], [p.x, p.y]]], ['lower']];
+    }
+    function step(r, dt) {
+      if (r.wait > 0) { r.wait -= dt; return; }
+      if (!r.queue.length) { plan(r); return; }
+      const [op, arg] = r.queue[0];
+      if (op === 'go') {
+        const [tx, ty] = arg[0], dx = tx - r.x, dy = ty - r.y, m = SPEED * dt;
+        const d = Math.abs(dx) + Math.abs(dy);
+        if (d <= m) { r.x = tx; r.y = ty; arg.shift(); if (!arg.length) r.queue.shift(); else r.wait = TURN; }
+        else if (dx) r.x += Math.sign(dx) * m; else r.y += Math.sign(dy) * m;
+      } else if (op === 'lift' || op === 'lower') {
+        if (op === 'lift' && !r.pod) { r.pod = arg; pods.delete(arg.x + ',' + arg.y); }
+        r.lift = Math.max(0, Math.min(1, r.lift + (op === 'lift' ? dt : -dt) * 2.5));
+        if (op === 'lift' ? r.lift >= 1 : r.lift <= 0) {
+          if (op === 'lower') { r.pod.x = Math.round(r.x); r.pod.y = Math.round(r.y); pods.set(r.pod.x + ',' + r.pod.y, r.pod); r.last = r.pod; r.pod = null; }
+          r.queue.shift();
+        }
+      } else if (op === 'present') {
+        r.glow += dt;
+        if (r.glow < 0.8) r.pod.angle += (Math.PI / 2) * dt / 0.8; // turn the pod to the operator
+        if (r.glow > 2.6) { r.glow = 0; r.queue.shift(); }
+      }
+    }
+
+    function drawFloor() {
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], '#0b1424', 'rgba(125,211,252,.5)', 1.2);
+      for (let y = 0; y < GD; y++) for (let x = 0; x < GW; x++) {
+        const cell = [P(x + 0.04, y + 0.04, 0), P(x + 0.96, y + 0.04, 0), P(x + 0.96, y + 0.96, 0), P(x + 0.04, y + 0.96, 0)];
+        if (y === 6) { if (STATIONS.includes(x)) quad(cell, 'rgba(250,204,21,.12)', 'rgba(250,204,21,.8)', 1.4); continue; }
+        if (highway(x, y)) quad(cell, 'rgba(56,189,248,.06)');
+        else quad(cell, null, 'rgba(56,189,248,.16)');
+      }
+    }
+    function drawPod(p, cx, cy, z0) {
+      const h = 0.42, a = p.angle, c = Math.cos(a), sn = Math.sin(a);
+      const rot = (u, v) => [cx + u * c + v * sn, cy - u * sn + v * c];
+      const corner = [rot(-h, h), rot(h, h), rot(h, -h), rot(-h, -h)];
+      for (const q of corner) quad([P(q[0], q[1], z0), P(q[0], q[1], z0 + LEG)], null, '#a16207', 1.6);
+      const N = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+      for (let k = 0; k < 4; k++) {
+        const n = [N[k][0] * c + N[k][1] * sn, -N[k][0] * sn + N[k][1] * c];
+        if (n[0] + n[1] <= 0.01) continue;
+        const A = corner[k], B = corner[(k + 1) % 4], lit = n[1] > n[0];
+        const at = (u, z) => P(A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u, z);
+        const zb = z0 + LEG, hz = (TOP - LEG) / 3;
+        quad([at(0, zb), at(1, zb), at(1, z0 + TOP), at(0, z0 + TOP)], lit ? '#eab308' : '#b78a09');
+        for (let j = 0; j < 3; j++) for (let s2 = 0; s2 < 2; s2++) {
+          const col = p.faces[k][j * 2 + s2], u0 = 0.08 + s2 * 0.43, u1 = u0 + 0.39, za = zb + j * hz + 0.08, zc = zb + (j + 1) * hz - 0.06;
+          quad([at(u0, za), at(u1, za), at(u1, zc), at(u0, zc)], lit ? '#1e3a5f' : '#162c48');
+          if (col) quad([at(u0 + 0.05, za + 0.03), at(u1 - 0.05, za + 0.03), at(u1 - 0.05, za + (zc - za) * 0.7), at(u0 + 0.05, za + (zc - za) * 0.7)], col + (lit ? 'cc' : '99'));
+        }
+      }
+      quad(corner.map((q) => P(q[0], q[1], z0 + TOP)), '#facc15', '#a16207');
+    }
+    function drawRobot(r) {
+      const led = r.glow > 0 ? '#4ade80' : r.pod ? '#38bdf8' : '#facc15';
+      box(r.x + 0.12, r.y + 0.12, r.x + 0.88, r.y + 0.88, 0, 0.32, '#f97316', '#c2560c', '#9a4309', 'rgba(4,7,13,.4)');
+      ctx.save(); ctx.shadowColor = led; ctx.shadowBlur = 8;
+      quad([P(r.x + 0.12, r.y + 0.88, 0.16), P(r.x + 0.88, r.y + 0.88, 0.16), P(r.x + 0.88, r.y + 0.88, 0.24), P(r.x + 0.12, r.y + 0.88, 0.24)], led);
+      ctx.restore();
+    }
+    function drawOperator(x, y, busy, t) {
+      const [px, py] = P(x, y, 0), u = kit.s / 20, reach = busy ? Math.max(0, Math.sin(t * 5)) * 4 * u : 0;
+      ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(px, py, 7 * u, 3 * u, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1c2638'; ctx.fillRect(px - 3.5 * u, py - 16 * u, 7 * u, 16 * u);
+      ctx.fillStyle = '#f97316'; ctx.fillRect(px - 5 * u, py - 28 * u, 10 * u, 13 * u);
+      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2.5 * u; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(px - 4 * u, py - 25 * u); ctx.lineTo(px - 7 * u - reach, py - 18 * u - reach); ctx.stroke();
+      ctx.fillStyle = '#e0ac7e'; ctx.beginPath(); ctx.arc(px, py - 32 * u, 3.6 * u, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(px, py - 33 * u, 4 * u, Math.PI, 0); ctx.fill();
+    }
+
+    animate(canvas, kit, (dt) => robots.forEach((r) => step(r, dt)), (t) => {
+      drawFloor();
+      const items = [];
+      for (const p of pods.values()) items.push({ d: p.x + p.y + 1, fn: () => drawPod(p, p.x + 0.5, p.y + 0.5, 0) });
+      for (const r of robots) {
+        items.push({ d: r.x + r.y + 0.99, fn: () => { drawRobot(r); if (r.pod) drawPod(r.pod, r.x + 0.5, r.y + 0.5, 0.12 + r.lift * 0.15); } });
+        items.push({ d: r.s + GD + 1.5, fn: () => drawOperator(r.s + 0.5, GD + 0.55, r.glow > 0, t) });
+        if (r.glow > 0) items.push({ d: r.s + GD + 1.4, fn: () => {
+          const [gx, gy] = P(r.s + 0.5, GD - 0.1, 1.6), g = ctx.createRadialGradient(gx, gy, 0, gx, gy, kit.s * 1.4);
+          g.addColorStop(0, 'rgba(74,222,128,.45)'); g.addColorStop(1, 'rgba(74,222,128,0)');
+          ctx.fillStyle = g; ctx.fillRect(gx - kit.s * 1.4, gy - kit.s * 1.4, kit.s * 2.8, kit.s * 2.8);
+        } });
+      }
+      items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));
