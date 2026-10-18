@@ -59,10 +59,11 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   to nearly top-down, **space** to pause, **Esc** to close panels.
 - Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D** (PodSwarm and CubeFlow for now; the racking systems follow): a free 3D view of the whole warehouse. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all five systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
-  go faster). Double-click a robot to follow it; **Esc** or panning lets it go.
+  go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
+  racking systems the **Levels** slider works in 3D too; X-ray works in CubeFlow's 3D view.
 - **ABC & heat** colours storage by velocity class and shows traffic heat. CubeFlow's **X-ray** shows
   every buried bin; in the three racking systems the **Levels** slider cuts the racking away above
   a level (or shows one level only), so you can check level by level where the fast movers sit.
@@ -79,7 +80,7 @@ Optional URL parameters for every simulation page, handy for demos:
 | Parameter | Effect |
 |---|---|
 | `?warm=1800` | Pre-run 1800 simulated seconds before showing the page |
-| `&view=floor\|split\|control\|3d` | Start in a given view (`3d`: PodSwarm and CubeFlow) |
+| `&view=floor\|split\|control\|3d` | Start in a given view |
 | `&xray=1`, `&heat=1` | Turn on X-ray stacks (CubeFlow only) / ABC & heat overlay |
 | `&cut=3`, `&only=1` | Racking types: show levels 1–3 / only level 3 |
 | `&solid=1` | Racking types: solid racking |

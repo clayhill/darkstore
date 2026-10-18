@@ -88,9 +88,9 @@
   const KINDS = {
     cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer, Renderer3D: WS.CubeRenderer3D }),
     pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer, Renderer3D: WS.PodRenderer3D }),
-    shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer }),
-    crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer }),
-    acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer }),
+    shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer, Renderer3D: WS.ShuttleRenderer3D }),
+    crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer, Renderer3D: WS.CraneRenderer3D }),
+    acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer, Renderer3D: WS.AcrRenderer3D }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

@@ -116,7 +116,7 @@
       this.canvas = canvas; this.labels = labels; this.lctx = labels.getContext('2d'); this.app = app;
       this.t = 0; this.CZ = 2.2; // conveyor height (levels), as in the isometric view
       const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true }));
-      r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+      r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
       r.setClearColor(BG);
       const scene = (this.scene = new THREE.Scene());
       scene.fog = new THREE.Fog(BG, 70, 190);
@@ -152,7 +152,7 @@
     reset() { this.staticKey = null; this.cam.follow = null; }
 
     resize() {
-      const r = this.canvas.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+      const r = this.canvas.getBoundingClientRect(), dpr = Math.min(1.5, window.devicePixelRatio || 1);
       if (!r.width) return;
       this.w = r.width; this.h = r.height; this.dpr = dpr;
       this.renderer.setPixelRatio(dpr); this.renderer.setSize(r.width, r.height, false);
@@ -271,7 +271,7 @@
       if (cam.follow != null) {
         const r = this.followPos(cam.follow, alpha);
         const k = Math.min(1, dt * 6);
-        if (r) { cam.tx += (r.x - cam.tx) * k; cam.ty += (r.y - cam.ty) * k; cam.tz += (this.robotZ - cam.tz) * k; } else cam.follow = null;
+        if (r) { cam.tx += (r.x - cam.tx) * k; cam.ty += (r.y - cam.ty) * k; cam.tz += ((r.z ?? this.robotZ) - cam.tz) * k; } else cam.follow = null;
       }
       // the camera orbits a point at level tz (the robots' level while following one)
       const cp = Math.cos(cam.pitch), tz = cam.tz * LZ;
@@ -584,7 +584,7 @@
     // floor rectangle [x0, y0, x1, y1, z] to outline for a selection; types add their own kinds
     selectionBox(s, alpha) {
       const sim = this.sim, L = sim.layout;
-      if (s.kind === 'robot') { const p = this.followPos(s.id, alpha); return p && [p.x - 0.56, p.y - 0.56, p.x + 0.56, p.y + 0.56, this.robotZ + 0.02]; }
+      if (s.kind === 'robot') { const p = this.followPos(s.id, alpha); return p && [p.x - 0.56, p.y - 0.56, p.x + 0.56, p.y + 0.56, (p.z ?? this.robotZ) + 0.02]; }
       if (s.kind === 'packer') { const q = L.packerPos(s.id); return [q.x - 1.1, q.y - 0.65, q.x + 1.1, q.y + 0.65]; }
       return null;
     }
