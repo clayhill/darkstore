@@ -112,7 +112,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
   <div class="modal hidden" id="modal"><div class="modal-card" id="modal-card"></div></div>
   <div class="toast" id="toast"></div>
 `);
-  for (const src of [...SHARED, ...k.sim, 'js/render/iso.js', 'js/render/control.js', ...k.view, 'js/ui/ui.js', 'js/main.js']) {
+  for (const src of [...SHARED, ...k.sim, 'js/render/iso.js', 'js/render/stations.js', 'js/render/control.js', ...k.view, 'js/ui/ui.js', 'js/main.js']) {
     const s = document.createElement('script');
     s.src = src + '?t=' + T; s.async = false; // run in this order
     document.body.appendChild(s);

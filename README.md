@@ -267,7 +267,8 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             kpi, sim (loop, layout), rack (tote slots, seeding and conveyors of every racking
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
             paths and putaway: RailRunner and SkyStack)
-js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts),
+js/render/  iso (shared isometric view: camera, input, primitives, robot overlays), stations
+            (warehouse floor, stations, packing, dock), control (SCADA map + charts),
             rack (see-through racking), prezone (pre-zone conveyor, levels × aisles picking)
 js/ui/      ui (panels, inspector, labels, scanning), rack (rack inspector for both rack types)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
