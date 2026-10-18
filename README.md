@@ -1,5 +1,7 @@
 # DarkStore — a goods-to-person warehouse simulator
 
+**Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
+
 A browser simulator for goods-to-person warehouse automation. Each type of system has its own
 simulation and name:
 
@@ -62,7 +64,8 @@ implemented here.
 
 ## Run
 
-Open `index.html` in Safari (or any modern browser). It has no build step, no
+The live version runs at **https://clayhill.github.io/darkstore/** (GitHub Pages, updated on every
+push to `main`). To run it locally, open `index.html` in Safari (or any modern browser). It has no build step, no
 dependencies and no network calls, so double-clicking the file works.
 
 `index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
