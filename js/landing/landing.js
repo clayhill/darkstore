@@ -403,17 +403,40 @@
     });
   }
 
+  // See-through racking for the crane and ACR previews: A aisles of B bays and
+  // L levels with totes on both sides (a few lit up, `fill` of the positions
+  // used); rack(a, side) draws one side of an aisle.
+  function racking(kit, A, B, L, LH, Z0, rand, fill) {
+    const { ctx, P, quad } = kit, TOP = Z0 + L * LH, HUES = ['#38bdf8', '#e879f9', '#facc15'], slots = new Map();
+    for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B; b++) {
+      const r = rand(); if (r < fill) slots.set([a, s2, l, b].join(), r < 0.08 ? HUES[Math.floor(rand() * 3)] : null);
+    }
+    return function rack(a, s2) {
+      const x0 = a * 3 + s2 * 2, x1 = x0 + 1, fx = s2 ? x0 : x1;
+      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B, 0), P(x0, B, 0)], 'rgba(56,189,248,.05)');
+      for (let l = 0; l < L; l++) {
+        const z = Z0 + l * LH;
+        for (let b = 0; b < B; b++) {
+          if (!slots.has([a, s2, l, b].join())) continue;
+          const c = slots.get([a, s2, l, b].join());
+          quad([P(fx, b + 0.12, z + 0.05), P(fx, b + 0.88, z + 0.05), P(fx, b + 0.88, z + LH * 0.8), P(fx, b + 0.12, z + LH * 0.8)], c ? c + '44' : 'rgba(30,42,61,.7)', c ? c + 'aa' : 'rgba(56,189,248,.18)');
+        }
+        quad([P(x1, 0, z), P(x1, B, z)], null, 'rgba(56,189,248,.28)');
+      }
+      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
+      for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) quad([P(px, py, 0), P(px, py, TOP)], null, 'rgba(125,211,252,.75)', 1.2);
+      quad([P(x0, B, TOP), P(x1, B, TOP), P(x1, 0, TOP), P(x0, 0, TOP)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
+      ctx.restore();
+    };
+  }
+
   // High racking with a stacker crane in each aisle: the mast drives along the
   // aisle while the carriage climbs, fetches a tote and brings it to the
   // conveyor at the front.
   function cranePreview(canvas) {
     const A = 3, B = 9, L = 7, LH = 0.62, Z0 = 0.2, TOP = Z0 + L * LH, GW = A * 3 + 3, GD = B + 2.4;
     const kit = isoKit(canvas, GW, GD, TOP + 0.6, 0.62), { ctx, P, quad, box } = kit;
-    const rand = rng(21), HUES = ['#38bdf8', '#e879f9', '#facc15'];
-    const slots = new Map();
-    for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B; b++) {
-      const r = rand(); if (r < 0.72) slots.set([a, s2, l, b].join(), r < 0.08 ? HUES[Math.floor(rand() * 3)] : null);
-    }
+    const rand = rng(21), rack = racking(kit, A, B, L, LH, Z0, rand, 0.72);
     const io = { y: B + 0.5, z: 0.4 };
     const cranes = [...Array(A)].map((_, a) => ({ a, y: io.y, z: io.z, ty: io.y, tz: io.z, wait: a * 1.1, tote: false }));
     const totes = [], conveyorY = B + 1.4, station = GW - 1.2;
@@ -433,23 +456,6 @@
       }
       for (let k = totes.length - 1; k >= 0; k--) { totes[k] += 1.6 * dt; if (totes[k] >= station) { totes.splice(k, 1); glow = 1.2; } }
       glow = Math.max(0, glow - dt);
-    }
-    function rack(a, s2) {
-      const x0 = a * 3 + s2 * 2, x1 = x0 + 1, fx = s2 ? x0 : x1;
-      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B, 0), P(x0, B, 0)], 'rgba(56,189,248,.05)');
-      for (let l = 0; l < L; l++) {
-        const z = Z0 + l * LH;
-        for (let b = 0; b < B; b++) {
-          if (!slots.has([a, s2, l, b].join())) continue;
-          const c = slots.get([a, s2, l, b].join());
-          quad([P(fx, b + 0.12, z + 0.05), P(fx, b + 0.88, z + 0.05), P(fx, b + 0.88, z + LH * 0.8), P(fx, b + 0.12, z + LH * 0.8)], c ? c + '44' : 'rgba(30,42,61,.7)', c ? c + 'aa' : 'rgba(56,189,248,.18)');
-        }
-        quad([P(x1, 0, z), P(x1, B, z)], null, 'rgba(56,189,248,.28)');
-      }
-      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
-      for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) quad([P(px, py, 0), P(px, py, TOP)], null, 'rgba(125,211,252,.75)', 1.2);
-      quad([P(x0, B, TOP), P(x1, B, TOP), P(x1, 0, TOP), P(x0, 0, TOP)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
-      ctx.restore();
     }
     function drawCrane(cr) {
       const x = cr.a * 3 + 1.5, moving = cr.wait <= 0 && (cr.y !== cr.ty || cr.z !== cr.tz);
@@ -475,11 +481,7 @@
   function acrPreview(canvas) {
     const A = 4, B = 8, L = 6, LH = 0.62, Z0 = 0.3, TOP = Z0 + L * LH, GW = A * 3 + 2, GD = B + 3.2, FY = B + 0.9, ST = { x: GW - 1.4, y: B + 2.4 };
     const kit = isoKit(canvas, GW, GD, TOP + 0.8, 0.62), { ctx, P, quad, box } = kit;
-    const rand = rng(33), HUES = ['#38bdf8', '#e879f9', '#facc15'];
-    const slots = new Map();
-    for (let a = 0; a < A; a++) for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B; b++) {
-      const r = rand(); if (r < 0.7) slots.set([a, s2, l, b].join(), r < 0.08 ? HUES[Math.floor(rand() * 3)] : null);
-    }
+    const rand = rng(33), rack = racking(kit, A, B, L, LH, Z0, rand, 0.7);
     // each robot follows a list of waypoints; at a stop the handler goes up and back
     const bots = [...Array(3)].map((_, k) => ({ x: ST.x - 1 - k * 1.2, y: FY, z: 0.3, path: [], stop: null, wait: k * 1.5, load: 0 }));
     function plan(bot) {
@@ -511,23 +513,6 @@
         }
       }
       glow = Math.max(0, glow - dt);
-    }
-    function rack(a, s2) {
-      const x0 = a * 3 + s2 * 2, x1 = x0 + 1, fx = s2 ? x0 : x1;
-      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B, 0), P(x0, B, 0)], 'rgba(56,189,248,.05)');
-      for (let l = 0; l < L; l++) {
-        const z = Z0 + l * LH;
-        for (let b = 0; b < B; b++) {
-          if (!slots.has([a, s2, l, b].join())) continue;
-          const c = slots.get([a, s2, l, b].join());
-          quad([P(fx, b + 0.12, z + 0.05), P(fx, b + 0.88, z + 0.05), P(fx, b + 0.88, z + LH * 0.8), P(fx, b + 0.12, z + LH * 0.8)], c ? c + '44' : 'rgba(30,42,61,.7)', c ? c + 'aa' : 'rgba(56,189,248,.18)');
-        }
-        quad([P(x1, 0, z), P(x1, B, z)], null, 'rgba(56,189,248,.28)');
-      }
-      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
-      for (const [px, py] of [[x0, B], [x1, B], [x1, 0]]) quad([P(px, py, 0), P(px, py, TOP)], null, 'rgba(125,211,252,.75)', 1.2);
-      quad([P(x0, B, TOP), P(x1, B, TOP), P(x1, 0, TOP), P(x0, 0, TOP)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
-      ctx.restore();
     }
     function drawBot(bot) {
       const { x, y } = bot, H = TOP + 0.3, moving = bot.wait <= 0 && !bot.stop && bot.path.length;
