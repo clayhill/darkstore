@@ -42,11 +42,11 @@
           else if (t === C.BLOCKED) this.quadTop(x, y, x + 1, y + 1, 0, '#141b27');
           else if (t === C.LANE) {
             this.quadTop(x + 0.04, y + 0.04, x + 0.96, y + 0.96, 0, '#2a2614');
-            // chevrons pointing along the lane
-            const p = sim.ports[g.laneOf[i]], dx = p.face === 'front' ? 1 : 0, dy = 1 - dx;
+            // chevrons pointing along the lane, towards its presentation point
+            const d = sim.ports[g.laneOf[i]].docks[g.dockOf[i]], nx = d.cells[g.laneIdx[i] + 1], dx = nx.x - x, dy = nx.y - y;
             const mx = x + 0.5, my = y + 0.5;
-            this.line(P(mx - 0.2 * dx - 0.2 * dy, my - 0.2 * dy - 0.2 * dx, 0), P(mx + 0.1 * dx, my + 0.1 * dy, 0), 'rgba(250,204,21,0.55)', 2);
-            this.line(P(mx + 0.1 * dx, my + 0.1 * dy, 0), P(mx - 0.2 * dx + 0.2 * dy, my - 0.2 * dy + 0.2 * dx, 0), 'rgba(250,204,21,0.55)', 2);
+            this.line(P(mx - 0.2 * dx - 0.2 * dy, my - 0.2 * dy + 0.2 * dx, 0), P(mx + 0.1 * dx, my + 0.1 * dy, 0), 'rgba(250,204,21,0.55)', 2);
+            this.line(P(mx + 0.1 * dx, my + 0.1 * dy, 0), P(mx - 0.2 * dx + 0.2 * dy, my - 0.2 * dy - 0.2 * dx, 0), 'rgba(250,204,21,0.55)', 2);
           } else if (t === C.PORT) {
             this.quadTop(x + 0.04, y + 0.04, x + 0.96, y + 0.96, 0, '#3a2f12');
             this.quadTop(x + 0.04, y + 0.04, x + 0.96, y + 0.96, 0, null, '#facc15', 2);
@@ -246,12 +246,13 @@
     }
 
     // ---------------------------------------------------------------- stations
-    // Pod station: a pick frame at the floor edge with a pick-to-light bar and
-    // light curtain, the operator's screen and a stack light.
+    // Pod station: a pick frame at the floor edge (across both presentation
+    // points when there are two) with a pick-to-light bar and light curtain,
+    // the operator's screen and a stack light.
     drawPortBody(p, add) {
       const sim = this.sim, g = sim.grid, L = sim.layout, op = L.operatorPos(p), front = p.face === 'front';
       add(op.x + op.y - 1.2, () => this.quadTop(op.x - 0.55, op.y - 0.45, op.x + 0.55, op.y + 0.45, 0.02, '#10161f', '#2a3546', 1));
-      const x0 = front ? p.drop.x : g.W, y0 = front ? g.D : p.drop.y, x1 = front ? p.drop.x + 1 : g.W, y1 = front ? g.D : p.drop.y + 1;
+      const n = p.points, x0 = front ? p.drop.x : g.W, y0 = front ? g.D : p.drop.y, x1 = front ? p.drop.x + n : g.W, y1 = front ? g.D : p.drop.y + n;
       add(x1 + y1 + 0.05, () => {
         const P = this.P.bind(this), active = !!(p.job && p.currentLine);
         // posts and top beam
@@ -303,8 +304,8 @@
     pickPort(f) {
       const g = this.sim.grid;
       for (const p of this.sim.ports) {
-        if (p.face === 'front' && f.x >= p.drop.x - 0.4 && f.x <= p.drop.x + 1.4 && f.y >= g.D && f.y <= g.D + 1.6) return { kind: 'port', id: p.idx };
-        if (p.face === 'right' && f.x >= g.W && f.x <= g.W + 1.6 && f.y >= p.drop.y - 0.4 && f.y <= p.drop.y + 1.4) return { kind: 'port', id: p.idx };
+        if (p.face === 'front' && f.x >= p.drop.x - 0.4 && f.x <= p.drop.x + p.points + 0.4 && f.y >= g.D && f.y <= g.D + 1.6) return { kind: 'port', id: p.idx };
+        if (p.face === 'right' && f.x >= g.W && f.x <= g.W + 1.6 && f.y >= p.drop.y - 0.4 && f.y <= p.drop.y + p.points + 0.4) return { kind: 'port', id: p.idx };
       }
       return null;
     }

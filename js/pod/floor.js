@@ -2,7 +2,7 @@
  *  STORAGE  a pod may stand here (2 cells deep, so every pod touches a highway)
  *  HIGHWAY  kept free for driving
  *  LANE     queue lane in front of a station, entered in order
- *  PORT     the station cell where a pod is presented
+ *  PORT     a station cell where a pod is presented (one or two per station)
  *  CHARGER  charging pad on the back wall
  *  BLOCKED  wall or unused
  * podAt[i] holds the id of the pod standing on cell i. */
@@ -24,7 +24,9 @@
     depthOf(i, id) { return this.podAt[i] === id ? 1 : -1; }
 
     layout(cfg) {
-      const { W, D } = this, L = Math.max(1, cfg.portInboundCap - 1), bw = cfg.blockW;
+      const { W, D } = this, two = +cfg.stationPoints === 2, bw = cfg.blockW;
+      // queue lane per dock: the pods in flight that are not being presented
+      const L = Math.max(1, two ? Math.floor((cfg.portInboundCap - 2) / 2) : cfg.portInboundCap - 1);
       // Back wall (y = 0) with charging pads; a highway right in front of it.
       // Rows 2..D-3 repeat storage, storage, highway; row D-2 is the front highway
       // and row D-1 holds the station lanes. Column 0 and W-2 are highways,
@@ -38,23 +40,33 @@
       }
       this.type[this.idx(W - 1, 1)] = CELL.HIGHWAY;
       this.type[this.idx(W - 1, D - 2)] = CELL.HIGHWAY;
-      // Pick stations on the front edge: a lane of L cells, then the station cell.
+      // Stations along an edge. A dock is a lane of L cells ending at a
+      // presentation point; robots leave a point straight onto the highway
+      // beside it. With two points per station the operator stands between
+      // them, one dock fed from each side, so the next pod is already standing
+      // at the other point when the operator finishes one.
+      // at(u, v): cell u along the edge, v cells in from it
+      const station = (kind, face, s, at) => {
+        const dock = (u, dir) => {
+          const lane = [];
+          for (let j = L; j >= 1; j--) lane.push(at(u - dir * j, 0));
+          return { lane, entry: at(u - dir * L, 1), end: at(u, 0) };
+        };
+        const docks = two ? [dock(s, 1), dock(s + 1, -1)] : [dock(s, 1)];
+        const drop = docks[0].end;
+        this.addStation({ kind, face, drop, lift: at(s, 1), points: docks.length, docks }, drop);
+      };
+      const pitch = two ? 2 * L + 4 : L + 3, span = two ? L + 2 : 1;
+      // Pick stations on the front edge, goods-in stations on the right edge.
       for (let k = 0; k < cfg.pickPorts; k++) {
-        const sx = 1 + L + k * (L + 3);
-        if (sx > W - 4) break;
-        const lane = [];
-        for (let j = 0; j < L; j++) lane.push({ x: sx - L + j, y: D - 1 });
-        const drop = { x: sx, y: D - 1 };
-        this.addStation({ kind: 'PICK', face: 'front', drop, lift: { x: sx, y: D - 2 }, lane, entry: { x: sx - L, y: D - 2 } }, drop);
+        const sx = 1 + L + k * pitch;
+        if (sx + span > W - 3) break;
+        station('PICK', 'front', sx, (u, v) => ({ x: u, y: D - 1 - v }));
       }
-      // Goods-in stations on the right edge, lanes running down column W-1.
       for (let k = 0; k < cfg.goodsInPorts; k++) {
-        const sy = 2 + L + k * (L + 3);
-        if (sy > D - 4) break;
-        const lane = [];
-        for (let j = 0; j < L; j++) lane.push({ x: W - 1, y: sy - L + j });
-        const drop = { x: W - 1, y: sy };
-        this.addStation({ kind: 'GOODS_IN', face: 'right', drop, lift: { x: W - 2, y: sy }, lane, entry: { x: W - 2, y: sy - L } }, drop);
+        const sy = 2 + L + k * pitch;
+        if (sy + span > D - 3) break;
+        station('GOODS_IN', 'right', sy, (u, v) => ({ x: W - 1 - v, y: u }));
       }
       // Chargers on the back wall, reached from the highway in front of it.
       for (let k = 0; k < cfg.chargers; k++) {

@@ -131,7 +131,7 @@
     if (t.pickup != null) {
       const port = sim.ports[t.pickup];
       r.state = 'MOVING_TO_TARGET';
-      yield* WS.Tasks.throughLane(sim, r, port, port.hand);
+      yield* WS.Tasks.throughLane(sim, r, port.docks[0]);
       r.state = 'AT_PORT'; r.busy = true;
       for (const bin of t.returns) {
         yield { op: 'wait', t: cfg.handoverTime };
@@ -172,7 +172,7 @@
       yield { op: 'until', fn: () => sim.visitors(port) < cfg.laneLength + 1, waitState: 'WAITING_PORT' };
       t.toDest = true;
       r.state = 'TRANSPORTING_TO_PORT';
-      yield* WS.Tasks.throughLane(sim, r, port, port.hand);
+      yield* WS.Tasks.throughLane(sim, r, port.docks[0]);
       r.state = 'AT_PORT'; r.busy = true;
       while (r.load.length) {
         yield { op: 'wait', t: cfg.handoverTime };

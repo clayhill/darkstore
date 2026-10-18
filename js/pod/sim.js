@@ -15,10 +15,11 @@
   // Station positions: the pod stands on the station cell at the floor edge,
   // the operator just outside it and the put wall to the operator's right.
   class PodLayout extends WS.Layout {
-    slotPos(port, k) { return { x: port.drop.x + 1.75 + k * 0.52, y: this.D + 0.8 }; }
+    // With two presentation points the operator stands between them.
+    slotPos(port, k) { return { x: port.drop.x + port.points + 0.75 + k * 0.52, y: this.D + 0.8 }; }
     spurX(port) { return this.slotPos(port, this.sim.cfg.toteSlots - 1).x + 0.6; }
     pickPos(port) { return { x: port.drop.x + 0.5, y: port.drop.y + 0.5 }; }
-    operatorPos(port) { return port.face === 'front' ? { x: port.drop.x + 0.5, y: this.D + 0.85 } : { x: this.W + 0.85, y: port.drop.y + 0.5 }; }
+    operatorPos(port) { const m = port.points / 2; return port.face === 'front' ? { x: port.drop.x + m, y: this.D + 0.85 } : { x: this.W + 0.85, y: port.drop.y + m }; }
   }
 
   // ---------------------------------------------------------------- tasks
@@ -40,12 +41,15 @@
     pod.loc = 'grid'; pod.x = r.x; pod.y = r.y; pod.robot = -1; r.bin = null;
     r.busy = false;
   }
-  // Queue through the station's lane one cell at a time, present the pod and
-  // wait until the operator has worked every line on it.
-  function* present(sim, r, port, pod) {
-    if (r.x !== port.drop.x || r.y !== port.drop.y) {
+  // Queue through one of the station's docks one cell at a time, present the
+  // pod and wait until the operator has worked every line on it. With two
+  // presentation points the robot takes the dock fewer robots are heading for.
+  function* present(sim, r, t, port, pod) {
+    if (!port.docks.some((d) => d.end.x === r.x && d.end.y === r.y)) {
+      const heading = (d) => sim.fleet.reduce((n, x) => n + (x.task && x.task.dock === d ? 1 : 0), 0);
+      t.dock = port.docks.reduce((a, d) => (heading(d) < heading(a) ? d : a));
       r.state = 'TRANSPORTING_TO_PORT';
-      yield* WS.Tasks.throughLane(sim, r, port, port.drop);
+      yield* WS.Tasks.throughLane(sim, r, t.dock);
     }
     r.state = 'AT_PORT';
     yield { op: 'until', fn: () => port.canAccept(), waitState: 'WAITING_PORT' };
@@ -64,13 +68,15 @@
     yield* liftPod(sim, r, pod);
     let port = sim.ports[t.port];
     for (;;) {
-      yield* present(sim, r, port, pod);
+      yield* present(sim, r, t, port, pod);
       if (!pod.requests.length) break;
       // more lines for this station came in while it was being picked: stay
       const q = pod.requests.find((x) => x.port === port.idx) || pod.requests[0];
+      if (q.port !== port.idx) t.dock = null;
       port = sim.ports[q.port];
       port.inbound++;
     }
+    t.dock = null;
     r.state = 'STORING';
     let i;
     while ((i = sim.chooseReturnCell(pod, r)) < 0) yield { op: 'wait', t: 1 };

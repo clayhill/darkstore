@@ -164,14 +164,19 @@ ports, and the slotting avoids burying popular bins. Digging a fast mover out fr
 | **Close-up:** pods queue in a lane and are turned to show the operator the right face | **Control room:** hit rate, pod returns and the live floor map |
 
 **Floor & pods.** A floor of 1.2 m cells: storage blocks two cells deep, highways between them, a
-queue lane in front of each station and chargers on the back wall. Each pod has four faces of
+two presentation points with their queue lanes at each station and chargers on the back wall. Each pod has four faces of
 shelves with fabric bins; one SKU is spread over many pods.
 
 **Robots.** Drive units turn on the spot to change direction (90° in 1.5 s) and lift a pod in 1.5 s.
 An empty robot may drive under stored pods (*tunnelling*, can be switched off); a robot carrying a pod
 keeps to highways and empty cells.
 
-**Stations.** A pod joins its station's queue lane and moves up in order. At the station the robot
+**Stations.** Each station has two presentation points with the operator standing between them,
+each fed by its own short queue lane from one side. While the operator works the pod at one point, the
+next pod is already standing at the other, so there is no gap while a robot drives off and the next one
+moves up. In the simulation this gap cost about a third of each station's time with one point.
+*Presentation points per station* in the settings switches back to one point with a single lane.
+A pod joins the lane of the point fewer robots are heading for and moves up in order. At the station the robot
 turns the pod so the face with the next pick points at the operator; the lines are sorted by face so the
 pod turns as little as possible. Lines that arrive for the same station while a pod is there are picked
 without it leaving.

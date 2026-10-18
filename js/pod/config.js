@@ -26,7 +26,8 @@
     battMove: 0.018,
 
     // Workstations: the pod waits in a queue lane, then is presented at the station
-    portInboundCap: 6, // pods in flight per station: the queue lane holds all but one
+    stationPoints: 2, // presentation points per station: 2 = the next pod waits at the second point
+    portInboundCap: 6, // pods in flight per station: the presentation points plus their queue lanes
     toteSlots: 8, // a bigger put wall than the cube port: more orders per pod visit
     conveyorStep: 1.0, // s — pod settles at the station before the first pick
   });
