@@ -12,6 +12,8 @@
       this.takeawayY = g.D + 3.2;
     }
     packerPos(k) { return { x: this.W + 2.4 + k * 2.6, y: this.D + 5.2 }; }
+    // where a pack station's operator stands: in front of the bench, at a box-maker's infeed
+    packerOperator(pk) { const q = this.packerPos(pk.idx); return pk.kind === 'boxer' ? { x: q.x + 0.68, y: q.y + 0.95 } : { x: q.x, y: q.y + 1.0 }; }
     spurX(port) { return port.drop.x + 4.45; }
     slotPos(port, k) { return { x: port.drop.x + 2.3 + k * 0.52, y: this.D + 1.55 }; }
     pickPos(port) {
@@ -37,7 +39,7 @@
       const p = this.packerPos(pk), d = this.dock();
       return [{ x: p.x, y: p.y + 0.7 }, { x: p.x, y: this.D + 7.0 }, { x: d.x - 0.6, y: this.D + 7.0 }, { x: d.x - 0.6, y: d.y }, { x: d.x + 0.2, y: d.y }];
     }
-    dock() { return { x: this.W + 2.4 + this.sim.cfg.packStations * 2.6 + 1.6, y: this.D + 3.0 }; }
+    dock() { return { x: this.W + 2.4 + WS.packCount(this.sim.cfg) * 2.6 + 1.6, y: this.D + 3.0 }; }
   }
 
   class Sim {

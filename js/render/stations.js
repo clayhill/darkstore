@@ -149,6 +149,70 @@
       });
     }
 
+    // ---------------------------------------------------------------- packing
+    // Manual pack bench: steel frame, shelf with flat-packed cartons, light worktop.
+    drawPackBench(pk, q) {
+      for (const [lx, ly] of [[-0.95, -0.5], [0.87, -0.5], [-0.95, 0.42], [0.87, 0.42]]) this.box(q.x + lx, q.y + ly, 0, q.x + lx + 0.08, q.y + ly + 0.08, 1.9, '#64748b');
+      this.box(q.x - 0.95, q.y - 0.5, 0.45, q.x + 0.95, q.y + 0.5, 0.55, '#475569');
+      for (let k = 0; k < 4; k++) this.box(q.x - 0.85, q.y - 0.4, 0.55 + k * 0.12, q.x + 0.1, q.y + 0.4, 0.65 + k * 0.12, '#b8875a', { top: '#cfa271' });
+      this.box(q.x - 1.0, q.y - 0.55, 1.9, q.x + 1.0, q.y + 0.55, 2.1, '#94a3b8', { top: '#e7dccb', left: '#cbd5e1' });
+      // monitor on a pole, label printer, tape dispenser
+      this.box(q.x - 0.85, q.y - 0.5, 2.1, q.x - 0.79, q.y - 0.44, 3.6, '#475569');
+      this.box(q.x - 0.98, q.y - 0.52, 3.3, q.x - 0.5, q.y - 0.44, 4.3, '#0f172a');
+      this.faceY(q.y - 0.435, q.x - 0.95, q.x - 0.53, 3.38, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
+      this.box(q.x + 0.5, q.y - 0.45, 2.1, q.x + 0.92, q.y - 0.08, 2.75, '#e2e8f0', { top: '#f8fafc' });
+      this.faceY(q.y - 0.079, q.x + 0.55, q.x + 0.87, 2.45, 2.55, '#0f172a');
+      this.box(q.x + 0.55, q.y + 0.15, 2.1, q.x + 0.85, q.y + 0.35, 2.4, '#dc2626');
+      this.discX(q.x + 0.851, q.y + 0.25, 2.45, 0.1, 0.22, '#d6b07a');
+      if (pk.cur) {
+        const f = pk.t / pk.dur;
+        if (f < 0.6) this.orderTote(q.x - 0.45, q.y, 2.1, 1 - f / 0.6);
+        const h = 0.25 + Math.min(1, f * 1.6) * 0.55;
+        if (f < 0.6) this.tote(q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, h, '#b8875a');
+        else this.parcel(q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.8, { label: f > 0.8 });
+      }
+    }
+    // Auto-bagger: a tall cabinet with the film roll on top; the operator
+    // drops the items in from the shelf beside it, a sealed bag drops out
+    // onto the parcel conveyor.
+    drawBagger(pk, q) {
+      const f = pk.cur ? pk.t / pk.dur : 0;
+      this.box(q.x - 0.75, q.y - 0.45, 0, q.x + 0.05, q.y + 0.4, 3.7, '#334155', { top: '#475569' });
+      this.box(q.x - 0.7, q.y - 0.3, 3.7, q.x + 0.0, q.y + 0.2, 4.15, '#e5e7eb', { top: '#f8fafc', right: '#cbd5e1' }); // film roll
+      this.faceX(q.x + 0.001, q.y - 0.3, q.y + 0.2, 3.82, 4.03, '#94a3b8');
+      this.faceY(q.y + 0.402, q.x - 0.6, q.x - 0.15, 2.6, 3.3, pk.cur ? '#0c4a6e' : '#111c2e');
+      this.faceY(q.y + 0.403, q.x - 0.62, q.x - 0.08, 1.15, 1.7, '#0b1220'); // bag outlet
+      if (pk.cur) this.glow(q.x - 0.35, q.y + 0.4, 3.0, 16, '#22c55e', 0.45);
+      // loading shelf with the order tote
+      for (const [lx, ly] of [[0.82, -0.4], [0.82, 0.35]]) this.box(q.x + lx, q.y + ly, 0, q.x + lx + 0.08, q.y + ly + 0.08, 1.9, '#64748b');
+      this.box(q.x + 0.05, q.y - 0.4, 1.9, q.x + 0.9, q.y + 0.43, 2.1, '#94a3b8', { top: '#e7dccb', left: '#cbd5e1' });
+      if (pk.cur && f < 0.6) this.orderTote(q.x + 0.47, q.y, 2.1, 1 - f / 0.6);
+      if (pk.cur && f >= 0.6) this.bag(q.x - 0.35, q.y + 0.6, 1.4, f > 0.85);
+    }
+    // Box-making machine: an enclosure with a window, the fanfold cardboard
+    // bale on top and an induction conveyor where the operator lays the items;
+    // inside, a carton is cut to size around them.
+    drawBoxMaker(pk, q) {
+      const f = pk.cur ? pk.t / pk.dur : 0;
+      this.box(q.x - 1.1, q.y - 0.55, 0, q.x + 0.35, q.y + 0.45, 3.1, '#cbd5e1', { left: '#94a3b8', right: '#64748b', top: '#475569' });
+      this.box(q.x - 1.0, q.y - 0.45, 3.1, q.x + 0.0, q.y + 0.3, 3.65, '#b8875a', { top: '#d2a676' }); // cardboard bale
+      for (let k = 1; k < 5; k++) this.faceY(q.y + 0.301, q.x - 1.0, q.x, 3.1 + k * 0.11, 3.12 + k * 0.11, '#8a623f');
+      this.faceY(q.y + 0.452, q.x - 0.95, q.x + 0.2, 1.1, 2.7, 'rgba(15,23,42,0.85)'); // window
+      if (pk.cur && f > 0.3) { const w = Math.min(1, (f - 0.3) / 0.4); this.faceY(q.y + 0.455, q.x - 0.6, q.x - 0.6 + 0.6 * w, 1.3, 1.3 + 0.7 * w, '#b8875a'); }
+      this.hazardY(q.y + 0.453, q.x - 1.1, q.x + 0.35, 0, 0.18, 10);
+      if (pk.cur) this.glow(q.x - 0.4, q.y + 0.45, 2.9, 18, '#22c55e', 0.45);
+      // induction conveyor on the right, the order tote on it while it is emptied
+      this.box(q.x + 0.35, q.y - 0.3, 1.6, q.x + 1.0, q.y + 0.35, 1.85, '#334155', { top: '#1f2937' });
+      for (const [lx, ly] of [[0.9, -0.28], [0.9, 0.27]]) this.box(q.x + lx, q.y + ly, 0, q.x + lx + 0.06, q.y + ly + 0.06, 1.6, '#475569');
+      if (pk.cur && f < 0.5) this.orderTote(q.x + 0.68, q.y + 0.03, 1.85, 1 - f / 0.5, 0.8);
+      if (pk.cur && f >= 0.85) this.parcel(q.x - 0.55, q.y + 0.5, q.x - 0.1, q.y + 0.85, 1.4, 0.55, { label: true });
+    }
+    // Sealed poly bag with a label (flat, slightly puffed).
+    bag(x, y, z, label) {
+      this.box(x - 0.2, y - 0.15, z, x + 0.2, y + 0.15, z + 0.22, '#e2e8f0', { top: '#f1f5f9', left: '#cbd5e1', right: '#94a3b8' });
+      if (label) this.quadTop(x - 0.12, y - 0.08, x + 0.04, y + 0.08, z + 0.221, '#ffffff', '#64748b', 0.6);
+    }
+
     // Stations, packing and dock. `items` lets a subclass mix its own floor
     // objects into the same painter's ordering.
     drawStations(items = []) {
@@ -214,34 +278,14 @@
         }
       }
 
-      // pack stations
+      // pack stations: queued totes on the spur behind, the bench or machine, the operator
       for (const pk of oms.packers) {
         const q = L.packerPos(pk.idx);
         add(q.x + q.y, () => {
-          // queued totes on the spur behind the bench
           for (let k = Math.min(pk.queue.length, 3) - 1; k >= 0; k--) this.orderTote(q.x, q.y - 1.05 - k * 0.0, 1.6 + k * 0.85, 0.8, 0.9);
-          // packing bench: steel frame, shelf with flat-packed cartons, light worktop
-          for (const [lx, ly] of [[-0.95, -0.5], [0.87, -0.5], [-0.95, 0.42], [0.87, 0.42]]) this.box(q.x + lx, q.y + ly, 0, q.x + lx + 0.08, q.y + ly + 0.08, 1.9, '#64748b');
-          this.box(q.x - 0.95, q.y - 0.5, 0.45, q.x + 0.95, q.y + 0.5, 0.55, '#475569');
-          for (let k = 0; k < 4; k++) this.box(q.x - 0.85, q.y - 0.4, 0.55 + k * 0.12, q.x + 0.1, q.y + 0.4, 0.65 + k * 0.12, '#b8875a', { top: '#cfa271' });
-          this.box(q.x - 1.0, q.y - 0.55, 1.9, q.x + 1.0, q.y + 0.55, 2.1, '#94a3b8', { top: '#e7dccb', left: '#cbd5e1' });
-          // monitor on a pole, label printer, tape dispenser
-          this.box(q.x - 0.85, q.y - 0.5, 2.1, q.x - 0.79, q.y - 0.44, 3.6, '#475569');
-          this.box(q.x - 0.98, q.y - 0.52, 3.3, q.x - 0.5, q.y - 0.44, 4.3, '#0f172a');
-          this.faceY(q.y - 0.435, q.x - 0.95, q.x - 0.53, 3.38, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
-          this.box(q.x + 0.5, q.y - 0.45, 2.1, q.x + 0.92, q.y - 0.08, 2.75, '#e2e8f0', { top: '#f8fafc' });
-          this.faceY(q.y - 0.079, q.x + 0.55, q.x + 0.87, 2.45, 2.55, '#0f172a');
-          this.box(q.x + 0.55, q.y + 0.15, 2.1, q.x + 0.85, q.y + 0.35, 2.4, '#dc2626');
-          this.discX(q.x + 0.851, q.y + 0.25, 2.45, 0.1, 0.22, '#d6b07a');
-          if (pk.cur) {
-            const f = pk.t / pk.dur;
-            if (f < 0.6) this.orderTote(q.x - 0.45, q.y, 2.1, 1 - f / 0.6);
-            const h = 0.25 + Math.min(1, f * 1.6) * 0.55;
-            if (f < 0.6) this.tote(q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, h, '#b8875a');
-            else this.parcel(q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.8, { label: f > 0.8 });
-          }
+          if (pk.kind === 'bagger') this.drawBagger(pk, q); else if (pk.kind === 'boxer') this.drawBoxMaker(pk, q); else this.drawPackBench(pk, q);
         });
-        const opq = { x: q.x, y: q.y + 1.0 };
+        const opq = L.packerOperator(pk);
         add(opq.x + opq.y, () => this.drawOperator(opq.x, opq.y, !!pk.cur, '#38bdf8'));
       }
 
@@ -271,6 +315,7 @@
         const q = oms.posOnPath(it);
         add(q.x + q.y + 0.3, () => {
           if (it.kind === 'tote') this.orderTote(q.x, q.y, 1.6, 1, 0.85);
+          else if (it.order.pack === 'bagger') this.bag(q.x, q.y, 1.4, true);
           else this.parcel(q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, { label: true });
         });
       }

@@ -7,6 +7,12 @@
   const CARRIERS = [{ code: 'PCL', name: 'Parcel Road' }, { code: 'EXP', name: 'Express Air' }, { code: 'ECO', name: 'Eco Freight' }];
   const CITIES = [['1000', 'Brussels', 'BE'], ['2000', 'Antwerpen', 'BE'], ['9000', 'Gent', 'BE'], ['3000', 'Leuven', 'BE'], ['4000', 'Liège', 'BE'], ['8000', 'Brugge', 'BE'], ['1011', 'Amsterdam', 'NL'], ['3011', 'Rotterdam', 'NL'], ['75001', 'Paris', 'FR'], ['59000', 'Lille', 'FR'], ['50667', 'Köln', 'DE'], ['1009', 'Luxembourg', 'LU']];
   const FIRST = ['Emma', 'Lucas', 'Olivia', 'Noah', 'Mila', 'Arthur', 'Louise', 'Jules', 'Elena', 'Victor', 'Nora', 'Finn', 'Lina', 'Adam', 'Marie', 'Liam'];
+  // Pack station kinds, with the config keys of their count and timing
+  const PACK = {
+    manual: { name: 'Pack', count: 'packStations', base: 'packBase', unit: 'packPerUnit' },
+    bagger: { name: 'Bagger', count: 'packBaggers', base: 'bagBase', unit: 'bagPerUnit' },
+    boxer: { name: 'Box-maker', count: 'packBoxers', base: 'boxBase', unit: 'boxPerUnit' },
+  };
   const LAST = ['Peeters', 'Janssens', 'Maes', 'Jacobs', 'Mertens', 'Willems', 'Claes', 'Goossens', 'Wouters', 'De Smet', 'Dubois', 'Lambert', 'Martin', 'Smit', 'Müller', 'Bakker'];
 
   class OMS {
@@ -20,8 +26,11 @@
         this.totes.push(t); this.freeTotes.push(t);
       }
       this.conveyor = []; // items travelling on tote / parcel conveyors
+      // pack stations: manual benches, then auto-baggers, then box-making machines
       this.packers = [];
-      for (let k = 0; k < sim.cfg.packStations; k++) this.packers.push({ idx: k, name: 'Pack ' + (k + 1), queue: [], incoming: 0, cur: null, t: 0, dur: 0, done: 0 });
+      for (const kind of Object.keys(PACK)) {
+        for (let k = 0; k < (sim.cfg[PACK[kind].count] || 0); k++) this.packers.push({ idx: this.packers.length, kind, name: PACK[kind].name + ' ' + (k + 1), queue: [], incoming: 0, cur: null, t: 0, dur: 0, done: 0 });
+      }
       this.truck = this.newTruck(0);
       this.trucksGone = []; this.sscc = 1;
       this.orderAcc = 0; this.replenTimer = 0; this.releaseTimer = 0;
@@ -59,6 +68,16 @@
       return o;
     }
     units(o) { return o.lines.reduce((s, l) => s + l.qty, 0); }
+    orderVol(o) { const inv = this.sim.inv; return o.lines.reduce((s, l) => s + l.qty * inv.byGtin.get(l.gtin).vol, 0); }
+    orderWeight(o) { const inv = this.sim.inv; return o.lines.reduce((s, l) => s + l.qty * inv.byGtin.get(l.gtin).weight, 0); }
+    // whether a pack station can take an order: a person packs anything, the machines have limits
+    packFits(pk, o) {
+      const c = this.sim.cfg, u = this.units(o);
+      if (pk.kind === 'bagger') return u <= c.bagMaxUnits && this.orderVol(o) <= c.bagMaxVol && this.orderWeight(o) <= c.bagMaxWeight;
+      if (pk.kind === 'boxer') return u <= c.boxMaxUnits && this.orderVol(o) <= c.boxMaxVol;
+      return true;
+    }
+    packTime(pk, o) { const c = this.sim.cfg, P = PACK[pk.kind]; return c[P.base] + this.units(o) * c[P.unit]; }
 
     release() {
       const sim = this.sim, inv = sim.inv;
@@ -112,9 +131,16 @@
       }
     }
     // An order tote onto the takeaway conveyor (route(packer) from where it
-    // starts) to the pack station with the least work.
+    // starts) to the pack station that will be done with it first, of those
+    // it fits: the work queued there times its time for this order.
     toPacking(o, route) {
-      const pk = this.packers.reduce((a, b) => (a.queue.length + a.incoming + (a.cur ? 1 : 0) <= b.queue.length + b.incoming + (b.cur ? 1 : 0) ? a : b));
+      let pk = null, best = Infinity;
+      for (const p of this.packers) {
+        if (!this.packFits(p, o)) continue;
+        const s = (p.queue.length + p.incoming + (p.cur ? 1 : 0) + 1) * this.packTime(p, o);
+        if (s < best) { best = s; pk = p; }
+      }
+      pk = pk || this.packers[0];
       pk.incoming++;
       o.status = 'CONVEYOR';
       this.toConveyor({ kind: 'tote', order: o, packer: pk.idx, path: route(pk.idx) });
@@ -203,7 +229,7 @@
       for (const pk of this.packers) {
         if (!pk.cur && pk.queue.length) {
           pk.cur = pk.queue.shift(); pk.t = 0;
-          pk.dur = cfg.packBase + this.units(pk.cur) * cfg.packPerUnit;
+          pk.dur = this.packTime(pk, pk.cur);
           pk.cur.status = 'PACKING';
         }
         if (pk.cur) {
@@ -212,7 +238,7 @@
             const o = pk.cur; pk.cur = null; pk.done++;
             o.sscc = WS.Barcode.makeSSCC(this.sscc++);
             o.carrier = this.truck.carrier;
-            o.status = 'PACKED'; o.times.packed = sim.time;
+            o.status = 'PACKED'; o.times.packed = sim.time; o.pack = pk.kind;
             const tote = o.tote; tote.order = null; o.toteId = tote.id; o.tote = null;
             sim.schedule(60, () => this.freeTotes.push(tote)); // empty tote returns to the tote stack
             this.toConveyor({ kind: 'parcel', order: o, path: sim.layout.parcelRoute(pk.idx) });
@@ -257,4 +283,7 @@
 
   WS.OMS = OMS;
   WS.CARRIERS = CARRIERS;
+  WS.PACK = PACK;
+  // number of pack stations of every kind
+  WS.packCount = (cfg) => Object.values(PACK).reduce((n, P) => n + (cfg[P.count] || 0), 0);
 })((globalThis.WS = globalThis.WS || {}));

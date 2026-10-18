@@ -107,10 +107,18 @@
         this.kpiTile('Orders shipped', Math.round(k.rate('shipped')), '/h', `${k.ordersShipped} total`),
         this.kpiTile((tm.machine || 'Robot') + ' utilization', Math.round(u.work * 100), '%', `now ${Math.round(ur.work * 100)}% · waiting ${Math.round(u.wait * 100)}%`),
         ...this.type.kpiTiles(this),
+        this.packTile(),
         this.kpiTile('Order cycle', k.cycleN ? U.fmtDur(k.cycleSum / k.cycleN) : '—', '', 'receipt → truck'),
         this.kpiTile('Orders in process', open.length, '', `${back ? back + ' backordered · ' : ''}${onTruck} on truck`),
         sim.cfg.chargers ? this.kpiTile('Fleet battery', Math.round(sim.fleet.reduce((s, r) => s + r.battery, 0) / sim.fleet.length), '%', `${charging} charging`) : '',
       ].join('');
+    }
+    // share of orders packed by machines, shown once the scenario has packing machines
+    packTile() {
+      const ps = this.sim.oms.packers, auto = ps.filter((p) => p.kind !== 'manual');
+      if (!auto.length) return '';
+      const all = ps.reduce((s, p) => s + p.done, 0), machine = auto.reduce((s, p) => s + p.done, 0), q = ps.reduce((s, p) => s + p.queue.length + p.incoming, 0);
+      return this.kpiTile('Machine-packed', all ? Math.round((machine / all) * 100) : 0, '%', `${machine} of ${all} orders · ${q} totes waiting to be packed`);
     }
     renderPorts() {
       const sim = this.sim, cfg = sim.cfg;
@@ -318,7 +326,7 @@
       const el = $('#ob'); if (!el) return;
       const oms = this.sim.oms, cfg = this.sim.cfg, tr = oms.truck;
       const packed = oms.orders.filter((o) => o.sscc).slice(-30).reverse();
-      el.innerHTML = `<div class="sect"><h3>Pack stations</h3>${oms.packers.map((pk) => `<div class="pcard" data-open="packer:${pk.idx}"><div class="row"><span class="name">${pk.name}</span>${pk.cur ? `<span class="pill PACKING">PACKING ${pk.cur.id}</span>` : '<span class="pill">IDLE</span>'}</div>
+      el.innerHTML = `<div class="sect"><h3>Pack stations</h3>${oms.packers.map((pk) => `<div class="pcard" data-open="packer:${pk.idx}"><div class="row"><span class="name">${pk.name}${pk.kind !== 'manual' ? ' <span class="faint">· machine</span>' : ''}</span>${pk.cur ? `<span class="pill PACKING">PACKING ${pk.cur.id}</span>` : '<span class="pill">IDLE</span>'}</div>
         <div class="row meta"><span>${pk.queue.length} totes queued · ${pk.incoming} on conveyor</span><span>${pk.done} packed</span></div>${pk.cur ? `<div class="bar"><i style="width:${Math.min(100, (pk.t / pk.dur) * 100)}%;background:#3987e5"></i></div>` : ''}</div>`).join('')}</div>
         <div class="sect"><h3>Outbound dock</h3><div class="card"><div class="row2"><div><b>${tr.id}</b> · ${tr.carrier.name}<br><span class="muted">${tr.parcels.length}/${cfg.truckCapacity} parcels · departs at capacity or ${U.fmtDur(cfg.truckCutoff)} cut-off</span></div>
         <div style="text-align:right">${tr.departing ? '<span class="pill SHIPPED">DEPARTING</span>' : `<span class="muted">cut-off in</span><br><b>${tr.parcels.length ? U.fmtDur(Math.max(0, cfg.truckCutoff - (this.sim.time - tr.arrived))) : '—'}</b>`}</div></div>
@@ -341,7 +349,9 @@
       <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
         ${t.scenario}
         <div class="row2">${num('pickPorts', 'Pick ' + tm.ports, 1, 1, 7)}${num('goodsInPorts', 'Goods-in ' + tm.ports, 1, 0, 3)}</div>
-        <div class="row2">${num('packStations', 'Pack stations', 1, 1, 5)}${num('products', 'SKUs', 10, 20, 2000)}</div>
+        <div class="row2">${num('packStations', 'Manual pack stations', 1, 1, 5)}${num('products', 'SKUs', 10, 20, 2000)}</div>
+        <div class="row2">${num('packBaggers', 'Auto-baggers', 1, 0, 4)}${num('packBoxers', 'Box-making machines', 1, 0, 3)}</div>
+        <div class="note">Packing machines take the orders they fit and are faster than a person: an auto-bagger up to ${c.bagMaxUnits} units, ${c.bagMaxVol} L and ${c.bagMaxWeight} kg; a box-making machine up to ${c.boxMaxUnits} units and ${c.boxMaxVol} L. Every order goes to the station that will be done with it first.</div>
         ${num('seed', 'Random seed', 1, 1)}
         <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
         ${t.note ? `<div class="note">${t.note}</div>` : ''}</div></div>
@@ -450,8 +460,9 @@
     inspectPacker(pk) {
       const o = pk.cur;
       return `<div class="hd"><b>${pk.name}</b><button class="close">×</button></div>
-        <dl class="kv"><dt>Status</dt><dd>${o ? 'Packing ' + `<a href="#" data-open="order:${o.id}">${o.id}</a>` : 'Idle'}</dd><dt>Queue</dt><dd>${pk.queue.length} totes · ${pk.incoming} on conveyor</dd><dt>Packed</dt><dd>${pk.done}</dd></dl>
-        ${o ? `<div class="bar"><i style="width:${Math.min(100, (pk.t / pk.dur) * 100)}%;background:#3987e5"></i></div><div class="note">Scan tote ${o.tote ? o.tote.id : ''} → verify ${this.sim.oms.units(o)} units → carton → print SSCC label → parcel conveyor.</div>` : ''}`;
+        <dl class="kv"><dt>Type</dt><dd>${{ manual: 'Manual bench: packs any order', bagger: `Auto-bagger: orders up to ${this.sim.cfg.bagMaxUnits} units, ${this.sim.cfg.bagMaxVol} L, ${this.sim.cfg.bagMaxWeight} kg`, boxer: `Box-making machine: orders up to ${this.sim.cfg.boxMaxUnits} units, ${this.sim.cfg.boxMaxVol} L` }[pk.kind]}</dd>
+        <dt>Status</dt><dd>${o ? 'Packing ' + `<a href="#" data-open="order:${o.id}">${o.id}</a>` : 'Idle'}</dd><dt>Queue</dt><dd>${pk.queue.length} totes · ${pk.incoming} on conveyor</dd><dt>Packed</dt><dd>${pk.done}</dd></dl>
+        ${o ? `<div class="bar"><i style="width:${Math.min(100, (pk.t / pk.dur) * 100)}%;background:#3987e5"></i></div><div class="note">${{ manual: `Scan tote ${o.tote ? o.tote.id : ''} → verify ${this.sim.oms.units(o)} units → carton → print SSCC label → parcel conveyor.`, bagger: `Scan tote ${o.tote ? o.tote.id : ''} → drop ${this.sim.oms.units(o)} units into the bagger → bag sealed, SSCC label printed on it → parcel conveyor.`, boxer: `Scan tote ${o.tote ? o.tote.id : ''} → lay ${this.sim.oms.units(o)} units on the infeed → carton cut to size, closed, SSCC label applied → parcel conveyor.` }[pk.kind]}</div>` : ''}`;
     }
 
     // ---------------------------------------------------------------- modals

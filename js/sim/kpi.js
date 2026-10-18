@@ -101,6 +101,8 @@
       if (waiting > sim.fleet.length * 0.3) out.push({ sev: 'warning', key: 'jam', title: 'Congestion', msg: `${waiting} of ${sim.fleet.length} robots waiting in traffic` });
       const recentPen = this.penaltyLog.filter((e) => e.t > sim.time - 600).length;
       if (recentPen >= 3) out.push({ sev: 'info', key: 'bury', title: 'Fast movers buried', msg: `${recentPen} burial penalties in the last 10 min` });
+      const packers = sim.oms.packers, toPack = packers.reduce((s, p) => s + p.queue.length + p.incoming, 0);
+      if (toPack > packers.length * 4) out.push({ sev: toPack > packers.length * 8 ? 'critical' : 'warning', key: 'pack', title: 'Packing backlog', msg: `${toPack} order totes waiting for ${packers.length} pack stations` });
       if (sim.extraAlerts) out.push(...sim.extraAlerts());
       this.alerts = out;
     }

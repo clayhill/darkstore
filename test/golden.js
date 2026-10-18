@@ -11,7 +11,7 @@ const dir = path.join(__dirname, 'golden');
 // run name → [storage type, settings on top of its defaults]
 const RUNS = {
   cube: ['cube', {}], 'cube-nearest': ['cube', { putawayPolicy: 'nearest' }],
-  pod: ['pod', {}], 'pod-single': ['pod', { stationPoints: 1 }], 'pod-notunnel': ['pod', { tunnelling: 'off' }],
+  pod: ['pod', {}], 'pod-packing': ['pod', { packBaggers: 1, packBoxers: 1 }], 'pod-single': ['pod', { stationPoints: 1 }], 'pod-notunnel': ['pod', { tunnelling: 'off' }],
   shuttle: ['shuttle', {}],
   crane: ['crane', {}], 'crane-single': ['crane', { handlerSlots: 1 }],
   acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],

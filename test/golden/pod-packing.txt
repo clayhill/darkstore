@@ -1,0 +1,8 @@
+t=00:29:59 stock bfadf9a1 fleet 61b75ce0 tasks 10 orders CONVEYOR:2 LOADED:23 PACKED:2 PICKING:1 RELEASED:5 SHIPPED:120
+  presented=212 presentedPick=209 presentedIn=3 linesPicked=224 unitsPicked=314 unitsReceived=26 ordersShipped=120 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=191 cycleSum=47588.2 cycleN=120 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=00:59:59 stock 5b96ea9e fleet fef74dfd tasks 27 orders CONVEYOR:2 LOADED:5 PACKED:5 PACKING:2 PICKING:8 RELEASED:14 SHIPPED:280
+  presented=462 presentedPick=449 presentedIn=13 linesPicked=506 unitsPicked=704 unitsReceived=151 ordersShipped=280 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=400 cycleSum=121167.7 cycleN=280 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=01:30:00 stock 4bd5e7bf fleet 1bc1743f tasks 24 orders CONVEYOR:3 LOADED:28 PACKED:4 PACKING:2 PICKING:4 RELEASED:7 SHIPPED:440 TO_PACK:1
+  presented=736 presentedPick=700 presentedIn=36 linesPicked=851 unitsPicked=1199 unitsReceived=510 ordersShipped=440 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=579 cycleSum=198986 cycleN=440 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=02:00:00 stock c7ffb10e fleet 6c71d705 tasks 32 orders CONVEYOR:4 LOADED:11 PACKED:3 PACKING:4 PICKING:1 RELEASED:13 SHIPPED:600 TO_PACK:2
+  presented=972 presentedPick=923 presentedIn=49 linesPicked=1125 unitsPicked=1589 unitsReceived=618 ordersShipped=600 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=768 cycleSum=274863 cycleN=600 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30

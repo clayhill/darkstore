@@ -24,8 +24,9 @@ people still pick from ordinary shelving, and robots carry the order totes to th
 - **Inventory** with SKUs, compartments, reservations and ABC velocity classes; the storage policy
   keeps fast movers in the fastest positions.
 - **Inbound:** receipts are decanted at a goods-in station, with optional automatic replenishment.
-- **Outbound:** packing stations print GS1 shipping labels, and a truck leaves when full or at its
-  cut-off.
+- **Outbound:** pack stations print GS1 shipping labels, and a truck leaves when full or at its
+  cut-off. Optional packing machines (auto-baggers and box-making machines) work next to the manual
+  benches.
 - **Control room:** live KPIs, a map of the storage, station status, throughput and utilization
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
@@ -98,6 +99,22 @@ Optional URL parameters for every simulation page, handy for demos:
 4. The operator picks to light. A completed tote rides the takeaway conveyor to a pack station.
 5. At the pack station the order is packed and labelled with an SSCC, then conveyed to the dock.
 6. The truck leaves when it is full or at the cut-off.
+
+**Packing.** Manual pack benches take any order (18 s plus 4 s per unit by default). Settings add
+packing machines beside them, each with an operator who feeds it:
+
+- An **auto-bagger** takes small, light orders (up to 3 units, 4 L and 2 kg): the operator drops the
+  items in and the machine bags, seals and labels them (6 s plus 2.5 s per unit). Bags travel to the
+  dock as bags.
+- A **box-making machine** takes orders up to 10 units and 30 L: the operator lays the items on the
+  infeed and the machine cuts a carton to size around them, closes and labels it (9 s plus 1.5 s per
+  unit).
+
+Each completed tote goes to the station it fits that will be done with it first: the work queued
+there times its time for this order. With machines on, the control room shows the share of orders
+packed by machine. A *Packing backlog* alert fires when more than four totes per pack station are
+waiting. At 550 orders per hour, adding one machine to the three benches lifts AisleMate from about
+340 to 440 orders shipped per hour.
 
 A storage unit that several stations need goes straight from one station to the next.
 
@@ -397,7 +414,7 @@ js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), ren
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
-            non-default settings (nearest putaway, no tunnelling, one-tote crane handler,
+            non-default settings (nearest putaway, packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```

@@ -16,7 +16,7 @@ Answers: how many picks a day can an arm really take over?
 
 ### 2. Automated packing and order consolidation
 
-**Status:** Idea
+**Status:** Packing machines built (auto-baggers and box-making machines, in Settings). Order consolidation still open: it needs orders split over several stations first.
 
 Auto-bagging and box-making machines, plus a sorter that combines totes from several stations into one order. Packing currently caps the default PodSwarm site at about 700 lines/h.
 

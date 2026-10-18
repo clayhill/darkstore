@@ -507,6 +507,10 @@
       }
       for (const pk of oms.packers) {
         const q = L.packerPos(pk.idx), pick = { kind: 'packer', id: pk.idx };
+        const op = L.packerOperator(pk);
+        S.box.box(op.x - 0.55, op.y - 0.45, 0, op.x + 0.55, op.y + 0.45, 0.04, '#10161f');
+        if (pk.kind === 'bagger') { this.baggerBody(S, q, pick); continue; }
+        if (pk.kind === 'boxer') { this.boxMakerBody(S, q, pick); continue; }
         for (const [lx, ly] of [[-0.95, -0.5], [0.87, -0.5], [-0.95, 0.42], [0.87, 0.42]]) S.box.box(q.x + lx, q.y + ly, 0, q.x + lx + 0.08, q.y + ly + 0.08, 1.9, '#64748b');
         S.box.box(q.x - 0.95, q.y - 0.5, 0.45, q.x + 0.95, q.y + 0.5, 0.55, '#475569');
         for (let k = 0; k < 4; k++) S.box.box(q.x - 0.85, q.y - 0.4, 0.55 + k * 0.12, q.x + 0.1, q.y + 0.4, 0.65 + k * 0.12, k % 2 ? '#cfa271' : '#b8875a');
@@ -515,7 +519,6 @@
         S.box.box(q.x - 0.98, q.y - 0.52, 3.3, q.x - 0.5, q.y - 0.44, 4.3, '#0f172a', pick);
         S.box.box(q.x + 0.5, q.y - 0.45, 2.1, q.x + 0.92, q.y - 0.08, 2.75, '#e2e8f0');
         S.box.box(q.x + 0.55, q.y + 0.15, 2.1, q.x + 0.85, q.y + 0.35, 2.4, '#dc2626');
-        S.box.box(q.x - 0.55, q.y + 0.55, 0, q.x + 0.55, q.y + 1.45, 0.04, '#10161f');
       }
       const d = L.dock();
       S.box.box(d.x - 0.9, d.y - 1.3, 0, d.x + 0.1, d.y + 1.3, 1.2, '#374151', { kind: 'dock' });
@@ -549,12 +552,15 @@
       for (const pk of oms.packers) {
         const q = L.packerPos(pk.idx);
         for (let k = Math.min(pk.queue.length, 3) - 1; k >= 0; k--) this.orderTote(D.box, q.x, q.y - 1.05, 1.6 + k * 0.85, 0.8, 0.9);
-        D.lit.box(q.x - 0.95, q.y - 0.44, 3.38, q.x - 0.53, q.y - 0.43, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
-        if (pk.cur) {
+        if (pk.kind === 'bagger') this.baggerLive(pk, q);
+        else if (pk.kind === 'boxer') this.boxMakerLive(pk, q);
+        else D.lit.box(q.x - 0.95, q.y - 0.44, 3.38, q.x - 0.53, q.y - 0.43, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
+        if (pk.cur && pk.kind === 'manual') {
           const f = pk.t / pk.dur;
           if (f < 0.6) { this.orderTote(D.box, q.x - 0.45, q.y, 2.1, 1 - f / 0.6); this.tote(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.25 + Math.min(1, f * 1.6) * 0.55, '#b8875a'); } else this.parcel(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.8, f > 0.8);
         }
-        this.operator(q.x, q.y + 1.0, 0, !!pk.cur, '#38bdf8');
+        const op = L.packerOperator(pk);
+        this.operator(op.x, op.y, 0, !!pk.cur, '#38bdf8');
       }
       // truck at the dock, pulling away when it leaves
       const d = L.dock(), tr = oms.truck, off = tr.departing > 0 ? Math.pow(tr.departing, 2) * 0.25 : 0;
@@ -570,8 +576,50 @@
       // totes and parcels on the conveyors
       for (const it of oms.conveyor) {
         const q = oms.posOnPath(it);
-        if (it.kind === 'tote') this.orderTote(D.box, q.x, q.y, 1.6, 1, 0.85); else this.parcel(D.box, q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, true);
+        if (it.kind === 'tote') this.orderTote(D.box, q.x, q.y, 1.6, 1, 0.85);
+        else if (it.order.pack === 'bagger') this.bag(D.box, q.x, q.y, 1.4);
+        else this.parcel(D.box, q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, true);
       }
+    }
+
+    // ---------------------------------------------------------------- packing machines
+    // Auto-bagger (as in the isometric view): a tall cabinet with the film
+    // roll on top and a loading shelf beside it.
+    baggerBody(S, q, pick) {
+      S.box.box(q.x - 0.75, q.y - 0.45, 0, q.x + 0.05, q.y + 0.4, 3.7, '#334155', pick);
+      S.cyl.cylX(q.x - 0.7, q.x, q.y - 0.05, 3.92, 0.22, '#e5e7eb', pick);
+      S.cyl.cylX(q.x - 0.72, q.x + 0.02, q.y - 0.05, 3.92, 0.06, '#64748b');
+      S.box.box(q.x - 0.62, q.y + 0.4, 1.15, q.x - 0.08, q.y + 0.41, 1.7, '#0b1220');
+      for (const [lx, ly] of [[0.82, -0.4], [0.82, 0.35]]) S.box.box(q.x + lx, q.y + ly, 0, q.x + lx + 0.08, q.y + ly + 0.08, 1.9, '#64748b');
+      S.box.box(q.x + 0.05, q.y - 0.4, 1.9, q.x + 0.9, q.y + 0.43, 2.1, '#e7dccb', pick);
+    }
+    baggerLive(pk, q) {
+      const D = this.dy, f = pk.cur ? pk.t / pk.dur : 0;
+      D.lit.box(q.x - 0.6, q.y + 0.4, 2.6, q.x - 0.15, q.y + 0.41, 3.3, pk.cur ? '#0c4a6e' : '#111c2e');
+      if (pk.cur) D.litCyl.cyl(q.x - 0.05, q.y + 0.35, 3.7, 3.9, 0.06, '#22c55e');
+      if (pk.cur && f < 0.6) this.orderTote(D.box, q.x + 0.47, q.y, 2.1, 1 - f / 0.6);
+      if (pk.cur && f >= 0.6) this.bag(D.box, q.x - 0.35, q.y + 0.6, 1.4);
+    }
+    // Box-making machine: an enclosure with a window, the cardboard bale on
+    // top and the induction conveyor on the right.
+    boxMakerBody(S, q, pick) {
+      S.box.box(q.x - 1.1, q.y - 0.55, 0, q.x + 0.35, q.y + 0.45, 3.1, '#cbd5e1', pick);
+      S.box.box(q.x - 1.0, q.y - 0.45, 3.1, q.x + 0.0, q.y + 0.3, 3.65, '#b8875a', pick);
+      for (let k = 0; k < 10; k++) S.box.box(q.x - 1.1 + k * 0.145, q.y + 0.45, 0, q.x - 1.1 + (k + 1) * 0.145, q.y + 0.46, 0.18, k % 2 ? '#111827' : '#facc15');
+      this.conveyor(S, [{ x: q.x + 0.4, y: q.y + 0.03 }, { x: q.x + 0.95, y: q.y + 0.03 }], 0.6, 1.85);
+    }
+    boxMakerLive(pk, q) {
+      const D = this.dy, f = pk.cur ? pk.t / pk.dur : 0;
+      D.clear.box(q.x - 0.95, q.y + 0.45, 1.1, q.x + 0.2, q.y + 0.47, 2.7, '#0f172a');
+      if (pk.cur && f > 0.3) { const w = Math.min(1, (f - 0.3) / 0.4); this.parcel(D.box, q.x - 0.6, q.y - 0.2, q.x - 0.6 + 0.5 * w, q.y + 0.2, 1.3, 0.2 + 0.4 * w, false); }
+      if (pk.cur) D.litCyl.cyl(q.x + 0.3, q.y + 0.4, 3.1, 3.3, 0.06, '#22c55e');
+      if (pk.cur && f < 0.5) this.orderTote(D.box, q.x + 0.68, q.y + 0.03, 1.85, 1 - f / 0.5, 0.8);
+      if (pk.cur && f >= 0.85) this.parcel(D.box, q.x - 0.55, q.y + 0.5, q.x - 0.1, q.y + 0.85, 1.4, 0.55, true);
+    }
+    // sealed poly bag with a label
+    bag(B, x, y, z) {
+      B.box(x - 0.2, y - 0.15, z, x + 0.2, y + 0.15, z + 0.22, '#e2e8f0');
+      B.box(x - 0.12, y - 0.08, z + 0.22, x + 0.04, y + 0.08, z + 0.23, '#ffffff');
     }
 
     // ---------------------------------------------------------------- overlays
