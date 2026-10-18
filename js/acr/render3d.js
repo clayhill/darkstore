@@ -1,6 +1,6 @@
 /* StackPilot in the free 3D view (WS.Rack3D): the shelving on a painted robot
  * floor (cross aisles, queue lanes, handover points, parking and chargers),
- * aisle locks, the conveyors to the stations, and the robots: a drive unit,
+ * aisle locks, the stations' conveyors, and the robots: a drive unit,
  * a mast with the back shelves holding the totes it carries, and the orange
  * handler whose forks reach into the racks. */
 (function (WS) {
@@ -21,11 +21,11 @@
       for (let x = 0; x <= g.W; x += 2) S.box.box(x - 0.04, -0.06, 0, x + 0.04, 0.02, 7.4, '#64748b');
       S.box.box(0, -0.06, 7.3, g.W, 0.02, 7.45, '#94a3b8');
       for (const ch of g.chargers) S.box.box(ch.x + 0.82, ch.y + 0.3, 0, ch.x + 0.98, ch.y + 0.7, 1.8, '#334155');
-      // infeed from each handover point into its station, the return line beside it, a line between the stations
-      if (ps.length > 1) this.conveyor(S, [{ x: ps[0].hand.x + 0.5, y: g.D - 0.45 }, { x: ps[ps.length - 1].hand.x + 1.5, y: g.D - 0.45 }], 0.3, 0.9, '#2b3646');
+      // at each station: the infeed from in front of the handover point, the return conveyor ending beside it
       for (const p of ps) {
-        this.conveyor(S, [{ x: p.hand.x + 0.5, y: g.laneY + 0.8 }, { x: p.hand.x + 0.5, y: g.D }], 0.4, 1.4);
-        this.conveyor(S, [{ x: p.hand.x + 1.5, y: g.D - 0.85 }, { x: p.hand.x + 1.5, y: g.D }], 0.4, 1.4, '#2b3646');
+        const a = sim.infeedStart(p), b = sim.backEnd(p);
+        this.beltLine(S, [{ x: a.x, y: a.y - 0.3 }, { x: a.x, y: g.D }], 0.62, g.convZ);
+        this.beltLine(S, [{ x: b.x, y: g.D }, { x: b.x, y: b.y - 0.3 }], 0.62, g.convZ);
       }
     }
     // The floor paint as one texture.
@@ -78,10 +78,7 @@
       if (sim.cfg.aisleMode === 'lock') for (const aisle of sim.aisles) if (aisle.lock >= 0) D.clear.box(aisle.a * 3 + 1.1, g.Y0, 0.01, aisle.a * 3 + 1.9, g.frontY, 0.04, WS.stateColor(sim, sim.fleet[aisle.lock].displayState));
       for (const ch of g.chargers) { const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING'; (on ? D.lit : D.box).box(ch.x + 0.8, ch.y + 0.35, 1.2, ch.x + 0.82, ch.y + 0.65, 1.6, on ? '#4ade80' : '#166534'); }
       for (const r of sim.fleet) this.drawRobot(r, r.prx + (r.rx - r.prx) * alpha, r.pry + (r.ry - r.pry) * alpha);
-      // totes back from the stations, waiting on the return conveyors
-      for (const p of sim.ports) p.back.slice(0, 2).forEach((b, k) => { const x = p.hand.x + 1.5, y = g.D - 0.75 + k * 0.3; this.box3(D.box, x - 0.26, y - 0.13, x + 0.26, y + 0.13, 1.4, this.toteColor(b)); });
     }
-    convZ() { return 1.4; }
 
     // Drive unit with bumper, blue band and state light; mast with the back
     // shelves and their totes, a blue top beam with a beacon; the orange
@@ -105,12 +102,15 @@
       // handler and forks; a tote taken or put slides between its shelf and the rack
       const e = xf ? xf.reach * 0.75 : 0;
       D.box.box(cx - 0.36, cy - 0.32, r.mast - 0.08, cx + 0.36, cy + 0.32, r.mast + 0.06, ORANGE, pick);
+      // (or a station's conveyor, taking on the conveyor's tote size)
       if (xf && xf.u != null) {
-        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), sx = this.sideX(Math.round((x - 1) / 3), xf.side), u = xf.u;
-        const tx = cx + (sx - cx) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
-        this.box3(D.box, tx - 0.25, y0 + 0.05, tx + 0.25, y1 - 0.05, tz, this.binColor(xf.id), pick);
+        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), u = xf.u, T = sim.convTote();
+        const at = xf.at || { x: this.sideX(Math.round((x - 1) / 3), xf.side), y: cy }, w = xf.at ? 0.25 + (T.w - 0.25) * u : 0.25, d = xf.at ? 0.23 + (T.d - 0.23) * u : 0.23;
+        const tx = cx + (at.x - cx) * u, ty = cy + (at.y - cy) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
+        this.box3(D.box, tx - w, ty - d, tx + w, ty + d, tz, this.binColor(xf.id));
       }
-      for (const fy of [cy - 0.24, cy + 0.18]) {
+      if (xf && xf.side === 2) for (const fx of [cx - 0.24, cx + 0.18]) D.box.box(fx, cy - 0.3, r.mast + 0.06, fx + 0.06, cy + 0.36 + e, r.mast + 0.11, '#cbd5e1', pick);
+      else for (const fy of [cy - 0.24, cy + 0.18]) {
         const fx0 = xf && xf.side === 0 ? cx - 0.36 - e : cx - 0.3, fx1 = xf && xf.side === 1 ? cx + 0.36 + e : cx + 0.3;
         D.box.box(fx0, fy, r.mast + 0.06, fx1, fy + 0.06, r.mast + 0.11, '#cbd5e1', pick);
       }

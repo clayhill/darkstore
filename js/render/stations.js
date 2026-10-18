@@ -84,6 +84,18 @@
       c.fillStyle = '#eab308'; c.beginPath(); c.ellipse(px + look * 0.4, py - 56, 9, 2.2, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(px + look * 0.4 - 0.8, py - 62.5, 1.6, 6);
     }
+    // Half sizes { w, d } of the bins on a port's conveyor (q) and at its pick position.
+    portBinSize(p) {
+      const front = p.face === 'front';
+      return { q: { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 }, pick: { w: front ? 0.42 : 0.3, d: front ? 0.3 : 0.42 } };
+    }
+    // Where the presented bin is: it slides from the end of the infeed to the
+    // pick position in the first moments of its job.
+    pickPos(p) {
+      const pp = this.sim.layout.portPath(p), a = pp.entry[1], b = pp.pick, u = Math.min(1, Math.max(0, (this.sim.time - (p.pickAt || 0)) / 0.4));
+      const f = u * u * (3 - 2 * u);
+      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+    }
     // Conveyor port: the frame the bins ride through, HMI screen and stack light.
     drawPortBody(p, add) {
       const sim = this.sim, g = sim.grid, L = sim.layout, CZ = this.CZ;
@@ -102,18 +114,19 @@
           if (front) this.faceY(y1 + 0.003, x0 + (x1 - x0) * a, x0 + (x1 - x0) * b2, CZ - 0.25, CZ, fill);
           else this.faceX(x1 + 0.003, y0 + (y1 - y0) * a, y0 + (y1 - y0) * b2, CZ - 0.25, CZ, k % 2 ? '#0b1220' : '#d4a90f');
         }
-        // bins on the port conveyor
+        // bins on the port conveyor; the one presented slides in from the infeed
+        const sz = this.portBinSize(p);
         p.inQ.forEach((q, k) => {
           const f = Math.min(1, q.t / sim.cfg.conveyorStep), a = pp.entry[0], b = pp.entry[1];
           const t = k === 0 ? f : 0;
-          this.drawBin(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, CZ, q.bin.id, { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 });
+          this.drawBin(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, CZ, q.bin.id, sz.q);
         });
         if (p.pick) {
-          const ln = p.currentLine;
-          this.drawBin(pp.pick.x, pp.pick.y, CZ, p.pick.id, { open: true, hl: ln ? ln.comp : -1, w: front ? 0.42 : 0.3, d: front ? 0.3 : 0.42 });
+          const ln = p.currentLine, q = this.pickPos(p);
+          this.drawBin(q.x, q.y, CZ, p.pick.id, Object.assign({ open: true, hl: ln ? ln.comp : -1 }, sz.pick));
           if (ln) this.glow(pp.pick.x, pp.pick.y, CZ + 1, 30, '#4ade80', 0.25);
         }
-        p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; this.drawBin(e.x, e.y, CZ, b.id, { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 }); });
+        p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; this.drawBin(e.x, e.y, CZ, b.id, sz.q); });
         // operator HMI screen on a post, showing the pick instruction when a job is open
         const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
         this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');

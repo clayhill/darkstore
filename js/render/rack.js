@@ -88,8 +88,36 @@
       if (b.requests.length) return '#f8fafc';
       return this.opts.heat ? CLASS_COLORS[this.sim.inv.binClass(b)] : '#4a5a70';
     }
-    // a tote standing upright, as on a machine or a buffer position
-    toteBox(x0, y0, x1, y1, z, col) { this.box(x0, y0, z, x1, y1, z + TOTE_H, col, { top: shade(col, 0.15) }); }
+    // a tote on a machine, a buffer or a conveyor
+    toteBox(x0, y0, x1, y1, z, col) { this.tote(x0, y0, x1, y1, z, TOTE_H, col); }
+    // Totes keep their colour and size from the racking through the machines
+    // and conveyors to the station (convTote(): the size on the conveyors).
+    drawBin(x, y, z, id, o = {}) {
+      const b = id && this.sim.inv.binById.get(id);
+      return super.drawBin(x, y, z, id, b && !o.color ? Object.assign({ color: this.toteColor(b) }, o) : o);
+    }
+    portBinSize() { const T = this.sim.convTote(), s = { w: T.w, d: T.d }; return { q: s, pick: s }; }
+    // small chevrons on a belt pointing the way it runs
+    flowArrows(pts, z) {
+      const P = this.P.bind(this);
+      for (let k = 1; k < pts.length; k++) {
+        const a = pts[k - 1], b = pts[k], dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+        for (let s = 0.5; s < len - 0.2; s += 1.6) {
+          const x = a.x + dx * s, y = a.y + dy * s, nx = -dy * 0.16, ny = dx * 0.16;
+          this.line(P(x - dx * 0.12 + nx, y - dy * 0.12 + ny, z + 0.01), P(x + dx * 0.08, y + dy * 0.08, z + 0.01), 'rgba(250,204,21,0.55)', 1.6);
+          this.line(P(x + dx * 0.08, y + dy * 0.08, z + 0.01), P(x - dx * 0.12 - nx, y - dy * 0.12 - ny, z + 0.01), 'rgba(250,204,21,0.55)', 1.6);
+        }
+      }
+    }
+    // Totes on the conveyors, except one a machine is lifting off: { d, fn } for drawStations().
+    conveyorTotes(items, z) {
+      const sim = this.sim, T = sim.convTote();
+      for (const it of sim.conv) {
+        if (this.moving && this.moving.has(it.bin.id)) continue;
+        const q = sim.convAt(it);
+        items.push({ d: q.x + q.y + 0.3, fn: () => this.drawBin(q.x, q.y, z, it.bin.id, { w: T.w, d: T.d }) });
+      }
+    }
 
     // ---------------------------------------------------------------- tote transfers
     // A machine taking or putting a tote (m.xfer = { id, take, side }, set by

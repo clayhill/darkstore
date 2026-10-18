@@ -75,6 +75,8 @@
     // cell the inspector opens for a stored unit
     unitCell(bin) { return this.grid.idx(bin.x, bin.y); }
     onPortOut() {}
+    portClear() { return true; } // the pick position is free for the next unit
+    portOutOk() { return true; } // a finished bin may leave the station now
 
     // ---------------------------------------------------------------- seeding helpers
     // Products to stock, in order: every product once, then demand-weighted draws.

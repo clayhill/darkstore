@@ -452,13 +452,16 @@
       const sim = this.sim, g = sim.grid, L = sim.layout, CZ = this.CZ, front = p.face === 'front', D = this.dy, pp = L.portPath(p);
       const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
       D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, p.job ? '#0c4a6e' : '#111c2e');
-      const bin = (x, y, id, w, d) => this.tote(D.box, x - w, y - d, x + w, y + d, CZ, 0.95, this.binColor(id));
-      p.inQ.forEach((q, k) => { const f = k === 0 ? Math.min(1, q.t / sim.cfg.conveyorStep) : 0, a = pp.entry[0], b = pp.entry[1]; bin(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, q.bin.id, 0.3, 0.26); });
-      if (p.pick) bin(pp.pick.x, pp.pick.y, p.pick.id, 0.42, 0.3);
-      p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; bin(e.x, e.y, b.id, 0.3, 0.26); });
+      const bin = (x, y, id, s) => this.tote(D.box, x - s.w, y - s.d, x + s.w, y + s.d, CZ, 0.95, this.binColor(id)), sz = this.portBinSize(p);
+      p.inQ.forEach((q, k) => { const f = k === 0 ? Math.min(1, q.t / sim.cfg.conveyorStep) : 0, a = pp.entry[0], b = pp.entry[1]; bin(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, q.bin.id, sz.q); });
+      if (p.pick) { const q = this.pickPos(p); bin(q.x, q.y, p.pick.id, sz.pick); }
+      p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; bin(e.x, e.y, b.id, sz.q); });
       const x0 = front ? p.drop.x + 0.1 : g.W, y0 = front ? g.D : p.drop.y + 0.1;
       this.stackLight(front ? x0 + 0.12 : g.W + 0.12, front ? g.D + 0.12 : y0 + 0.12, CZ + 2.2, p);
     }
+    // bin sizes and the sliding pick position, as in the isometric view
+    portBinSize(p) { return WS.IsoRenderer.prototype.portBinSize.call(this, p); }
+    pickPos(p) { return WS.IsoRenderer.prototype.pickPos.call(this, p); }
     binColor(id) {
       const inv = this.sim.inv, b = id ? inv.binById.get(id) : null;
       return this.opts.heat && b ? WS.CLASS_COLORS[inv.binClass(b)] : '#64748b';

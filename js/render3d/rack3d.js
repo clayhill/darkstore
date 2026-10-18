@@ -2,7 +2,7 @@
  * steel uprights and beams, every stored tote (one batch, rebuilt when a
  * tote moves), the totes machines are handing over (WS.RackRenderer's
  * transfer timing) and the Levels cut-away. WS.PreZone3D adds the pre-zone
- * conveyor in front of the aisles (RailRunner, SkyStack). */
+ * loop in front of the aisles (RailRunner, SkyStack). */
 (function (WS) {
   'use strict';
   const TOTE_H = WS.RACK_TOTE_H, R = WS.RackRenderer.prototype;
@@ -64,14 +64,32 @@
       this.drawMachines(alpha);
       this.drawConveyorTotes();
     }
-    // an upright tote on a machine or buffer, closed look
-    box3(B, x0, y0, x1, y1, z, color, pick) { B.box(x0, y0, z, x1, y1, z + TOTE_H, color, pick); }
+    // a tote on a machine, a buffer or a conveyor, as the stations show them
+    box3(B, x0, y0, x1, y1, z, color) { this.tote(B, x0, y0, x1, y1, z, TOTE_H, color); }
+    // totes keep their colour and size from the racking to the stations (as in the isometric view)
     binColor(id) { const b = id && this.sim.inv.binById.get(id); return b ? this.toteColor(b) : '#64748b'; }
+    portBinSize() { return WS.RackRenderer.prototype.portBinSize.call(this); }
+    // totes on the conveyors, except one a machine is lifting off
     drawConveyorTotes() {
-      const sim = this.sim;
-      for (const it of sim.conv) { const q = sim.posOnPath(it); this.box3(this.dy.box, q.x - 0.26, q.y - 0.3, q.x + 0.26, q.y + 0.3, this.convZ(it), this.binColor(it.bin.id)); }
+      const sim = this.sim, T = sim.convTote(), z = sim.grid.convZ;
+      for (const it of sim.conv) {
+        if (this.moving.has(it.bin.id)) continue;
+        const q = sim.convAt(it);
+        this.box3(this.dy.box, q.x - T.w, q.y - T.d, q.x + T.w, q.y + T.d, z, this.binColor(it.bin.id));
+      }
     }
-    convZ(it) { return it.back ? 1.4 : 2.0; }
+    // a conveyor on legs with chevrons along the belt pointing the way it runs
+    beltLine(S, pts, width, z) {
+      this.conveyor(S, pts, width, z);
+      for (let k = 1; k < pts.length; k++) {
+        const a = pts[k - 1], b = pts[k], dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y), ang = Math.atan2(dy, dx);
+        for (let s = 0.5; s < len - 0.2; s += 1.6) {
+          // two arms from the tip, turned back ±135° (rbox turns its u axis by −a)
+          const x = a.x + dx * (s + 0.08), y = a.y + dy * (s + 0.08);
+          for (const sg of [1, -1]) S.box.rbox(x, y, -(ang + sg * 2.36), 0, -0.025, z - 0.02, 0.2, 0.025, z - 0.005, '#a16207');
+        }
+      }
+    }
     // a fixed machine's position { x, y, z } for following and selection
     followPos(id) { return this.machinePos(this.sim.fleet[id]); }
     machinePos() { return null; }
@@ -94,16 +112,10 @@
 
   // Racking with the pre-zone conveyor in front: lines to the stations and back.
   class PreZone3D extends Rack3D {
+    // the one-way pre-zone loop and its spurs (WS.PreZoneSim.preZoneLines())
     buildStatic() {
       super.buildStatic();
-      const sim = this.sim, g = sim.grid, S = this.st, last = sim.ports[sim.ports.length - 1].drop.x;
-      this.conveyor(S, [{ x: g.laneX(0), y: g.retY }, { x: last + 1.5, y: g.retY }], 0.42, 1.4, '#2b3646');
-      for (const aisle of sim.aisles) this.conveyor(S, [{ x: g.laneX(aisle.a), y: g.B + 0.5 }, { x: g.laneX(aisle.a), y: g.outY }], 0.4, 2.0);
-      for (const p of sim.ports) {
-        this.conveyor(S, [{ x: p.drop.x + 1.5, y: g.retY }, { x: p.drop.x + 1.5, y: g.D }], 0.4, 1.4, '#2b3646');
-        this.conveyor(S, [{ x: p.drop.x + 0.5, y: g.outY }, { x: p.drop.x + 0.5, y: g.D }], 0.4, 2.0);
-      }
-      this.conveyor(S, [{ x: g.laneX(0), y: g.outY }, { x: last + 0.5, y: g.outY }], 0.42, 2.0);
+      for (const line of this.sim.preZoneLines()) this.beltLine(this.st, line, 0.72, this.sim.grid.convZ);
     }
     // a rack side at one level (the control-room map cell), outlined along its length
     selectionBox(s, alpha) {

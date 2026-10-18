@@ -1,6 +1,7 @@
 /* RailRunner in the free 3D view (WS.PreZone3D): a pair of rails per level in
  * every aisle, an orange shuttle per level whose arms reach into the racks,
- * the totes in the level buffers, and a cyan lift tower at each aisle front. */
+ * the totes rolling in the level buffers, and a cyan lift at each aisle front
+ * with a platform on each side. */
 (function (WS) {
   'use strict';
   const ORANGE = '#f97316', CYAN = '#06b6d4';
@@ -10,32 +11,31 @@
       super.buildStatic();
       const g = this.sim.grid, S = this.st;
       for (const aisle of this.sim.aisles) {
-        const lx = aisle.a * 3 + 1, x0 = lx + 0.06, x1 = lx + 0.94, y0 = g.B + 0.06, H = g.Z + 0.8;
+        const lx = aisle.a * 3 + 1, B = g.B, H = g.Z + 0.8, pick = { kind: 'robot', id: aisle.lift.id };
         for (let l = 0; l < g.L; l++) {
           if (!this.levelShown(l)) continue;
           const z = g.levelZ(l);
           for (const rx of [lx + 0.08, lx + 0.86]) S.box.box(rx, 0, z - 0.08, rx + 0.06, g.B, z + 0.02, '#a3a3a3');
         }
-        // lift tower: two cyan columns with hazard-striped feet and a header
-        for (const px of [x0, x1 - 0.1]) {
-          S.box.box(px, y0, 0, px + 0.1, y0 + 0.12, H, CYAN, { kind: 'robot', id: aisle.lift.id });
-          for (let k = 0; k < 3; k++) S.box.box(px - 0.002, y0 + 0.12, 0.1 + k * 0.27, px + 0.102, y0 + 0.125, 0.1 + k * 0.27 + 0.13, k % 2 ? '#111827' : '#facc15');
+        // lift tower: two cyan columns in the middle with hazard-striped feet and a header
+        for (const px of [lx + 0.12, lx + 0.78]) {
+          S.box.box(px, B + 0.42, 0, px + 0.1, B + 0.58, H, CYAN, pick);
+          for (let k = 0; k < 3; k++) S.box.box(px - 0.002, B + 0.58, 0.1 + k * 0.27, px + 0.102, B + 0.585, 0.1 + k * 0.27 + 0.13, k % 2 ? '#111827' : '#facc15');
         }
-        S.box.box(x0, y0, H, x1, y0 + 0.16, H + 0.3, CYAN, { kind: 'robot', id: aisle.lift.id });
+        S.box.box(lx + 0.06, B + 0.4, H, lx + 0.94, B + 0.6, H + 0.3, CYAN, pick);
       }
     }
     drawMachines() {
-      const sim = this.sim, g = sim.grid, D = this.dy;
+      const sim = this.sim, g = sim.grid, D = this.dy, T = sim.convTote();
       for (const aisle of sim.aisles) {
         const a = aisle.a;
-        // totes in the level buffers at the aisle front
+        // totes in the level buffers, where they have rolled to
         for (let l = 0; l < g.L; l++) {
           if (!this.levelShown(l)) continue;
           const z = g.levelZ(l) + 0.06;
-          [[aisle.outBuf[l], a * 3], [aisle.inBuf[l], a * 3 + 2]].forEach(([buf, x0]) => buf.forEach((it, k) => {
+          [[aisle.outBuf[l], g.outX(a)], [aisle.inBuf[l], g.inX(a)]].forEach(([buf, x]) => buf.forEach((it) => {
             if (this.moving.has(it.bin.id)) return;
-            const b = g.B - 1 - k;
-            this.box3(D.box, x0 + 0.1, b + 0.1, x0 + 0.9, b + 0.9, z, this.toteColor(it.bin));
+            this.box3(D.box, x - T.w, it.pos - T.d, x + T.w, it.pos + T.d, z, this.toteColor(it.bin));
           }));
         }
         for (const sh of aisle.shuttles) if (this.levelShown(sh.l)) this.drawShuttle(sh, a);
@@ -50,8 +50,8 @@
       D.box.box(x0 + 0.04, y0 + 0.14, z + 0.02, x1 - 0.04, y1 - 0.14, z + 0.12, '#1f2937', pick);
       const id = xf && xf.u != null ? xf.id : sh.bin;
       if (id) {
-        const u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u;
-        this.box3(D.box, tx - 0.32, y0 + 0.17, tx + 0.32, y1 - 0.17, z + 0.12 - 0.06 * u, this.binColor(id));
+        const T = sim.convTote(), u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u, hd = xf && xf.io ? T.d : T.d + (0.38 - T.d) * u;
+        this.box3(D.box, tx - T.w, y - hd, tx + T.w, y + hd, z + 0.12 - 0.06 * u, this.binColor(id));
       }
       for (const [ya, yb] of [[y0, y0 + 0.14], [y1 - 0.14, y1]]) {
         D.box.box(x0, ya, z + 0.02, x1, yb, z + 0.38, ORANGE, pick);
@@ -61,15 +61,22 @@
       D.lit.box(x0 + 0.1, y1, z + 0.16, x1 - 0.1, y1 + 0.01, z + 0.28, col);
       D.lit.box(x0 + 0.1, y0 - 0.01, z + 0.16, x1 - 0.1, y0, z + 0.28, col);
     }
-    // the lift carriage: a cyan platform with rollers, one tote on it
+    // the lift carriage: a beam between the columns and a roller platform on
+    // each side, in line with the buffers and the aisle's conveyors
     drawLift(aisle) {
-      const g = this.sim.grid, D = this.dy, lift = aisle.lift, x0 = aisle.a * 3 + 1.06, x1 = aisle.a * 3 + 1.94, y0 = g.B + 0.06, y1 = g.B + 0.94, pick = { kind: 'robot', id: lift.id };
-      D.box.box(x0 + 0.1, y0 + 0.12, lift.z - 0.16, x1 - 0.1, y1 - 0.04, lift.z, CYAN, pick);
-      for (let k = 1; k < 6; k++) D.cyl.cylX(x0 + 0.12, x1 - 0.12, y0 + 0.12 + ((y1 - y0 - 0.16) * k) / 6, lift.z - 0.02, 0.025, '#67e8f9');
-      D.lit.box(x0 + 0.16, y1 - 0.04, lift.z - 0.13, x1 - 0.16, y1 - 0.03, lift.z - 0.05, WS.stateColor(this.sim, lift.displayState));
-      if (lift.bin) this.box3(D.box, x0 + 0.16, y0 + 0.18, x1 - 0.16, y1 - 0.1, lift.z, this.binColor(lift.bin), pick);
-      // totes waiting to go up
-      aisle.inQ.slice(0, 2).forEach((it, k) => { const y = g.B + 0.55 + k * 0.6; this.box3(D.box, g.laneX(aisle.a) - 0.26, y - 0.28, g.laneX(aisle.a) + 0.26, y + 0.28, 1.4, this.toteColor(it.bin)); });
+      const sim = this.sim, g = sim.grid, D = this.dy, lift = aisle.lift, ax = aisle.a * 3, B = g.B, z = lift.z, pick = { kind: 'robot', id: lift.id };
+      D.box.box(ax + 0.9, B + 0.44, z - 0.16, ax + 2.1, B + 0.56, z - 0.02, '#0e7490', pick);
+      for (const px of [ax + 0.08, ax + 2.08]) {
+        D.box.box(px, B + 0.08, z - 0.16, px + 0.84, B + 0.92, z - 0.06, CYAN, pick);
+        for (let k = 1; k < 6; k++) D.cyl.cylX(px + 0.04, px + 0.8, B + 0.08 + (0.84 * k) / 6, z - 0.04, 0.025, '#67e8f9');
+      }
+      D.lit.box(ax + 1.3, B + 0.56, z - 0.13, ax + 1.7, B + 0.57, z - 0.05, WS.stateColor(sim, lift.displayState));
+      if (lift.bin) {
+        const T = sim.convTote(), x = lift.side ? g.inX(aisle.a) : g.outX(aisle.a), r = lift.roll;
+        let y = B + 0.5;
+        if (r) { const f = Math.min(1, (sim.time - r.t0) / r.dur); y = r.y0 + (r.y1 - r.y0) * f; }
+        this.box3(D.box, x - T.w, y - T.d, x + T.w, y + T.d, z, this.binColor(lift.bin));
+      }
     }
     machinePos(m) {
       const g = this.sim.grid;

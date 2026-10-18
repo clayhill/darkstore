@@ -322,11 +322,20 @@
         this.quadTop(cx(o.hl), y - d + 0.05, cx(o.hl + 1), y + d - 0.05, zt + 0.01, `rgba(74,222,128,${(a * 0.3).toFixed(2)})`, `rgba(74,222,128,${a.toFixed(2)})`, 2);
       }
     }
-    conveyor(pts, width, z, color) {
+    // A conveyor along pts: a solid frame down to the floor, or (o.legs) a
+    // belt frame on legs, so the floor shows under it.
+    conveyor(pts, width, z, color, o = {}) {
       for (let k = 1; k < pts.length; k++) {
         const a = pts[k - 1], b = pts[k], hw = width / 2;
         const x0 = Math.min(a.x, b.x) - hw, x1 = Math.max(a.x, b.x) + hw, y0 = Math.min(a.y, b.y) - hw, y1 = Math.max(a.y, b.y) + hw;
-        this.box(x0, y0, 0, x1, y1, z, color || '#334155', { top: '#1f2937' });
+        if (o.legs) {
+          const n = Math.max(1, Math.round(Math.max(x1 - x0, y1 - y0) / 2)), lx = x1 - x0 > y1 - y0;
+          for (let j = 0; j <= n; j++) {
+            const f = j / n, px = lx ? x0 + 0.04 + (x1 - x0 - 0.12) * f : x1 - 0.1, py = lx ? y1 - 0.1 : y0 + 0.04 + (y1 - y0 - 0.12) * f;
+            this.box(px, py, 0, px + 0.06, py + 0.06, z - 0.3, '#475569');
+          }
+          this.box(x0, y0, z - 0.3, x1, y1, z, color || '#334155', { top: '#1f2937' });
+        } else this.box(x0, y0, 0, x1, y1, z, color || '#334155', { top: '#1f2937' });
         // rollers
         const P = this.P.bind(this), along = a.x !== b.x;
         const len = along ? x1 - x0 : y1 - y0;

@@ -2,8 +2,8 @@
  * both sides of each aisle. In each aisle runs one crane: a mast on a floor
  * rail with a carriage that moves up and down it at the same time, so a trip
  * takes the longer of the two motions. At the front of the aisle is the I/O
- * point, where returning totes wait on the infeed and retrieved totes leave on
- * the outfeed conveyor to the stations.
+ * point, where the forks reach sideways: returning totes queue on the infeed
+ * on the right, retrieved totes leave on the outfeed on the left.
  * Work is done in crane cycles that start and end at the I/O point: a single
  * command stores or retrieves; a dual command stores, then retrieves on the
  * way back. A twin load handler can carry two totes, so one cycle does up to
@@ -22,8 +22,9 @@
       super(sim, id, `C${a + 1}`);
       this.a = a; this.pos = sim.ioPos; this.z = sim.grid.ioZ; this.axis = 'xz';
       this.jobs = []; // retrievals waiting for this crane
-      this.xfer = null; // tote being taken or put: { id, take, side } (0 left, 1 right, -1 the I/O point); for the view
+      this.xfer = null; // tote being taken or put: { id, take, side (0 left, 1 right), slot, io (at the conveyors) }; for the view
       this.load = []; // tote ids on the load handler
+      this.slotOf = {}; // tote id → its position on the handler (0 nearest the mast)
     }
     place() {
       const g = this.sim.grid, L = this.sim.cfg.levels;
@@ -31,25 +32,39 @@
       this.ry = Math.max(-0.2, Math.min(L, L - 1 - (this.z - g.Z0) / g.LH));
       this.x = this.a; this.y = Math.max(0, Math.round((this.z - g.Z0) / g.LH));
     }
-    hold(id) { this.load.push(id); this.bin = this.load[0]; }
-    drop(id) { this.load.splice(this.load.indexOf(id), 1); this.bin = this.load[0] || null; }
+    // the first free position on the handler
+    freeSlot() { let k = 0; while (this.load.some((id) => this.slotOf[id] === k)) k++; return k; }
+    hold(id, k) { this.load.push(id); this.slotOf[id] = k; this.bin = this.load[0]; }
+    drop(id) { this.load.splice(this.load.indexOf(id), 1); delete this.slotOf[id]; this.bin = this.load[0] || null; }
   }
 
   // ---------------------------------------------------------------- crane cycle
-  // stores: infeed items { bin, l, s, b }; rets: retrieval tasks. Both already
-  // in the order the crane visits them.
+  // stores: infeed items { bin, l, s, b, conv }; rets: retrieval tasks. Both
+  // already in the order the crane visits them. At the I/O point the handler
+  // positions line up with the conveyor positions: the k-th tote in the
+  // infeed queue goes onto handler position k, a tote on position k goes onto
+  // the outfeed beside it.
   function* craneCycle(sim, cr, stores, rets) {
     const cfg = sim.cfg, g = sim.grid, aisle = sim.aisles[cr.a], t0 = sim.time;
-    for (const it of stores) {
-      cr.state = 'HANDLING'; cr.xfer = { id: it.bin.id, take: true, side: -1 };
+    const pitch = sim.slotPitch, inQ = aisle.inQ;
+    const taking = stores.slice().sort((p, q) => inQ.indexOf(p) - inQ.indexOf(q));
+    taking.forEach((it, k) => { it.slot = k; });
+    for (const it of taking) {
+      const k = it.slot, c = it.conv;
+      // wait until the tote has rolled up to handler position k
+      yield { op: 'until', fn: () => c.len - c.s <= k * pitch + 1e-6, waitState: 'WAITING_PORT' };
+      cr.state = 'HANDLING'; cr.xfer = { id: it.bin.id, take: true, side: 1, slot: k, io: true };
       yield { op: 'wait', t: cfg.forkTime };
       cr.xfer = null;
-      aisle.inQ.splice(aisle.inQ.indexOf(it), 1);
-      it.bin.loc = 'crane'; it.bin.robot = cr.id; cr.hold(it.bin.id);
+      inQ.splice(inQ.indexOf(it), 1);
+      sim.convRemove(c);
+      aisle.ioHeld = k + 1; // the totes behind stay where they are until the crane leaves
+      it.bin.loc = 'crane'; it.bin.robot = cr.id; cr.hold(it.bin.id, k);
     }
+    aisle.ioHeld = 0;
     for (const it of stores) {
       cr.state = 'STORING';
-      yield sim.craneTravel(it.b + 0.5, g.levelZ(it.l));
+      yield sim.craneTravel(it.b + 0.5 - sim.slotY(it.slot), g.levelZ(it.l));
       cr.state = 'HANDLING'; cr.xfer = { id: it.bin.id, take: false, side: it.s };
       yield { op: 'wait', t: cfg.forkTime };
       cr.xfer = null;
@@ -59,25 +74,28 @@
       sim.kpi.stores++;
     }
     for (const t of rets) {
-      const bin = t.bin;
+      const bin = t.bin, k = cr.freeSlot();
       cr.state = 'MOVING_TO_TARGET';
-      yield sim.craneTravel(bin.bay + 0.5, g.levelZ(bin.level));
-      cr.state = 'HANDLING'; cr.xfer = { id: bin.id, take: true, side: bin.side };
+      yield sim.craneTravel(bin.bay + 0.5 - sim.slotY(k), g.levelZ(bin.level));
+      cr.state = 'HANDLING'; cr.xfer = { id: bin.id, take: true, side: bin.side, slot: k };
       yield { op: 'wait', t: cfg.forkTime };
       cr.xfer = null;
       sim.take(bin);
-      bin.loc = 'crane'; bin.robot = cr.id; bin.task = null; cr.hold(bin.id);
+      bin.loc = 'crane'; bin.robot = cr.id; bin.task = null; cr.hold(bin.id, k);
       sim.removeTask(t);
     }
     cr.state = rets.length ? 'TRANSPORTING_TO_PORT' : 'MOVING_TO_TARGET';
     yield sim.craneTravel(sim.ioPos, g.ioZ);
-    for (const t of rets) {
-      cr.state = 'HANDLING'; cr.xfer = { id: t.bin.id, take: false, side: -1 };
+    // outermost handler position first, so the tote put first rolls away from the other
+    for (const t of rets.slice().sort((p, q) => cr.slotOf[q.bin.id] - cr.slotOf[p.bin.id])) {
+      const y = sim.ioPos + sim.slotY(cr.slotOf[t.bin.id]), x = g.outX(cr.a);
+      yield { op: 'until', fn: () => sim.convFree(x, y), waitState: 'WAITING_PORT' };
+      cr.state = 'HANDLING'; cr.xfer = { id: t.bin.id, take: false, side: 0, io: true };
       yield { op: 'wait', t: cfg.forkTime };
       cr.xfer = null;
       cr.drop(t.bin.id); cr.lifts++;
       const port = sim.ports[t.port];
-      sim.toPort(t.bin, sim.outPath(cr.a, port), port);
+      sim.toPort(t.bin, sim.outPath(cr.a, port, y), port);
     }
     sim.onCycle(stores.length && rets.length ? 'dual' : 'single', sim.time - t0);
   }
@@ -93,6 +111,18 @@
     rackShape() { return { Z0: 0.4, frontBays: 0 }; }
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles} cranes · ${this.inv.bins.length} totes`; }
     get ioPos() { return this.cfg.bays + 0.5; } // the crane's position at the I/O point
+    // Handler position k (0 nearest the mast) relative to the crane: totes
+    // stand a tote and a gap apart, as they queue on the conveyors.
+    get slotPitch() { const T = this.convTote(); return 2 * T.d + T.gap; }
+    slotY(k) { return 0.02 + k * this.slotPitch; }
+    ioEnd() { return this.ioPos + this.slotY(0); }
+    ioConveyorY() { const T = this.convTote(); return this.ioEnd() - T.d - 0.04; } // the conveyors reach the handler positions
+    // handler positions the crane has already filled from the infeed hold the totes behind back
+    convObstacles() {
+      const out = super.convObstacles();
+      for (const aisle of this.aisles) for (let k = 0; k < (aisle.ioHeld || 0); k++) out.push({ x: this.grid.inX(aisle.a), y: this.ioPos + this.slotY(k) });
+      return out;
+    }
     newAisle(a) { return Object.assign(super.newAisle(a), { crane: null }); }
     createMachines() {
       this.cycles = { single: 0, dual: 0, singleT: 0, dualT: 0 };
@@ -163,7 +193,7 @@
         if (plan) cr.run(craneCycle(this, cr, plan.stores, plan.rets), { type: 'CYCLE', stores: plan.stores, rets: plan.rets });
       }
     }
-    // One crane cycle: the totes waiting longest on the infeed, stored in the
+    // One crane cycle: the totes waiting at the I/O point, stored in the
     // order that keeps the crane moving least, then the retrievals closest (in
     // crane time) to where the last store left the crane. A retrieval that has
     // waited gets a head start, so far totes are not passed over for ever.
@@ -171,15 +201,18 @@
       const cr = aisle.crane, n = this.cfg.handlerSlots, g = this.grid;
       const stores = [];
       let p = this.ioPos, z = g.ioZ;
-      const inq = aisle.inQ.slice(0, n);
+      // the totes that have rolled up to the I/O point
+      const inq = [];
+      for (const it of aisle.inQ.slice(0, n)) { if (it.conv.len - it.conv.s > inq.length * this.slotPitch + 1e-6) break; inq.push(it); }
       while (inq.length) {
         let k = 0, bt = Infinity;
         inq.forEach((it, j) => { const t = this.craneTime(p, z, it.b + 0.5, g.levelZ(it.l)); if (t < bt) { bt = t; k = j; } });
         const it = inq.splice(k, 1)[0];
         stores.push(it); p = it.b + 0.5; z = g.levelZ(it.l);
       }
-      const rets = [];
-      while (rets.length < n && cr.jobs.length) {
+      // retrievals only while the loop has room for them (WS.PreZoneSim.loopRoom)
+      const rets = [], room = this.loopRoom();
+      while (rets.length < Math.min(n, room) && cr.jobs.length) {
         let k = 0, bt = Infinity;
         cr.jobs.forEach((t, j) => {
           const c = this.craneTime(p, z, t.bin.bay + 0.5, g.levelZ(t.bin.level)) - (this.time - t.created) * 0.05;

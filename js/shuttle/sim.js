@@ -4,6 +4,11 @@
  * takes it down to the pre-zone conveyor, which carries it to a station.
  * Returning totes ride back to an aisle, the lift brings them up to the level's
  * inbound buffer, and the shuttle puts them away.
+ * The buffers are short conveyors in the front bays: the outbound one on the
+ * left rolls totes from the shuttle to the lift, the inbound one on the right
+ * from the lift to the shuttle. The lift's carriage spans the aisle front with
+ * a platform on each side, in line with the buffers and with the aisle's
+ * outfeed (left) and infeed (right) conveyors.
  * The racking, storage policy and conveyor are shared with the crane
  * (WS.PreZoneSim, js/sim/prezone.js); the machines are WS.Machine (js/sim/machine.js). */
 (function (WS) {
@@ -24,12 +29,14 @@
   class Lift extends WS.Machine {
     constructor(sim, id, a) {
       super(sim, id, `L${a + 1}`);
-      this.a = a; this.z = sim.grid.ioZ; this.axis = 'z';
+      this.a = a; this.z = sim.grid.convZ; this.axis = 'z';
+      this.side = 0; // platform the tote is on: 0 left (outbound), 1 right (inbound)
+      this.roll = null; // tote rolling between the carriage and a buffer: { y0, y1, t0, dur }; for the view
     }
     place() {
       const g = this.sim.grid, L = this.sim.cfg.levels;
       this.rx = this.a * 4 + 3;
-      this.ry = this.z <= g.Z0 - 0.3 ? L : Math.max(-0.2, L - 1 - (this.z - g.Z0) / g.LH);
+      this.ry = this.z <= g.convZ + 0.01 ? L : Math.max(-0.2, L - 1 - (this.z - g.Z0) / g.LH);
       this.x = this.a; this.y = Math.max(0, Math.round((this.z - g.Z0) / g.LH));
     }
   }
@@ -39,7 +46,8 @@
     const cfg = sim.cfg, aisle = sim.aisles[sh.a], bin = item.bin;
     sh.state = 'MOVING_TO_TARGET';
     yield sim.shuttleTravel(sim.front);
-    sh.state = 'HANDLING'; sh.xfer = { id: bin.id, take: true, side: 1 }; // the inbound buffer is on the right
+    yield { op: 'until', fn: () => Math.abs(item.pos - sim.front) < 1e-6 }; // rolled up to the shuttle
+    sh.state = 'HANDLING'; sh.xfer = { id: bin.id, take: true, side: 1, io: true }; // the inbound buffer is on the right
     yield { op: 'wait', t: cfg.handlerTime };
     sh.xfer = null;
     aisle.inBuf[sh.l].splice(aisle.inBuf[sh.l].indexOf(item), 1);
@@ -54,7 +62,7 @@
     sh.bin = null; sim.onCycle(); sim.kpi.stores++;
   }
   function* shuttleRetrieve(sim, sh, task) {
-    const cfg = sim.cfg, aisle = sim.aisles[sh.a], bin = task.bin;
+    const cfg = sim.cfg, aisle = sim.aisles[sh.a], bin = task.bin, buf = aisle.outBuf[sh.l];
     sh.state = 'MOVING_TO_TARGET';
     yield sim.shuttleTravel(bin.bay + 0.5);
     sh.state = 'HANDLING'; sh.xfer = { id: bin.id, take: true, side: bin.side };
@@ -65,46 +73,71 @@
     sim.removeTask(task);
     sh.state = 'TRANSPORTING_TO_PORT';
     yield sim.shuttleTravel(sim.front);
-    yield { op: 'until', fn: () => aisle.outBuf[sh.l].length < cfg.bufferSize, waitState: 'WAITING_PORT' };
-    sh.state = 'HANDLING'; sh.xfer = { id: bin.id, take: false, side: 0 }; // the outbound buffer is on the left
+    // room in the outbound buffer, and the tote put before has rolled on
+    yield { op: 'until', fn: () => buf.length < cfg.bufferSize && buf.every((it) => it.pos >= sim.front + 1 - 1e-6), waitState: 'WAITING_PORT' };
+    sh.state = 'HANDLING'; sh.xfer = { id: bin.id, take: false, side: 0, io: true }; // the outbound buffer is on the left
     yield { op: 'wait', t: cfg.handlerTime };
     sh.xfer = null;
-    aisle.outBuf[sh.l].push({ bin, port: task.port, t: sim.time });
+    buf.push({ bin, port: task.port, t: sim.time, pos: sim.front });
     bin.loc = 'buffer'; sh.bin = null; sh.lifts++; sim.onCycle();
   }
+  // A tote rolls between the carriage (y = B + 0.5) and the end of a buffer.
+  function* liftRoll(sim, lift, y0, y1) {
+    const dur = Math.abs(y1 - y0) / sim.convSpeed;
+    lift.roll = { y0, y1, t0: sim.time, dur };
+    yield { op: 'wait', t: dur };
+    lift.roll = null;
+  }
   function* liftOut(sim, lift, l) {
-    const cfg = sim.cfg, g = sim.grid, aisle = sim.aisles[lift.a];
+    const cfg = sim.cfg, g = sim.grid, aisle = sim.aisles[lift.a], buf = aisle.outBuf[l], B = g.B;
     lift.state = 'MOVING_TO_TARGET';
-    yield sim.liftTravel(g.levelZ(l));
+    yield sim.liftTravel(sim.liftLevel(l));
     lift.state = 'HANDLING';
-    yield { op: 'wait', t: cfg.liftTransfer };
-    const item = aisle.outBuf[l].shift(), bin = item.bin;
-    bin.loc = 'lift'; lift.bin = bin.id;
+    yield { op: 'until', fn: () => buf.length && Math.abs(buf[0].pos - sim.bufOuter) < 1e-6 };
+    let t0 = sim.time;
+    const item = buf.shift(), bin = item.bin;
+    bin.loc = 'lift'; lift.bin = bin.id; lift.side = 0;
+    yield* liftRoll(sim, lift, sim.bufOuter, B + 0.5);
+    yield { op: 'wait', t: Math.max(0, cfg.liftTransfer - (sim.time - t0)) };
     lift.state = 'TRANSPORTING_TO_PORT';
-    yield sim.liftTravel(g.ioZ);
+    yield sim.liftTravel(g.convZ);
+    // off the carriage onto the aisle's outfeed
     lift.state = 'HANDLING';
-    yield { op: 'wait', t: cfg.liftTransfer };
+    const x = g.outX(lift.a), y = B + 0.5;
+    yield { op: 'until', fn: () => sim.convFree(x, y), waitState: 'WAITING_PORT' };
+    t0 = sim.time;
+    const port = sim.ports[item.port], it = sim.toPort(bin, sim.outPath(lift.a, port, y), port);
     lift.bin = null; lift.lifts++;
-    sim.toPort(bin, sim.outPath(lift.a, sim.ports[item.port]), sim.ports[item.port]);
+    yield { op: 'until', fn: () => it.s >= 0.8 || !sim.conv.includes(it) };
+    yield { op: 'wait', t: Math.max(0, cfg.liftTransfer - (sim.time - t0)) };
   }
   function* liftIn(sim, lift, item) {
-    const cfg = sim.cfg, g = sim.grid, aisle = sim.aisles[lift.a], bin = item.bin;
+    const cfg = sim.cfg, g = sim.grid, aisle = sim.aisles[lift.a], bin = item.bin, c = item.conv, buf = aisle.inBuf[item.l];
     lift.state = 'MOVING_TO_TARGET';
-    yield sim.liftTravel(g.ioZ);
+    yield sim.liftTravel(g.convZ);
+    // the tote waiting at the lift rolls onto the carriage
     lift.state = 'HANDLING';
-    yield { op: 'wait', t: cfg.liftTransfer };
+    let t0 = sim.time;
+    aisle.gate = c;
+    yield { op: 'until', fn: () => c.s >= c.len - 1e-6 };
+    aisle.gate = null;
+    sim.convRemove(c);
     aisle.inQ.splice(aisle.inQ.indexOf(item), 1);
-    bin.loc = 'lift'; lift.bin = bin.id;
+    bin.loc = 'lift'; lift.bin = bin.id; lift.side = 1;
+    yield { op: 'wait', t: Math.max(0, cfg.liftTransfer - (sim.time - t0)) };
     lift.state = 'STORING';
-    yield sim.liftTravel(g.levelZ(item.l));
-    // only this lift fills the inbound buffer, and it was chosen with room in it
-    yield { op: 'until', fn: () => aisle.inBuf[item.l].length < cfg.bufferSize, waitState: 'WAITING_PORT' };
+    yield sim.liftTravel(sim.liftLevel(item.l));
+    // only this lift fills the inbound buffer, and it was chosen with room in
+    // it; the tote put before must have rolled on
+    yield { op: 'until', fn: () => buf.length < cfg.bufferSize && buf.every((it) => it.pos <= sim.bufOuter - 1 + 1e-6), waitState: 'WAITING_PORT' };
     lift.state = 'HANDLING';
-    yield { op: 'wait', t: cfg.liftTransfer };
-    aisle.inBuf[item.l].push(item);
+    t0 = sim.time;
+    yield* liftRoll(sim, lift, g.B + 0.5, sim.bufOuter);
+    buf.push(Object.assign(item, { pos: sim.bufOuter, conv: null }));
     bin.loc = 'buffer'; lift.bin = null;
+    yield { op: 'wait', t: Math.max(0, cfg.liftTransfer - (sim.time - t0)) };
     // dual cycle: take an outbound tote from the same level on the way down
-    if (aisle.outBuf[item.l].length) yield* liftOut(sim, lift, item.l);
+    if (aisle.outBuf[item.l].length && sim.loopRoom() > 0) yield* liftOut(sim, lift, item.l);
   }
 
   // ---------------------------------------------------------------- simulation
@@ -115,9 +148,28 @@
     get legendStates() { return LEGEND; }
     get taskTypes() { return {}; }
     defaults() { return WS.SHUTTLE_CONFIG; }
-    rackShape() { return { Z0: 2.4, frontBays: 2 }; } // the two front bays of each side are level buffers
+    rackShape() { return { Z0: 2.4, frontBays: Math.max(2, this.cfg.bufferSize) }; } // the front bays of each side are level buffers
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles * c.levels} shuttles · ${c.aisles} lifts · ${this.inv.bins.length} totes`; }
-    get front() { return this.cfg.bays - 1; } // shuttle position in front of the two buffer bays
+    // the buffers' ends: the shuttle's side (where the shuttle stops to hand
+    // totes over) and the lift's side; totes in a buffer stand a bay apart
+    get front() { return this.grid.B - this.grid.frontBays + 0.5; }
+    get bufOuter() { return this.grid.B - 0.5; }
+    get convSpeed() { return this.cfg.preZoneSpeed / this.cfg.cellSize; } // cells/s
+    liftLevel(l) { return this.grid.levelZ(l) + 0.06; } // carriage height at a level's buffers
+    // A tote waits at the lift (its front at the carriage's edge) until the
+    // lift is down and takes it.
+    infeedLimit(aisle, it) { return aisle.gate === it ? it.len : super.infeedLimit(aisle, it); }
+    get infeedHold() { return 0.8; }
+    ioConveyorY() { return this.grid.B + 0.92; } // the conveyors meet the lift's platforms
+    tick() {
+      super.tick();
+      // totes in the level buffers roll towards their end
+      const d = this.convSpeed * this.cfg.tick, step = (it, to) => { it.pos += Math.max(-d, Math.min(d, to - it.pos)); };
+      for (const aisle of this.aisles) for (let l = 0; l < this.cfg.levels; l++) {
+        aisle.outBuf[l].forEach((it, k) => step(it, this.bufOuter - k));
+        aisle.inBuf[l].forEach((it, k) => step(it, this.front + k));
+      }
+    }
     newAisle(a) { const L = this.cfg.levels; return Object.assign(super.newAisle(a), { outBuf: Array.from({ length: L }, () => []), inBuf: Array.from({ length: L }, () => []), shuttles: [], lift: null }); }
     createMachines() {
       let id = 0;
@@ -169,12 +221,15 @@
         const lift = aisle.lift;
         if (!lift.idle) continue;
         let best = null;
-        for (let l = 0; l < cfg.levels; l++) {
+        // nothing more onto a busy loop (WS.PreZoneSim.loopRoom)
+        for (let l = 0; l < cfg.levels && this.loopRoom() > 0; l++) {
           const o = aisle.outBuf[l][0];
           if (o && (!best || o.t < best.t)) best = { t: o.t, out: l };
         }
-        const inn = aisle.inQ.find((it) => aisle.inBuf[it.l].length < cfg.bufferSize);
-        if (inn && (!best || inn.t < best.t)) best = { t: inn.t, in: inn };
+        // the infeed is a queue: only the tote at its head can go up
+        const head = aisle.inQ[0], inn = head && aisle.inBuf[head.l].length < cfg.bufferSize ? head : null;
+        // a full infeed goes first: totes for this aisle are going round meanwhile
+        if (inn && (!best || inn.t < best.t || this.infeedRoom(aisle) <= 0)) best = { t: inn.t, in: inn };
         if (!best) continue;
         if (best.in) lift.run(liftIn(this, lift, best.in), { type: 'IN', bin: best.in.bin });
         else lift.run(liftOut(this, lift, best.out), { type: 'OUT', bin: aisle.outBuf[best.out][0].bin });

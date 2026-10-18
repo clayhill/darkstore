@@ -18,7 +18,8 @@
       this.stats = { presented: 0, busy: 0, starved: 0, blocked: 0, lines: 0, units: 0, t: 0 };
       this.recentStarve = 0; // decaying starvation share (alerts)
     }
-    canAccept() { return !this.entryReserved && this.inQ.length < 2; }
+    canAccept() { return this.queueRoom() > 0; }
+    queueRoom() { return this.entryReserved ? 0 : 2 - this.inQ.length; } // totes the infeed still takes
     demand() {
       let d = this.inbound;
       for (const b of this.sim.binsWithRequests) if (b.requests.some((q) => q.port === this.idx)) d++;
@@ -49,7 +50,7 @@
       }
       if (this.kind === 'GOODS_IN') t += 1.5; // bin confirm
       this.job = { bin, lines, t: 0, total: Math.max(t, 1.5), next: 0 };
-      bin.presentations++;
+      bin.presentations++; this.pickAt = sim.time; // for the view: the tote slides in from the infeed
       this.stats.presented++;
       sim.kpi.onPresented(this, bin);
     }
@@ -81,7 +82,7 @@
       // conveyor: entry → pick position
       const head = this.inQ[0];
       if (head) head.t += dt;
-      if (!this.pick && head && head.t >= cfg.conveyorStep) { this.inQ.shift(); this.pick = head.bin; this.startJob(head.bin); }
+      if (!this.pick && head && head.t >= cfg.conveyorStep && this.sim.portClear(this)) { this.inQ.shift(); this.pick = head.bin; this.startJob(head.bin); }
       let starved = 0;
       if (this.pick) {
         const j = this.job;
@@ -91,7 +92,7 @@
             j.t += dt;
             while (j.next < j.lines.length && j.t >= j.lines[j.next].at) { this.applyLine(j.lines[j.next]); j.next++; }
           }
-        } else if (this.outQ.length < 2) {
+        } else if (this.outQ.length < 2 && this.sim.portOutOk(this)) {
           this.outQ.push(this.pick);
           this.sim.onPortOut(this, this.pick);
           this.pick = null; this.job = null;

@@ -212,12 +212,25 @@ front bays of each level are buffers: outbound on the left, inbound on the right
 
 **Shuttles and lifts.** Every level of every aisle has its own shuttle. It drives to a tote, pulls it
 with its load handler, drives to the aisle front and drops it in the level's outbound buffer, waiting
-if the buffer is full. The aisle's lift collects totes from the buffers and brings them down to the
-pre-zone conveyor; on the way back it carries returning totes up to an inbound buffer, and it combines
-a put-away and a retrieval on the same level when it can. Travel uses acceleration and braking for
-both.
+if the buffer is full. The buffers are short conveyors that roll totes between the shuttle and the
+lift. The aisle's lift has a platform on each side: it collects totes from the outbound buffers and
+rolls them off onto the aisle's outfeed; on the way back it takes the tote at the head of the infeed
+up to an inbound buffer, and it combines a put-away and a retrieval on the same level when it can.
+Travel uses acceleration and braking for both.
 
-**Conveyor and storage policy.** The conveyor carries totes from the aisles to the stations and back.
+**Conveyor and storage policy.** The pre-zone is a one-way loop at station height: the near line runs
+past the aisles, the far line past the stations, so no belt carries totes both ways and no line
+crosses another. Each aisle has an outfeed on the left and an infeed on the right; each station
+takes totes off the far line and puts them back on it. Totes queue behind each other on the belts,
+give way where lines meet, and a station presents the next tote only once the last one has rolled
+off.
+Totes are routed late, as on a real recirculating loop: just before a turn-off the control checks
+for room on the spur. A tote for a full station stays on the loop and goes round again (totes that
+have been round go first next time); a returning tote whose infeed is full goes to the next aisle
+with room, or round again. Totes going round give way where others join the loop. No more totes
+are released for a station while one for it is going round, machines send nothing out once the
+loop is three quarters full, and stations hold a finished tote once it is nine tenths full, so the
+loop never fills up and locks.
 A returning tote goes to the aisle and level with the least work queued; with the velocity policy,
 fast movers are stored near the aisle front.
 
@@ -243,8 +256,9 @@ aisle instead of shuttles and lifts.
 its own speed and acceleration, so a trip takes the longer of the two. After arriving it settles,
 then the forks go out for a fixed fork cycle per tote. The load handler holds two totes.
 
-**Cycles.** Every cycle starts and ends at the I/O point in front of the aisle. Returning totes wait
-on the infeed. A single command stores or retrieves; a dual command stores first and then retrieves
+**Cycles.** Every cycle starts and ends at the I/O point in front of the aisle, where the forks
+reach sideways onto the conveyors: returning totes queue on the infeed on the right, retrieved totes
+leave on the outfeed on the left, each in line with its position on the load handler. A single command stores or retrieves; a dual command stores first and then retrieves
 on the way back. With two totes on the handler a cycle can do two stores and two retrievals. Stores
 are visited in the order that keeps the crane moving least; retrievals are chosen by crane time from
 where the last store left the crane, with a head start for totes that have waited.
@@ -275,8 +289,10 @@ on a floor grid, with the same routing and charging as PodSwarm.
 
 **Floor.** Aisles one robot wide between single-deep shelving, a cross aisle two cells wide behind and
 in front of the racking, a corridor and a column of parking spots and chargers on the right. Each
-station has a short queue lane and a handover point; a conveyor carries totes from there into the
-station, and a return conveyor brings them back out.
+station has a short queue lane and a handover point. The robot puts totes onto a conveyor in front of
+it that feeds the station, one at a time as there is room; totes leaving the station roll back on a
+conveyor that ends beside the handover point. A tote another station also needs rides there on a
+robot.
 
 **Robot.** A drive unit with a mast, a tote handler and a column of back shelves (8 by default). The
 robot only lifts or handles a tote while standing still, and blocks its aisle cell meanwhile. At a

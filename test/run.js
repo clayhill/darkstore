@@ -26,7 +26,7 @@ function checkRacking() {
   const where = new Map(), put = (id, w) => { if (where.has(id)) throw new Error(`${id} in ${where.get(id)} and ${w}`); where.set(id, w); };
   for (const a of sim.aisles) {
     a.slot.forEach((id, i) => { if (id) put(id, 'slot'); });
-    if (a.inQ) a.inQ.forEach((it) => put(it.bin.id, 'inQ'));
+    if (a.inQ) a.inQ.forEach((it) => { if (!it.conv) put(it.bin.id, 'inQ'); }); // a queued tote still on the conveyor counts there
     if (a.crane) { a.crane.load.forEach((id) => put(id, a.crane.name)); continue; }
     if (!a.shuttles) continue;
     a.outBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'outBuf')));
@@ -34,9 +34,14 @@ function checkRacking() {
     for (const r of [...a.shuttles, a.lift]) if (r.bin) put(r.bin, r.name);
   }
   sim.conv.forEach((it) => put(it.bin.id, 'conveyor'));
+  // totes on the conveyors never overlap
+  const T = sim.convTote(), at = sim.conv.map((it) => sim.convAt(it));
+  at.forEach((p, i) => at.forEach((q, j) => {
+    if (j > i && Math.abs(p.x - q.x) < 2 * T.w - 1e-6 && Math.abs(p.y - q.y) < 2 * T.d - 1e-6) throw new Error(`t=${sim.time.toFixed(1)} totes ${sim.conv[i].bin.id} and ${sim.conv[j].bin.id} overlap at ${p.x.toFixed(2)},${p.y.toFixed(2)}`);
+  }));
   if (kind === 'acr') {
     for (const r of sim.fleet) r.load.forEach((id) => put(id, r.name));
-    for (const p of sim.ports) p.back.forEach((b) => put(b.id, p.code + ' return'));
+    for (const p of sim.ports) p.back.forEach((b) => { if (!b.conv) put(b.id, p.code + ' return'); }); // still on the return conveyor: counted there
   }
   for (const p of sim.ports) { p.inQ.forEach((q) => put(q.bin.id, p.code)); if (p.pick) put(p.pick.id, p.code); p.outQ.forEach((b) => put(b.id, p.code)); }
   for (const b of sim.inv.bins) {

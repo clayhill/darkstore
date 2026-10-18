@@ -28,7 +28,6 @@
       }
       this.drawRackScene((aisle) => inAisle[aisle.a].sort((p, q) => p.y - q.y).map((it) => it.draw), back);
       this.drawSelectedCell();
-      for (const p of this.sim.ports) items.push({ d: p.hand.x + g.D - 0.2, fn: () => this.drawReturns(p) });
       this.conveyorItems(items);
       this.drawStations(items);
     }
@@ -140,13 +139,16 @@
       // handler: a tray with forks reaching left or right into the rack
       const e = xf ? xf.reach * 0.75 : 0;
       this.box(cx - 0.36, cy - 0.32, r.mast - 0.08, cx + 0.36, cy + 0.32, r.mast + 0.06, ORANGE, Object.assign({ top: '#fdba74' }, edge));
-      // a tote taken or put slides between its back shelf and the rack position
+      // a tote taken or put slides between its back shelf and the rack
+      // position or a station's conveyor (taking on the conveyor's tote size)
       if (xf && xf.u != null) {
-        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), sx = this.sideX(Math.round((x - 1) / 3), xf.side), u = xf.u;
-        const tx = cx + (sx - cx) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
-        this.toteBox(tx - 0.25, y0 + 0.05, tx + 0.25, y1 - 0.05, tz, this.toteColor(sim.inv.binById.get(xf.id)));
+        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), u = xf.u, T = sim.convTote();
+        const at = xf.at || { x: this.sideX(Math.round((x - 1) / 3), xf.side), y: cy }, w = xf.at ? 0.25 + (T.w - 0.25) * u : 0.25, d = xf.at ? 0.23 + (T.d - 0.23) * u : 0.23;
+        const tx = cx + (at.x - cx) * u, ty = cy + (at.y - cy) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
+        this.toteBox(tx - w, ty - d, tx + w, ty + d, tz, this.toteColor(sim.inv.binById.get(xf.id)));
       }
-      for (const fy of [cy - 0.24, cy + 0.18]) {
+      if (xf && xf.side === 2) for (const fx of [cx - 0.24, cx + 0.18]) this.box(fx, cy - 0.3, r.mast + 0.06, fx + 0.06, cy + 0.36 + e, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
+      else for (const fy of [cy - 0.24, cy + 0.18]) {
         const fx0 = xf && xf.side === 0 ? cx - 0.36 - e : cx - 0.3, fx1 = xf && xf.side === 1 ? cx + 0.36 + e : cx + 0.3;
         this.box(fx0, fy, r.mast + 0.06, fx1, fy + 0.06, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
       }
@@ -156,29 +158,19 @@
       if (sel) this.quadTop(x - 0.06, y - 0.06, x + 1.06, y + 1.06, 0.02, null, '#38bdf8', 2.5);
       if (this.opts.labels) this.robotTag(r, cx, cy, H + 1.4, 'rgba(241,245,249,0.85)');
     }
-    // totes back from a station, waiting on its return conveyor for a robot
-    drawReturns(p) {
-      const g = this.sim.grid;
-      p.back.slice(0, 2).forEach((b, k) => this.drawBin(p.hand.x + 1.5, g.D - 0.75 + k * 0.3, 1.4, b.id, { w: 0.26, d: 0.22 }));
-    }
-
     // ---------------------------------------------------------------- conveyors
     conveyorItems(items) {
-      const sim = this.sim, g = sim.grid;
-      items.push({ d: g.D - 0.5, fn: () => this.drawPreZone() });
-      for (const it of sim.conv) {
-        const q = sim.posOnPath(it);
-        items.push({ d: q.x + q.y + 0.3, fn: () => this.drawBin(q.x, q.y, 1.4, it.bin.id, { w: 0.26, d: 0.3 }) });
-      }
+      const g = this.sim.grid;
+      items.push({ d: g.laneY + 1, fn: () => this.drawPreZone() });
+      this.conveyorTotes(items, g.convZ);
     }
-    // Infeed from each handover point into its station, the return conveyor
-    // beside it, and a line between the stations for totes going on.
+    // At each station: the infeed from in front of the handover point, and
+    // the return conveyor ending beside it.
     drawPreZone() {
-      const sim = this.sim, g = sim.grid, ps = sim.ports;
-      if (ps.length > 1) this.conveyor([{ x: ps[0].hand.x + 0.5, y: g.D - 0.45 }, { x: ps[ps.length - 1].hand.x + 1.5, y: g.D - 0.45 }], 0.3, 0.9, '#2b3646');
-      for (const p of ps) {
-        this.conveyor([{ x: p.hand.x + 0.5, y: g.laneY + 0.8 }, { x: p.hand.x + 0.5, y: g.D }], 0.4, 1.4);
-        this.conveyor([{ x: p.hand.x + 1.5, y: g.D - 0.85 }, { x: p.hand.x + 1.5, y: g.D }], 0.4, 1.4, '#2b3646');
+      const sim = this.sim, g = sim.grid;
+      for (const p of sim.ports) {
+        const a = sim.infeedStart(p), b = sim.backEnd(p);
+        for (const line of [[{ x: a.x, y: a.y - 0.3 }, { x: a.x, y: g.D }], [{ x: b.x, y: g.D }, { x: b.x, y: b.y - 0.3 }]]) { this.conveyor(line, 0.62, g.convZ, null, { legs: true }); this.flowArrows(line, g.convZ); }
       }
     }
 

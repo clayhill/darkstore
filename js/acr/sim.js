@@ -3,7 +3,10 @@
  * and a column of shelves on its back, so it collects a batch of totes on one
  * trip: it loads returning totes at a station, stores them near its
  * retrievals, takes the totes a station needs, and hands them over at that
- * station's handover point, from where a short conveyor feeds the station.
+ * station's handover point, onto a conveyor in front of it that feeds the
+ * station. Totes leaving a station roll back on a conveyor that ends beside
+ * the handover point, where a robot takes them; one another station wants
+ * rides there on the robot.
  * Aisles are one-way (alternating), or locked: a trip only uses aisles no
  * other robot holds, and holds them until it has left them.
  * The robots are WS.Robots (battery, routing, traffic); the racking
@@ -20,7 +23,8 @@
   // ---------------------------------------------------------------- floor
   // Rows from the back: a cross aisle two cells wide, the racking (aisle a:
   // rack x = 3a, aisle 3a+1, rack 3a+2; bay b at y = Y0 + b), a front cross
-  // aisle, the stations' queue lanes and handover points, and a conveyor row.
+  // aisle, the stations' queue lanes and handover points, and the stations'
+  // conveyors.
   // Right of the racking: a corridor two cells wide and a column of parking
   // spots and chargers. Lane entries sit in front of rack columns, not aisle
   // mouths, so robots queueing for a station never block an aisle.
@@ -30,11 +34,12 @@
       // station pitch: lane, handover point and the put wall with its spur; a multiple of 3
       const pitch = 3 * Math.ceil(Math.max(ll + 4, 3.15 + (cfg.toteSlots - 1) * 0.52) / 3), sx = (k) => 3 + ll + k * pitch;
       const Y0 = 2, laneY = Y0 + B + 2, parkX = A * 3 + 2;
-      super(Math.max(parkX + 1, sx(nPorts - 1) + 2), laneY + 2, CELL.BLOCKED);
+      super(Math.max(parkX + 1, sx(nPorts - 1) + 2), laneY + 5, CELL.BLOCKED);
       this.cfg = cfg; this.sim = sim;
       Object.assign(this, { A, B, L, Y0, laneY, parkX }); this.SB = B; this.frontY = Y0 + B; this.shadowW = this.W;
       this.LH = cfg.levelHeight / ZU; this.Z0 = 0.5; this.Z = this.Z0 + L * this.LH; // render levels
       this.ioZ = 0.6; // handler height while driving
+      this.convZ = 2.2; // top of the stations' conveyors
       for (let y = 0; y < this.laneY; y++) {
         for (let x = 0; x < this.W; x++) {
           let t = CELL.HIGHWAY;
@@ -112,7 +117,7 @@
   class AcrRobot extends WS.Robot {
     constructor(sim, id, x, y) {
       super(sim, id, x, y);
-      this.mast = sim.grid.ioZ; this.load = []; this.xfer = null; this.aisleWait = false; // xfer: tote being taken or put, { id, take, side }
+      this.mast = sim.grid.ioZ; this.load = []; this.xfer = null; this.aisleWait = false; // xfer: tote being taken or put, { id, take, side (0 left, 1 right, 2 forward), at (a conveyor position) }
     }
     place() {}
     hold(id) { this.load.push(id); this.bin = this.load[0]; }
@@ -133,11 +138,20 @@
       r.state = 'MOVING_TO_TARGET';
       yield* WS.Tasks.throughLane(sim, r, port.docks[0]);
       r.state = 'AT_PORT'; r.busy = true;
+      // the handler takes the totes off the end of the return conveyor, on its right
+      const end = sim.backEnd(port);
+      yield { op: 'mast', to: g.convZ - 0.06, v };
       for (const bin of t.returns) {
+        const c = bin.conv;
+        yield { op: 'until', fn: () => c.s >= c.len - 1e-6 };
+        r.xfer = { id: bin.id, take: true, side: 1, at: end };
         yield { op: 'wait', t: cfg.handoverTime };
+        r.xfer = null;
         port.back.splice(port.back.indexOf(bin), 1);
+        sim.convRemove(c); bin.conv = null;
         bin.loc = 'robot'; r.hold(bin.id);
       }
+      yield { op: 'mast', to: g.ioZ, v };
       r.busy = false; t.loaded = true;
     }
     for (const st of t.stops) {
@@ -174,12 +188,19 @@
       r.state = 'TRANSPORTING_TO_PORT';
       yield* WS.Tasks.throughLane(sim, r, port.docks[0]);
       r.state = 'AT_PORT'; r.busy = true;
+      // the handler puts the totes onto the infeed in front, each once the one before has rolled on
+      const a = sim.infeedStart(port);
+      yield { op: 'mast', to: g.convZ - 0.06, v };
       while (r.load.length) {
-        yield { op: 'wait', t: cfg.handoverTime };
         const bin = sim.inv.binById.get(r.load[0]);
+        yield { op: 'until', fn: () => sim.convFree(a.x, a.y), waitState: 'WAITING_PORT' };
+        r.xfer = { id: bin.id, take: false, side: 2, at: a }; // side 2: forward
+        yield { op: 'wait', t: cfg.handoverTime };
+        r.xfer = null;
         r.drop(bin.id);
         sim.toPort(bin, sim.infeedPath(port), port);
       }
+      yield { op: 'mast', to: g.ioZ, v };
       r.busy = false;
     }
     sim.onTrip(t);
@@ -220,17 +241,21 @@
     }
 
     // ---------- conveyors at the stations ----------
-    infeedPath(p) { const g = this.grid, x = p.hand.x + 0.5; return [{ x, y: g.laneY + 0.8 }, { x, y: g.D }]; }
-    backPath(p) { const g = this.grid, x = p.hand.x + 1.5; return [{ x, y: g.D }, { x, y: g.D - 0.75 }]; }
-    stationPath(from, to) {
-      const g = this.grid, y = g.D - 0.45;
-      return [{ x: from.hand.x + 1.5, y: g.D }, { x: from.hand.x + 1.5, y }, { x: to.hand.x + 0.5, y }, { x: to.hand.x + 0.5, y: g.D }];
-    }
-    // A tote no station needs goes onto the return conveyor, where it waits
-    // for a robot to store it.
+    // The infeed starts in front of the handover point; the return conveyor
+    // ends beside it, on the right.
+    infeedStart(p) { return { x: p.hand.x + 0.5, y: this.grid.laneY + 1.3 }; }
+    backEnd(p) { return { x: p.hand.x + 1.5, y: this.grid.laneY + 0.5 }; }
+    infeedPath(p) { const a = this.infeedStart(p); return [a, { x: a.x, y: this.grid.D }]; }
+    // Every tote leaving a station rolls back to its handover point. On the
+    // return conveyor it joins the totes waiting for a robot (it stays on the
+    // conveyor until a robot takes it from the end).
     returnTote(port, bin) {
-      this.convey(bin, this.backPath(port), () => { port.back.push(bin); bin.loc = 'buffer'; bin.robot = -1; bin.backT = this.time; return true; }, true);
+      const it = this.convey(bin, [...this.portExit(port), this.backEnd(port)], null, true, {
+        onLast: () => { port.back.push(bin); bin.loc = 'buffer'; bin.robot = -1; bin.backT = this.time; bin.conv = it; },
+      });
+      return it;
     }
+    onPortOut(port, bin) { port.takeOut(); port.leaving = this.returnTote(port, bin); }
 
     // ---------- storage policy ----------
     // 0 = fastest position: low (short mast travel), near the front, in the
@@ -293,7 +318,8 @@
       const pend = this.pendingTasks().filter((t) => t.type === 'RETRIEVE' && t.bin.loc === 'grid' && open(t.bin.aisle));
       let dest = null;
       for (const t of pend) { const p = this.ports[t.bin.requests[0].port]; if (this.portRoom(p) > 0) { dest = p; break; } }
-      const waiting = (p) => p.back.filter((b) => b.robot < 0);
+      // the return conveyor is a queue: no robot plans to take from it while another one will
+      const waiting = (p) => (p.back.some((b) => b.robot >= 0) ? [] : p.back);
       let pick = this.ports.find((p) => p.hand.x === r.x && p.hand.y === r.y && waiting(p).length) || null;
       if (!pick) {
         let bd = Infinity;
@@ -303,13 +329,27 @@
         }
       }
       if (!dest && !pick) return null;
+      // Returning totes come off the conveyor in the order they stand. One
+      // another station wants rides along to it: a tote for another station
+      // at the head makes that station the destination.
+      const wantedAt = (b) => (b.requests.length ? this.ports[b.requests[0].port] : null);
+      const head = pick && waiting(pick)[0], hp = head && wantedAt(head);
+      if (hp && hp !== dest && this.portRoom(hp) > 0) dest = hp;
+      const back = [];
+      for (const b of pick ? waiting(pick) : []) {
+        const p = wantedAt(b);
+        if (back.length >= N || (p && (p !== dest || back.filter(wantedAt).length >= this.portRoom(dest)))) break;
+        back.push(b);
+      }
       const mine = dest ? pend.filter((t) => t.bin.requests[0].port === dest.idx) : [];
       let k0 = Math.min(mine.length, dest ? this.portRoom(dest) : 0, N);
-      let nRet = pick ? Math.min(waiting(pick).length, N - Math.min(k0, N >> 1)) : 0;
+      let nRet = Math.min(back.length, N - Math.min(k0, N >> 1));
+      const carried = () => back.slice(0, nRet).filter(wantedAt).length;
+      k0 = Math.max(0, Math.min(k0, (dest ? this.portRoom(dest) : 0) - carried()));
       // wait for a fuller batch, unless the oldest tote has waited long enough
       const min = Math.min(cfg.minBatch, N);
-      if (k0 < min && (!mine.length || this.time - mine[0].created < cfg.batchWait)) k0 = 0;
-      if (nRet < min && !k0 && (!nRet || this.time - waiting(pick)[0].backT < cfg.batchWait)) nRet = 0;
+      if (k0 < min && !carried() && (!mine.length || this.time - mine[0].created < cfg.batchWait)) k0 = 0;
+      if (nRet < min && !k0 && !carried() && (!nRet || this.time - back[0].backT < cfg.batchWait)) nRet = 0;
       if (!k0 && !nRet) return null;
       const k = Math.min(k0, N - nRet);
       // retrievals: the most urgent, then the ones closest to those chosen;
@@ -334,16 +374,18 @@
         t.robot = r.id; t.port = dest.idx; dest.inbound++;
         ops.push({ kind: 'take', bin: b, task: t, a: b.aisle, l: b.level, s: b.side, b: b.bay });
       }
-      for (const bin of pick ? waiting(pick).slice(0, nRet) : []) {
+      let carry = 0;
+      for (const bin of back.slice(0, nRet)) {
+        if (wantedAt(bin)) { bin.robot = r.id; returns.push(bin); dest.inbound++; carry++; continue; }
         const p = this.storeSlot(bin, takes, open);
         if (!p) break;
         this.aisles[p.a].resv[this.si(p.l, p.s, p.b)] = true;
         bin.robot = r.id; returns.push(bin);
         ops.push(Object.assign({ kind: 'put', bin }, p));
       }
-      if (!ops.length) return null;
+      if (!returns.length && !takes.length) return null;
       if (cfg.aisleMode === 'lock') for (const o of ops) this.aisles[o.a].lock = r.id;
-      return { type: 'TRIP', pickup: returns.length ? pick.idx : null, returns, stops: this.route(ops, returns.length ? pick.hand.x : r.x), dest: takes.length ? dest.idx : null, priority: 5, takes: takes.length, puts: returns.length };
+      return { type: 'TRIP', pickup: returns.length ? pick.idx : null, returns, stops: this.route(ops, returns.length ? pick.hand.x : r.x), dest: takes.length || carry ? dest.idx : null, priority: 5, takes: takes.length, puts: returns.length - carry };
     }
     // Stops in visiting order: aisles from the end nearest the start, each
     // aisle in its driving direction; at a stop, stores first, low levels first.
