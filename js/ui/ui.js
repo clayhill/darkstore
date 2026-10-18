@@ -471,10 +471,34 @@
       const rows = [];
       for (const id of p.bins) { const b = inv.binById.get(id); b.comps.forEach((c, k) => { if (c.gtin === gtin) rows.push({ b, k, c }); }); }
       rows.sort((a, b) => inv.binDepth(a.b) - inv.binDepth(b.b));
-      this.modal(esc(p.name), `<div class="row2"><div><div class="bcwrap">${BC.ean13SVG(p.gtin)}</div><div class="note">GS1 GTIN-13 / EAN-13</div></div>
+      this.modal(esc(p.name), `<div class="row2"><div><div class="bcwrap">${BC.ean13SVG(p.gtin)}</div><div class="note">GS1 GTIN-13 / EAN-13</div>
+          <div class="pd-gtin"><span class="mono">${p.gtin}</span><button class="btn sm ghost" id="pd-copy">Copy</button></div>
+          <div class="pd-order"><input type="number" id="pd-qty" value="1" min="1"><button class="btn sm primary" id="pd-add">Add to new order</button></div></div>
         <dl class="kv"><dt>SKU</dt><dd>${p.sku}</dd><dt>Class</dt><dd><span class="pill ${p.cls}">${p.cls}</span> · ${p.hits.toFixed(1)} lines/h</dd><dt>Unit</dt><dd>${p.weight} kg · ${p.vol} L</dd>
         <dt>On hand</dt><dd>${p.onHand}</dd><dt>Reserved</dt><dd>${p.reserved}</dd><dt>Incoming</dt><dd>${p.incoming}</dd><dt>Min / max</dt><dd>${p.min || '—'} / ${p.max || '—'}</dd><dt>Picked</dt><dd>${p.lines} lines · ${p.units} units</dd></dl></div>
         <h3 style="margin-top:12px">Stock locations</h3><table class="tbl"><tr><th>${this.terms.Unit}</th><th>Location</th><th class="r">Comp</th><th class="r">Qty</th><th class="r">Resv</th></tr>${rows.map(({ b, k, c }) => `<tr class="click" data-open="bin:${b.id}"><td class="mono">${b.id}</td><td>${this.binLocation(b)}</td><td class="r">${k + 1}/${b.ncomp}</td><td class="r">${c.qty}${c.incoming ? ` +${c.incoming}` : ''}</td><td class="r">${c.reserved}</td></tr>`).join('') || '<tr><td colspan="5" class="faint">No stock</td></tr>'}</table>`);
+      $('#pd-copy').onclick = () => this.copyText(p.gtin, 'GTIN copied');
+      $('#pd-add').onclick = () => this.addToOrder(p.gtin, Math.max(1, +$('#pd-qty').value | 0));
+      $('#pd-qty').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#pd-add').click(); });
+    }
+    copyText(text, msg) {
+      const fallback = () => {
+        const t = document.createElement('textarea');
+        t.value = text; document.body.appendChild(t); t.select();
+        const ok = document.execCommand('copy'); t.remove();
+        this.toast(ok ? msg : 'Copy failed — select the number instead', !ok);
+      };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => this.toast(msg), fallback);
+      else fallback();
+    }
+    // A product line onto the order being entered in the Orders tab (the same product adds up)
+    addToOrder(gtin, qty) {
+      const ln = this.soLines.find((l) => l.gtin === gtin);
+      if (ln) ln.qty += qty; else this.soLines.push({ gtin, qty });
+      this.closeModal();
+      if (this.tab === 'orders') $('#so-lines').innerHTML = this.linesHtml(this.soLines); // keeps what is typed in the form
+      else this.setTab('orders');
+      this.toast(`Added to the new order (${this.soLines.length} line${this.soLines.length > 1 ? 's' : ''}) — submit it in Orders`);
     }
     showBin(id) {
       const inv = this.sim.inv, b = inv.findBin(id); if (!b) return this.toast('Unknown bin ' + id, true);

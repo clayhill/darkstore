@@ -201,6 +201,9 @@ input[type=range] { width: 100%; accent-color: var(--accent-2); }
 .slot.on .lamp { background: var(--good); box-shadow: 0 0 10px var(--good); }
 .slot b { display: block; font-size: 11px; }
 .barcode { display: block; max-width: 100%; height: auto; border-radius: 4px; }
+.pd-gtin { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
+.pd-order { display: flex; gap: 6px; margin-top: 8px; }
+.pd-order input { width: 64px; }
 .bcwrap { background: #fff; border-radius: 6px; padding: 6px; display: inline-block; max-width: 100%; }
 
 /* ---------- modal ---------- */
