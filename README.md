@@ -141,6 +141,8 @@ millisecond.
 | **Control room:** KPIs, live grid map, port status and trends | **X-ray + ABC:** every bin in the grid, coloured by velocity class |
 | ![Close-up of robots digging and delivering bins to the pick ports](docs/screenshots/closeup.png) | ![GS1 logistics label with SSCC barcode](docs/screenshots/shipping-label.png) |
 | **Close-up:** robots digging (winch depth shown) and pick ports | **Shipping label:** GS1 logistics label with SSCC |
+| ![CubeFlow in 3D: the aluminium grid with every bin, robots on the rails and the pick ports](docs/screenshots/cube-3d.png) | ![Close-up in 3D: robots on the grid top, one lowering its winch into a stack](docs/screenshots/cube-3d-closeup.png) |
+| **3D:** the grid with every bin, robots on the rails, ports and packing | **3D close-up:** robots on the rails; winch tapes go down into the stacks |
 
 **Grid & robots.** A `[X][Y][Z]` matrix of bin stacks with chargers on the back edge,
 conveyor pick ports on the front face and a goods-in (decant) port on the right face.
@@ -168,6 +170,8 @@ ports, and the slotting avoids burying popular bins. Digging a fast mover out fr
 |---|---|
 | ![Close-up of pick stations: pods presented to operators, the pocket to pick from lit green](docs/screenshots/pod-closeup.png) | ![PodSwarm control room: hit rate, pod returns, floor map with queue lanes](docs/screenshots/pod-control.png) |
 | **Close-up:** pods queue in a lane and are turned to show the operator the right face | **Control room:** hit rate, pod returns and the live floor map |
+| ![PodSwarm in 3D: shelving pods, drive units and the pick stations](docs/screenshots/pod-3d.png) | ![Close-up in 3D: a pick station with two presentation points, the operator between them](docs/screenshots/pod-3d-closeup.png) |
+| **3D:** pods in their blocks, robots carrying pods to the stations | **3D close-up:** a station with two presentation points and the light curtain |
 
 **Floor & pods.** A floor of 1.2 m cells: storage blocks two cells deep, highways between them, a
 two presentation points with their queue lanes at each station and chargers on the back wall. Each pod has four faces of
@@ -200,6 +204,8 @@ velocity policy, busy pods end up near the stations.
 |---|---|
 | ![Close-up of the aisle fronts: shuttles carrying totes, lifts and the pick stations](docs/screenshots/rail-closeup.png) | ![RailRunner control room: lift utilization, shuttle cycles and a levels-by-aisles map](docs/screenshots/rail-control.png) |
 | **Close-up:** shuttles bring totes to the aisle front, lifts take them down to the stations | **Control room:** lift utilization, shuttle cycles and a map of every level of every aisle |
+| ![RailRunner in 3D: racking with a shuttle on every level, lift towers and the stations](docs/screenshots/rail-3d.png) | ![Close-up in 3D: shuttles in the levels, a lift carriage and the pre-zone conveyor](docs/screenshots/rail-3d-closeup.png) |
+| **3D:** the racking, cyan lift towers at the aisle fronts and the stations | **3D close-up:** orange shuttles on every level, a lift and the conveyors |
 
 **Racking.** Aisles of racking with totes single deep on both sides, several levels high. The two
 front bays of each level are buffers: outbound on the left, inbound on the right.
@@ -227,6 +233,8 @@ conveyor.
 |---|---|
 | ![Close-up of the cranes: masts on floor rails, carriages carrying totes](docs/screenshots/sky-closeup.png) | ![SkyStack control room: crane cycles, cycle time against the FEM 9.851 reference, I/O queues](docs/screenshots/sky-control.png) |
 | **Close-up:** each crane moves along the aisle and up the mast at the same time | **Control room:** crane cycles, cycle time next to the FEM 9.851 reference and I/O queues |
+| ![SkyStack in 3D: high racking with an orange stacker crane in each aisle](docs/screenshots/sky-3d.png) | ![Walk mode in 3D: looking down an aisle at a crane between full racks](docs/screenshots/sky-3d-closeup.png) |
+| **3D:** high racking with a crane per aisle on its rails | **3D walk mode:** down an aisle, the crane's mast and carriage between the racks |
 
 SkyStack uses the same racking, storage policy and conveyor as RailRunner, with one stacker crane per
 aisle instead of shuttles and lifts.
@@ -259,6 +267,8 @@ aisle-changing cranes and a limit on the I/O conveyor.
 |---|---|
 | ![Close-up of the robots: masts with back shelves carrying totes, handlers reaching into the racking](docs/screenshots/acr-closeup.png) | ![StackPilot control room: totes per trip, trip time split, aisle waits and the floor map](docs/screenshots/acr-control.png) |
 | **Close-up:** robots carry several totes on their back shelves; the handler runs up the mast at each stop | **Control room:** totes per trip, the fleet's time split, aisle waits and the live floor map |
+| ![StackPilot in 3D: shelving aisles, robots with tall masts and the stations in front](docs/screenshots/acr-3d.png) | ![Close-up in 3D: robots with their back shelves at the stations and in the aisles](docs/screenshots/acr-3d-closeup.png) |
+| **3D:** shelving, robots with masts, queue lanes and stations | **3D close-up:** robots with back shelves, the handler on the mast |
 
 StackPilot stores totes in racking like RailRunner and SkyStack, but its machines are battery robots
 on a floor grid, with the same routing and charging as PodSwarm.
