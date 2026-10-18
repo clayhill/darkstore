@@ -8,7 +8,7 @@ DarkStore currently has five storage types: CubeFlow (cube AS/RS), PodSwarm (pod
 
 ### 1. Automated picking at the station
 
-**Status:** Idea
+**Status:** Built: robot pick stations in Settings (CubeFlow, PodSwarm, RailRunner, SkyStack, StackPilot), with operator assist or routing at release.
 
 A robot arm picks instead of the operator. It is slower per item and fails on some products (soft, shiny, heavy), so a person handles the exceptions. This mostly changes how pick time and errors are worked out in the existing station model.
 

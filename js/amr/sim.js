@@ -168,6 +168,7 @@
     createGrid() { const g = new WS.ShelfFloor(this.cfg); g.sim = this; return g; }
     createLayout() { return new AmrLayout(this); }
     createPort(k, def) { return new AmrStation(this, k, def); }
+    get armsAllowed() { return false; } // pickers pick at the shelves: no pick station for an arm
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.bays} bays of shelving online · ${this.fleet.length} robots · ${this.pickers.length} pickers · ${this.ports.length} stations`; }
     storageCapacity() { return this.inv.bins.length; }
     compLabel(k) { const s = this.cfg.shelfSlots; return `level ${Math.floor(k / s) + 1} · slot ${(k % s) + 1}`; }

@@ -108,10 +108,18 @@
         this.kpiTile((tm.machine || 'Robot') + ' utilization', Math.round(u.work * 100), '%', `now ${Math.round(ur.work * 100)}% · waiting ${Math.round(u.wait * 100)}%`),
         ...this.type.kpiTiles(this),
         this.packTile(),
+        this.armTile(),
         this.kpiTile('Order cycle', k.cycleN ? U.fmtDur(k.cycleSum / k.cycleN) : '—', '', 'receipt → truck'),
         this.kpiTile('Orders in process', open.length, '', `${back ? back + ' backordered · ' : ''}${onTruck} on truck`),
         sim.cfg.chargers ? this.kpiTile('Fleet battery', Math.round(sim.fleet.reduce((s, r) => s + r.battery, 0) / sim.fleet.length), '%', `${charging} charging`) : '',
       ].join('');
+    }
+    // units picked by robot arms, shown once the scenario has robot pick stations
+    armTile() {
+      const arms = this.sim.ports.filter((p) => p.arm);
+      if (!arms.length) return '';
+      const a = arms.reduce((s, p) => ({ units: s.units + p.arm.units, picks: s.picks + p.arm.picks, assists: s.assists + p.arm.assists, tries: s.tries + p.arm.tries }), { units: 0, picks: 0, assists: 0, tries: 0 });
+      return this.kpiTile('Robot picks', a.units ? Math.round((a.picks / a.units) * 100) : 0, '%', `of ${a.units} units at ${arms.length} arm ${this.terms.ports} · ${a.assists} by an operator · ${a.tries ? Math.round((a.picks / a.tries) * 100) : 0}% of grasps hold`);
     }
     // share of orders packed by machines, shown once the scenario has packing machines
     packTile() {
@@ -349,6 +357,8 @@
       <div class="sect"><h3>Scenario <span class="sub">restarts the simulation</span></h3><div class="card">
         ${t.scenario}
         <div class="row2">${num('pickPorts', 'Pick ' + tm.ports, 1, 1, 7)}${num('goodsInPorts', 'Goods-in ' + tm.ports, 1, 0, 3)}</div>
+        ${this.sim.armsAllowed ? `<div class="row2">${num('armStations', 'Robot pick ' + tm.ports + ' (of the pick ' + tm.ports + ')', 1, 0, 7)}${sel('armExceptions', 'Items the arm cannot pick', [['assist', 'An operator comes over and picks them'], ['route', 'Orders with them go to manual stations']])}</div>
+        <div class="note">A robot arm picks a unit in ${c.armPerUnit} s and tries once more when a grasp fails. Items over 1.5 kg and soft or bagged ones (about 1 in 20) it cannot grip; shiny or awkward ones (1 in 5) it grasps 80 % of the time. Then an operator comes over (${c.armAssistDelay} s) and picks by hand.</div>` : ''}
         <div class="row2">${num('packStations', 'Manual pack stations', 1, 1, 5)}${num('products', 'SKUs', 10, 20, 2000)}</div>
         <div class="row2">${num('packBaggers', 'Auto-baggers', 1, 0, 4)}${num('packBoxers', 'Box-making machines', 1, 0, 3)}</div>
         <div class="note">Packing machines take the orders they fit and are faster than a person: an auto-bagger up to ${c.bagMaxUnits} units, ${c.bagMaxVol} L and ${c.bagMaxWeight} kg; a box-making machine up to ${c.boxMaxUnits} units and ${c.boxMaxVol} L. Every order goes to the station that will be done with it first.</div>
@@ -450,7 +460,7 @@
       return `<div class="hd"><b>${p.code} · ${esc(p.name)}</b><button class="close">×</button></div>
         <div class="toggle"><span>Operator mode</span><select id="pt-mode" style="width:auto"><option value="auto" ${p.mode === 'auto' ? 'selected' : ''}>Simulated operator</option><option value="manual" ${p.mode === 'manual' ? 'selected' : ''}>Manual (you pick)</option></select></div>
         ${hmi}${wall}
-        <dl class="kv" style="margin-top:10px"><dt>Queue</dt><dd>${p.inQ.length} in · ${p.pick ? 1 : 0} at pick · ${p.outQ.length} out · ${p.inbound} inbound</dd>
+        <dl class="kv" style="margin-top:10px">${p.arm ? `<dt>Robot arm</dt><dd>${p.arm.picks} of ${p.arm.units} units picked by the arm (${p.arm.tries} grasps) · ${p.arm.assists} by an operator${ln && ln.assist ? ' · <b>operator helping now</b>' : ''}</dd>` : ''}<dt>Queue</dt><dd>${p.inQ.length} in · ${p.pick ? 1 : 0} at pick · ${p.outQ.length} out · ${p.inbound} inbound</dd>
         <dt>${tm.Units} presented</dt><dd>${p.stats.presented}</dd><dt>Lines · units</dt><dd>${p.stats.lines} · ${p.stats.units}</dd><dt>Operator busy</dt><dd>${Math.round(busy * 100)}%</dd><dt>Starved</dt><dd>${Math.round((p.stats.starved / (p.stats.t || 1)) * 100)}% overall · ${Math.round(p.recentStarve * 100)}% recent</dd></dl>`;
     }
     bindPort(el, p) {

@@ -118,6 +118,18 @@ waiting. At 550 orders per hour, adding one machine to the three benches lifts A
 
 A storage unit that several stations need goes straight from one station to the next.
 
+**Robot arm picking** (CubeFlow, PodSwarm, RailRunner, SkyStack, StackPilot). Settings can turn
+the first pick stations into robot pick stations: a SCARA-style arm stands where the operator would
+and picks each unit from the storage unit into its order tote (4.5 s per unit, against about 5 s for
+a person at one unit). It tries once more when a grasp fails. Whether it can grip an item is a
+property of the product: items over 1.5 kg and soft or bagged ones (about 1 in 20) it cannot grip,
+shiny or awkward ones (1 in 5) it grasps 80 % of the time, the rest 98 %. When it cannot, an
+operator comes over (20 s) and picks by hand. Two ways to handle those items: *assist*, where any
+order may go to an arm station and about one unit in five then needs the operator; or *route*,
+where orders with an item the arm cannot grip are released only to manual stations, and the
+operator is needed for about one unit in a hundred. The control room shows the share of units the
+arms picked.
+
 **Inbound.** Receipts work like an ASN: the inventory system reserves compartment space, topping up
 same-SKU compartments first. Those units come to the goods-in station, the operator decants into
 them, and they are then stored. Optional min/max auto-replenishment creates receipts automatically.
@@ -422,7 +434,7 @@ js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), ren
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
-            non-default settings (nearest putaway, packing machines, no tunnelling, one-tote crane handler,
+            non-default settings (nearest putaway, robot arm stations, packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```

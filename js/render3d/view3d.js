@@ -528,7 +528,11 @@
       for (const p of sim.ports) {
         this.portLive(p);
         const op = L.operatorPos(p);
-        this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e');
+        if (p.arm) {
+          const a = WS.IsoRenderer.prototype.armPose.call(this, p);
+          this.arm(a);
+          if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, '#f97316');
+        } else this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e');
         if (p.kind !== 'PICK') {
           // cartons on the supplier pallets
           const g = sim.grid, px = g.W + 3.4, py = p.drop.y - 0.6, open = oms.receipts.filter((r) => r.status !== 'RECEIVED').reduce((s, r) => s + r.lines.length, 0);
@@ -580,6 +584,20 @@
         else if (it.order.pack === 'bagger') this.bag(D.box, q.x, q.y, 1.4);
         else this.parcel(D.box, q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, true);
       }
+    }
+
+    // Robot arm (pose from WS.IsoRenderer.armPose): base, column, a boom over
+    // to the tip, a rod down to the gripper and the item it holds.
+    arm(a) {
+      const D = this.dy, b = a.base, t = a.tip, top = this.CZ + 2.6, dx = t.x - b.x, dy = t.y - b.y, len = Math.hypot(dx, dy) || 1e-3;
+      D.cyl.cyl(b.x, b.y, 0, 0.35, 0.28, '#334155');
+      D.cyl.cyl(b.x, b.y, 0.35, top + 0.1, 0.11, '#f59e0b');
+      D.lit.box(b.x - 0.07, b.y - 0.14, top - 1.1, b.x + 0.07, b.y - 0.12, top - 0.8, '#38bdf8');
+      D.box.rbox(b.x, b.y, Math.atan2(-dy, dx), 0, -0.08, top - 0.08, len, 0.08, top + 0.12, '#f59e0b');
+      D.cyl.cyl(t.x, t.y, top - 0.15, top + 0.15, 0.1, '#d97706');
+      D.cyl.cyl(t.x, t.y, t.z + 0.22, top - 0.1, 0.035, '#94a3b8');
+      D.box.box(t.x - 0.09, t.y - 0.09, t.z, t.x + 0.09, t.y + 0.09, t.z + 0.22, '#475569');
+      if (t.hold) D.box.box(t.x - 0.08, t.y - 0.07, t.z - 0.3, t.x + 0.08, t.y + 0.07, t.z, a.color);
     }
 
     // ---------------------------------------------------------------- packing machines
@@ -692,7 +710,7 @@
       for (const p of sim.ports) {
         const pos = p.face === 'front' ? { x: p.drop.x + 1, y: g.D + 0.2 } : { x: g.W + 0.2, y: p.drop.y + 1 };
         const st = p.job ? (p.mode === 'manual' ? 'MANUAL' : 'ACTIVE') : p.inQ.length ? 'INBOUND' : 'WAITING';
-        this.label(`${p.code} ${p.kind === 'PICK' ? 'PICK' : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 7.2, { size: 10, bg, color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
+        this.label(`${p.code} ${p.kind === 'PICK' ? (p.arm ? 'ROBOT PICK' : 'PICK') : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 7.2, { size: 10, bg, color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
       }
       for (const pk of sim.oms.packers) { const q = L.packerPos(pk.idx); this.label(`${pk.name} · ${pk.queue.length} queued`, q.x, q.y, 5, { size: 10, bg, color: '#7dd3fc' }); }
       const d = L.dock(), tr = sim.oms.truck;

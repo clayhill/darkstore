@@ -20,6 +20,13 @@
     portInboundCap: 5, // bins assigned/queued per port
     conveyorStep: 1.4, // s per port conveyor position
     scanTime: 1.2, pickPerUnit: 3.2, putConfirm: 1.0, decantPerUnit: 1.6,
+    // Robot arm picking: the first armStations pick stations have a robot arm
+    // instead of an operator (0 = none). It picks a unit in armPerUnit s and
+    // tries again once when a grasp fails; then, or straight away for an item
+    // it cannot grip, an operator comes over (armAssistDelay s) and picks it
+    // by hand. armExceptions 'route' keeps orders with such items away from
+    // the arm stations at release.
+    armStations: 0, armPerUnit: 4.5, armAssistDelay: 20, armExceptions: 'assist', // 'assist' | 'route'
 
     // Outbound
     packStations: 3, packBase: 18, packPerUnit: 4, // manual pack benches: s per order + s per unit

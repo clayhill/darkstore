@@ -80,6 +80,15 @@
       }
       return best;
     }
+    // Chance that a robot arm grasps one unit of a product: a fixed property of
+    // the product (from its item reference, so it needs no random draws).
+    // Too heavy (over 1.5 kg) or soft and bagged (1 in 20): never; shiny or
+    // awkward (1 in 5): 80 %; the rest: 98 %.
+    gripRate(prod) {
+      const h = parseInt(prod.gtin.slice(7, 12), 10);
+      if (prod.weight > 1.5 || h % 20 === 0) return 0;
+      return h % 5 === 1 ? 0.8 : 0.98;
+    }
     isEmpty(bin) { return bin.comps.every((c) => !c.gtin && c.qty === 0 && c.incoming === 0); }
     available(prod) { return prod.onHand - prod.reserved; }
 

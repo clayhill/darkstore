@@ -68,6 +68,8 @@
       return o;
     }
     units(o) { return o.lines.reduce((s, l) => s + l.qty, 0); }
+    // every item of the order is one a robot arm can grip
+    armCanPick(o) { const inv = this.sim.inv; return o.lines.every((l) => inv.gripRate(inv.byGtin.get(l.gtin)) > 0); }
     orderVol(o) { const inv = this.sim.inv; return o.lines.reduce((s, l) => s + l.qty * inv.byGtin.get(l.gtin).vol, 0); }
     orderWeight(o) { const inv = this.sim.inv; return o.lines.reduce((s, l) => s + l.qty * inv.byGtin.get(l.gtin).weight, 0); }
     // whether a pack station can take an order: a person packs anything, the machines have limits
@@ -85,17 +87,23 @@
       if (!open.length) return;
       open.sort((a, b) => b.priority - a.priority || a.created - b.created);
       const picks = sim.ports.filter((p) => p.kind === 'PICK');
+      // routing at release keeps orders the arm cannot pick for the manual stations, if there are any
+      const route = sim.cfg.armExceptions === 'route' && picks.some((p) => !p.arm);
       for (const o of open) {
         if (!this.freeTotes.length) return;
         // port with a free put-wall slot and the least work queued
-        let port = null, best = Infinity;
+        let port = null, best = Infinity, full = true;
+        const manualOnly = route && !this.armCanPick(o);
         for (const p of picks) {
           const free = p.slots.indexOf(null);
           if (free < 0) continue;
+          full = false;
+          if (manualOnly && p.arm) continue;
           const load = p.slots.filter(Boolean).length * 3 + p.demand();
           if (load < best) { best = load; port = p; }
         }
-        if (!port) return;
+        if (full) return;
+        if (!port) continue; // only a manual station will do and none has a free slot: later orders may go ahead
         const plans = [];
         let ok = true;
         for (const l of o.lines) {

@@ -18,6 +18,29 @@
       this.stats = { presented: 0, busy: 0, starved: 0, blocked: 0, lines: 0, units: 0, t: 0 };
       this.recentStarve = 0; // decaying starvation share (alerts)
     }
+    // A robot arm picks here instead of an operator; arm counts its work.
+    setArm() {
+      this.arm = { tries: 0, picks: 0, assists: 0, units: 0 };
+      this.name = 'Robot pick ' + (this.idx + 1);
+    }
+    // Seconds the arm needs for a line: per unit one grasp, a second one when
+    // that fails, and an operator who comes over when that fails too or the
+    // item cannot be gripped at all. ln.assist counts those units.
+    armLine(ln) {
+      const sim = this.sim, c = sim.cfg, a = this.arm, g = sim.inv.gripRate(sim.inv.byGtin.get(ln.gtin));
+      let t = 0.5;
+      ln.assist = 0;
+      for (let u = 0; u < ln.qty; u++) {
+        a.units++;
+        if (g > 0) {
+          let ok = false;
+          for (let k = 0; k < 2 && !ok; k++) { t += c.armPerUnit; a.tries++; ok = sim.rng() < g; }
+          if (ok) { a.picks++; continue; }
+        }
+        t += c.armAssistDelay + c.pickPerUnit + c.putConfirm; ln.assist++; a.assists++;
+      }
+      return t;
+    }
     canAccept() { return this.queueRoom() > 0; }
     queueRoom() { return this.entryReserved ? 0 : 2 - this.inQ.length; } // totes the infeed still takes
     demand() {
@@ -45,7 +68,8 @@
       let t = cfg.scanTime, prev = null;
       for (const ln of lines) {
         if (sim.lineOverhead) t += sim.lineOverhead(bin, ln, prev, this); // e.g. turning a pod to another face
-        t += this.kind === 'PICK' ? 1.0 + ln.qty * cfg.pickPerUnit + cfg.putConfirm : 2.0 + ln.qty * cfg.decantPerUnit;
+        ln.start = t;
+        t += this.kind !== 'PICK' ? 2.0 + ln.qty * cfg.decantPerUnit : this.arm ? this.armLine(ln) : 1.0 + ln.qty * cfg.pickPerUnit + cfg.putConfirm;
         ln.at = t; prev = ln;
       }
       if (this.kind === 'GOODS_IN') t += 1.5; // bin confirm

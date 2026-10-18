@@ -149,6 +149,35 @@
       });
     }
 
+    // ---------------------------------------------------------------- robot arm
+    // Where a station's robot arm is (it stands where the operator would): a
+    // column at base, a boom over to the tip, which swings between the
+    // storage unit at the pick position and the order tote of the current
+    // line, low at either end and high in between, holding an item on the way
+    // over. While an operator helps out with a line the arm waits, raised,
+    // and the operator (helper) steps up beside it.
+    armPose(p) {
+      const sim = this.sim, L = sim.layout, base = L.operatorPos(p), pick = L.pickPos(p), CZ = this.CZ, j = p.job, ln = p.currentLine;
+      const front = p.face === 'front', helper = front ? { x: base.x + 0.7, y: base.y } : { x: base.x, y: base.y + 0.7 };
+      const rest = { x: (base.x + pick.x) / 2, y: (base.y + pick.y) / 2, z: CZ + 2.0, hold: false };
+      if (!j || !ln || p.mode !== 'auto' || ln.assist) return { base, tip: rest, helper, assist: !!(j && ln && ln.assist && p.mode === 'auto') };
+      const ph = (Math.max(0, j.t - ln.start - 0.5) / sim.cfg.armPerUnit) % 1, s = 0.5 - 0.5 * Math.cos(2 * Math.PI * ph);
+      const q = ln.order ? L.slotPos(p, ln.order.slot) : pick;
+      return { base, helper, assist: false, color: `hsl(${(parseInt(ln.gtin.slice(7, 12), 10) * 47) % 360},55%,60%)`, tip: { x: pick.x + (q.x - pick.x) * s, y: pick.y + (q.y - pick.y) * s, z: CZ + 0.9 + 1.4 * Math.sin(Math.PI * s), hold: ph > 0.08 && ph < 0.5 } };
+    }
+    drawArm(a) {
+      const P = this.P.bind(this), b = a.base, t = a.tip, top = this.CZ + 2.6;
+      this.box(b.x - 0.26, b.y - 0.26, 0, b.x + 0.26, b.y + 0.26, 0.35, '#334155');
+      this.box(b.x - 0.11, b.y - 0.11, 0.35, b.x + 0.11, b.y + 0.11, top, '#f59e0b');
+      this.box(b.x - 0.07, b.y - 0.13, top - 1.1, b.x + 0.07, b.y - 0.11, top - 0.8, '#0f172a'); // vision camera
+      this.line(P(b.x, b.y, top + 0.05), P(t.x, t.y, top + 0.05), '#b45309', 8);
+      this.line(P(b.x, b.y, top + 0.05), P(t.x, t.y, top + 0.05), '#f59e0b', 5);
+      this.box(t.x - 0.08, t.y - 0.08, top - 0.12, t.x + 0.08, t.y + 0.08, top + 0.15, '#d97706');
+      this.line(P(t.x, t.y, top - 0.1), P(t.x, t.y, t.z + 0.22), '#94a3b8', 3);
+      this.box(t.x - 0.09, t.y - 0.09, t.z, t.x + 0.09, t.y + 0.09, t.z + 0.22, '#475569');
+      if (t.hold) this.box(t.x - 0.08, t.y - 0.07, t.z - 0.3, t.x + 0.08, t.y + 0.07, t.z, '#888888', { top: a.color, left: a.color, right: a.color });
+    }
+
     // ---------------------------------------------------------------- packing
     // Manual pack bench: steel frame, shelf with flat-packed cartons, light worktop.
     drawPackBench(pk, q) {
@@ -237,7 +266,11 @@
       for (const p of sim.ports) {
         const op = L.operatorPos(p);
         this.drawPortBody(p, add);
-        add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e'));
+        if (p.arm) {
+          const a = this.armPose(p);
+          add(op.x + op.y + 0.5, () => this.drawArm(a));
+          if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, '#f97316'));
+        } else add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e'));
         if (p.kind === 'PICK') {
           const s0 = L.slotPos(p, 0);
           add(s0.x + s0.y, () => {
@@ -328,7 +361,7 @@
       for (const p of sim.ports) {
         const pos = p.face === 'front' ? { x: p.drop.x + 1, y: g.D + 0.2 } : { x: g.W + 0.2, y: p.drop.y + 1 };
         const st = p.job ? (p.mode === 'manual' ? 'MANUAL' : 'ACTIVE') : p.inQ.length ? 'INBOUND' : 'WAITING';
-        this.text(`${p.code} ${p.kind === 'PICK' ? 'PICK' : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 6.2, { size: 10, bg: 'rgba(15,23,42,0.82)', color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
+        this.text(`${p.code} ${p.kind === 'PICK' ? (p.arm ? 'ROBOT PICK' : 'PICK') : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 6.2, { size: 10, bg: 'rgba(15,23,42,0.82)', color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
       }
       for (const pk of sim.oms.packers) {
         const q = L.packerPos(pk.idx);

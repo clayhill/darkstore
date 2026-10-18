@@ -54,6 +54,9 @@
       this.inv = new WS.Inventory(this);
       this.router = new WS.Router(this);
       this.ports = this.grid.ports.map((d, k) => this.createPort(k, d));
+      // the first armStations pick stations get a robot arm
+      let arms = this.armsAllowed ? this.cfg.armStations || 0 : 0;
+      for (const p of this.ports) if (p.kind === 'PICK' && arms > 0) { arms--; p.setArm(); }
       this.layout = this.createLayout();
       this.kpi = new WS.KPI(this);
       this.fleet = [];
@@ -70,6 +73,8 @@
     // are shared.
     createLayout() { return new Layout(this); }
     createPort(k, def) { return new WS.Port(this, k, def); }
+    // whether pick stations can have a robot arm (a type without goods-to-person stations says no)
+    get armsAllowed() { return true; }
     // states only this type uses: { KEY: { label, color } }; they count as work
     get extraStates() { return {}; }
     compLabel(k) { return 'compartment ' + (k + 1); }
