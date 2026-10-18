@@ -275,6 +275,44 @@
       c.setLineDash([]);
     }
 
+    // ---------------------------------------------------------------- battery robots
+    // Overlays for types with robots on a floor (CubeFlow, PodSwarm, StackPilot).
+    // Planned route of every moving robot, from where it is drawn now, at height z.
+    drawPaths(alpha, z = 0) {
+      const sim = this.sim, P = this.P.bind(this), c = this.ctx;
+      for (const r of sim.fleet) {
+        if (!r.path || !r.op || r.op.op !== 'move') continue;
+        const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
+        const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id, col = STATE_COLORS[r.displayState];
+        c.beginPath();
+        let p = P(x + 0.5, y + 0.5, z + 0.05); c.moveTo(p[0], p[1]);
+        for (let k = r.pi + 1; k < r.path.length; k++) { p = P(r.path[k].x + 0.5, r.path[k].y + 0.5, z + 0.05); c.lineTo(p[0], p[1]); }
+        c.strokeStyle = col; c.globalAlpha = sel ? 0.95 : 0.5; c.lineWidth = sel ? 3 : 1.6; c.setLineDash(sel ? [] : [5, 4]); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+        const e = r.path[r.path.length - 1];
+        this.quadTop(e.x + 0.3, e.y + 0.3, e.x + 0.7, e.y + 0.7, z + 0.05, null, col, 1.5);
+      }
+    }
+    // Cells each robot has reserved ahead (fleet manager), at height z.
+    drawClaims(z) {
+      const g = this.sim.grid;
+      for (const r of this.sim.fleet) {
+        const col = STATE_COLORS[r.displayState];
+        for (const i of r.claims) {
+          const x = g.cx(i), y = g.cy(i);
+          if (x === r.x && y === r.y) continue;
+          this.quadTop(x + 0.12, y + 0.12, x + 0.88, y + 0.88, z + 0.02, rgba(col, 0.18), rgba(col, 0.55), 1);
+        }
+      }
+    }
+    // Name tag at height z and, when low, a battery bar above it.
+    robotTag(r, cx, cy, z, bg) {
+      this.text(r.name, cx, cy, z, { size: 9, color: '#0f172a', weight: 800, bg });
+      if (r.battery >= 30) return;
+      const [bx, by] = this.P(cx, cy, z + 1.1), c = this.ctx;
+      c.fillStyle = '#0f172a'; c.fillRect(bx - 11, by - 3, 22, 6);
+      c.fillStyle = r.battery < 15 ? '#ef4444' : '#facc15'; c.fillRect(bx - 10, by - 2, (20 * r.battery) / 100, 4);
+    }
+
     // ---------------------------------------------------------------- stations
     drawBin(x, y, z, binId, o = {}) {
       const inv = this.sim.inv, b = binId ? inv.binById.get(binId) : null;

@@ -262,8 +262,8 @@ cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet member base),
-            robot (battery robot state machine,
-            shared tasks), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
+            robot (battery robot state machine, shared tasks such as driving through a
+            station's queue lane), floor (cells, traffic heat and queue lanes of every robot floor), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout), rack (racking, storage policy and conveyor for
             RailRunner, SkyStack and StackPilot)
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts),

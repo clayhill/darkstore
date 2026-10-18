@@ -42,19 +42,9 @@
   // Queue through the station's lane one cell at a time, present the pod and
   // wait until the operator has worked every line on it.
   function* present(sim, r, port, pod) {
-    const g = sim.grid;
     if (r.x !== port.drop.x || r.y !== port.drop.y) {
       r.state = 'TRANSPORTING_TO_PORT';
-      yield { op: 'move', x: port.entry.x, y: port.entry.y };
-      // move up to the farthest free cell, wait when the pod ahead hasn't moved on
-      const cells = [...port.lane, port.drop], free = (c) => g.claim[g.idx(c.x, c.y)] < 0;
-      for (let k = -1; k < cells.length - 1;) {
-        yield { op: 'until', fn: () => free(cells[k + 1]), waitState: 'WAITING_PORT' };
-        let j = k + 1;
-        while (j + 1 < cells.length && free(cells[j + 1])) j++;
-        yield { op: 'move', x: cells[j].x, y: cells[j].y };
-        k = cells.findIndex((c) => c.x === r.x && c.y === r.y);
-      }
+      yield* WS.Tasks.throughLane(sim, r, port, port.drop);
     }
     r.state = 'AT_PORT';
     yield { op: 'until', fn: () => port.canAccept(), waitState: 'WAITING_PORT' };

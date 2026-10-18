@@ -8,31 +8,18 @@
  * podAt[i] holds the id of the pod standing on cell i. */
 (function (WS) {
   'use strict';
-  const CELL = Object.assign(WS.CELL, { HIGHWAY: 3, LANE: 4, BLOCKED: 5 });
+  const CELL = WS.CELL;
 
-  class PodFloor {
+  class PodFloor extends WS.RobotFloor {
     constructor(cfg) {
+      super(cfg.floorW, cfg.floorD, CELL.BLOCKED);
       this.cfg = cfg;
-      this.W = cfg.floorW; this.D = cfg.floorD;
       this.Z = 6; // tallest thing on the floor, in render levels (pods with robot under them)
       const n = this.W * this.D;
-      this.type = new Uint8Array(n).fill(CELL.BLOCKED);
       this.podAt = new Array(n).fill(null);
       this.podTarget = new Int16Array(n).fill(-1); // robot bringing a pod back to this cell
-      this.laneOf = new Int16Array(n).fill(-1); // port whose queue lane this cell is
-      this.laneIdx = new Int16Array(n).fill(-1); // position in the lane, 0 = entry
-      this.claim = new Int16Array(n).fill(-1);
-      this.colLock = new Int16Array(n).fill(-1); // unused for pods; the control room reads it
-      this.waitHeat = new Float32Array(n);
-      this.passHeat = new Float32Array(n);
-      this.version = 0;
-      this.ports = []; this.chargers = [];
       this.layout(cfg);
     }
-    idx(x, y) { return y * this.W + x; }
-    cx(i) { return i % this.W; }
-    cy(i) { return (i / this.W) | 0; }
-    inside(x, y) { return x >= 0 && y >= 0 && x < this.W && y < this.D; }
     isStorage(i) { return this.type[i] === CELL.STORAGE; }
     depthOf(i, id) { return this.podAt[i] === id ? 1 : -1; }
 
@@ -57,7 +44,8 @@
         if (sx > W - 4) break;
         const lane = [];
         for (let j = 0; j < L; j++) lane.push({ x: sx - L + j, y: D - 1 });
-        this.addPort({ kind: 'PICK', face: 'front', drop: { x: sx, y: D - 1 }, lift: { x: sx, y: D - 2 }, lane, entry: { x: sx - L, y: D - 2 } });
+        const drop = { x: sx, y: D - 1 };
+        this.addStation({ kind: 'PICK', face: 'front', drop, lift: { x: sx, y: D - 2 }, lane, entry: { x: sx - L, y: D - 2 } }, drop);
       }
       // Goods-in stations on the right edge, lanes running down column W-1.
       for (let k = 0; k < cfg.goodsInPorts; k++) {
@@ -65,7 +53,8 @@
         if (sy > D - 4) break;
         const lane = [];
         for (let j = 0; j < L; j++) lane.push({ x: W - 1, y: sy - L + j });
-        this.addPort({ kind: 'GOODS_IN', face: 'right', drop: { x: W - 1, y: sy }, lift: { x: W - 2, y: sy }, lane, entry: { x: W - 2, y: sy - L } });
+        const drop = { x: W - 1, y: sy };
+        this.addStation({ kind: 'GOODS_IN', face: 'right', drop, lift: { x: W - 2, y: sy }, lane, entry: { x: W - 2, y: sy - L } }, drop);
       }
       // Chargers on the back wall, reached from the highway in front of it.
       for (let k = 0; k < cfg.chargers; k++) {
@@ -73,13 +62,6 @@
         this.type[this.idx(x, 0)] = CELL.CHARGER;
         this.chargers.push({ id: k, x, y: 0, robot: -1 });
       }
-    }
-    addPort(p) {
-      const k = this.ports.length;
-      p.cells = [...p.lane, p.drop];
-      p.lane.forEach((c, j) => { const i = this.idx(c.x, c.y); this.type[i] = CELL.LANE; this.laneOf[i] = k; this.laneIdx[i] = j; });
-      this.type[this.idx(p.drop.x, p.drop.y)] = CELL.PORT;
-      this.ports.push(p);
     }
 
     // ---------- traffic rules (used by the router) ----------
@@ -94,19 +76,10 @@
       if (!this.podAt[i]) return true;
       return !!r && !r.bin && this.cfg.tunnelling !== 'off';
     }
-    // A lane cell is entered from the one before it (or the entry highway), a
-    // station only from the end of its lane, so pods queue in order.
+    // Lanes and stations are entered in queue order (WS.RobotFloor.laneEnter).
     enterGoal(i, r, from) {
       const t = this.type[i];
-      if (t === CELL.LANE) {
-        const p = this.ports[this.laneOf[i]], j = this.laneIdx[i];
-        const prev = j === 0 ? p.entry : p.lane[j - 1];
-        return from === this.idx(prev.x, prev.y);
-      }
-      if (t === CELL.PORT) {
-        const p = this.ports.find((q) => this.idx(q.drop.x, q.drop.y) === i), last = p.lane[p.lane.length - 1];
-        return from === this.idx(last.x, last.y);
-      }
+      if (t === CELL.LANE || t === CELL.PORT) return this.laneEnter(i, from);
       if (t === CELL.STORAGE && r && r.bin && this.podAt[i]) return false;
       return true;
     }
@@ -123,11 +96,6 @@
       return { [CELL.HIGHWAY]: '#0c1220', [CELL.LANE]: '#2a2208', [CELL.PORT]: '#3a2a0a', [CELL.CHARGER]: '#0f3321' }[t] || '#070b12';
     }
     get mapTitle() { return 'FLOOR · blue = pod'; }
-
-    decayHeat(dt) {
-      const f = Math.exp(-dt / 300);
-      for (let i = 0; i < this.waitHeat.length; i++) { this.waitHeat[i] *= f; this.passHeat[i] *= f; }
-    }
   }
 
   WS.PodFloor = PodFloor;

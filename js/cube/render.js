@@ -4,7 +4,7 @@
  * and the robots with their winches. */
 (function (WS) {
   'use strict';
-  const { shade, rgba, STATE_COLORS, CLASS_COLORS } = WS;
+  const { shade, STATE_COLORS, CLASS_COLORS } = WS;
 
   class CubeRenderer extends WS.IsoRenderer {
     pick(sx, sy) {
@@ -151,16 +151,7 @@
         this.glow(ch.x + 0.5, -0.18, Z + 1.3, 14, on ? '#4ade80' : '#22c55e', on ? 0.9 : 0.35);
       }
       // claims & column locks
-      if (this.opts.claims) {
-        for (const r of sim.fleet) {
-          const col = STATE_COLORS[r.displayState];
-          for (const i of r.claims) {
-            const x = g.cx(i), y = g.cy(i);
-            if (x === r.x && y === r.y) continue;
-            this.quadTop(x + 0.12, y + 0.12, x + 0.88, y + 0.88, Z + 0.02, rgba(col, 0.18), rgba(col, 0.55), 1);
-          }
-        }
-      }
+      if (this.opts.claims) this.drawClaims(Z);
       if (this.hover && this.hover.kind === 'cell') {
         const x = g.cx(this.hover.id), y = g.cy(this.hover.id);
         this.quadTop(x, y, x + 1, y + 1, Z + 0.02, 'rgba(255,255,255,0.12)', '#fff', 1.5);
@@ -177,19 +168,7 @@
       const list = sim.fleet.map((r) => ({ r, x: r.prx + (r.rx - r.prx) * alpha, y: r.pry + (r.ry - r.pry) * alpha }));
       list.sort((a, b) => a.x + a.y - (b.x + b.y));
       // paths first, so robots sit on top
-      if (this.opts.paths) {
-        for (const { r, x, y } of list) {
-          if (!r.path || !r.op || r.op.op !== 'move') continue;
-          const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id;
-          const c = this.ctx, col = STATE_COLORS[r.displayState];
-          c.beginPath();
-          let p = P(x + 0.5, y + 0.5, Z + 0.05); c.moveTo(p[0], p[1]);
-          for (let k = r.pi + 1; k < r.path.length; k++) { p = P(r.path[k].x + 0.5, r.path[k].y + 0.5, Z + 0.05); c.lineTo(p[0], p[1]); }
-          c.strokeStyle = rgba(col, sel ? 0.95 : 0.45); c.lineWidth = sel ? 3 : 1.6; c.setLineDash(sel ? [] : [5, 4]); c.stroke(); c.setLineDash([]);
-          const e = r.path[r.path.length - 1];
-          this.quadTop(e.x + 0.3, e.y + 0.3, e.x + 0.7, e.y + 0.7, Z + 0.05, null, rgba(col, 0.9), 1.5);
-        }
-      }
+      if (this.opts.paths) this.drawPaths(alpha, Z);
       for (const { r, x, y } of list) {
         const col = STATE_COLORS[r.displayState];
         const x0 = x + 0.08, y0 = y + 0.08, x1 = x + 0.92, y1 = y + 0.92, zt = Z + 2.0;
@@ -236,12 +215,7 @@
         const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id;
         if (sel) this.quadTop(x - 0.08, y - 0.08, x + 1.08, y + 1.08, Z + 0.02, null, '#38bdf8', 2.5);
         if (this.opts.labels) {
-          this.text(r.name, x + 0.5, y + 0.5, zt + 0.02, { size: 9, color: '#0f172a', weight: 800 });
-          if (r.battery < 30) {
-            const [bx, by] = P(x + 0.5, y + 0.5, zt + 1.4), c = this.ctx;
-            c.fillStyle = '#0f172a'; c.fillRect(bx - 11, by - 3, 22, 6);
-            c.fillStyle = r.battery < 15 ? '#ef4444' : '#facc15'; c.fillRect(bx - 10, by - 2, (20 * r.battery) / 100, 4);
-          }
+          this.robotTag(r, x + 0.5, y + 0.5, zt + 0.02);
           if (r.winch > 0.02 && !this.opts.xray) this.text('↓ ' + r.winch.toFixed(1) + ' m', x + 0.5, y + 0.5, zt + 1.6, { size: 9, color: '#fde68a', bg: 'rgba(15,23,42,0.75)' });
         }
       }

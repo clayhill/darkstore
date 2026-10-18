@@ -131,6 +131,23 @@
     r.busy = false; ch.robot = -1;
   };
 
+  // Drive through a station's queue lane (WS.RobotFloor.addStation) one cell
+  // at a time to the cell `end`: up to the farthest free cell, waiting while
+  // the robot ahead hasn't moved on.
+  T.throughLane = function* (sim, r, port, end) {
+    const g = sim.grid;
+    if (r.x === end.x && r.y === end.y) return;
+    yield { op: 'move', x: port.entry.x, y: port.entry.y };
+    const cells = [...port.lane, end], free = (c) => g.claim[g.idx(c.x, c.y)] < 0;
+    for (let k = -1; k < cells.length - 1;) {
+      yield { op: 'until', fn: () => free(cells[k + 1]), waitState: 'WAITING_PORT' };
+      let j = k + 1;
+      while (j + 1 < cells.length && free(cells[j + 1])) j++;
+      yield { op: 'move', x: cells[j].x, y: cells[j].y };
+      k = cells.findIndex((c) => c.x === r.x && c.y === r.y);
+    }
+  };
+
   T.YIELD = function* (sim, r, t) {
     r.state = 'YIELDING';
     yield { op: 'move', x: t.x, y: t.y };

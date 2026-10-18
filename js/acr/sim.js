@@ -10,7 +10,7 @@
  * bookkeeping and conveyors come from WS.RackSim (js/sim/rack.js). */
 (function (WS) {
   'use strict';
-  const CELL = Object.assign(WS.CELL, { HIGHWAY: 3, LANE: 4, BLOCKED: 5, AISLE: 6, PARK: 7 });
+  const CELL = Object.assign(WS.CELL, { AISLE: 6, PARK: 7 });
   const TERMS = { unit: 'tote', Unit: 'Tote', units: 'totes', Units: 'Totes', store: 'racking', Store: 'Racking', port: 'station', ports: 'stations', machine: 'Robot' };
   const STATE_LABELS = { MOVING_TO_TARGET: 'To a location', STORING: 'To store', MAST: 'Mast up/down', HANDLING: 'Handler', TRANSPORTING_TO_PORT: 'To station', AT_PORT: 'Handover', WAITING_PORT: 'Waiting (port queue)' };
   const LEGEND = ['IDLE', 'MOVING_TO_TARGET', 'STORING', 'MAST', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING'];
@@ -23,26 +23,17 @@
   // Right of the racking: a corridor two cells wide and a column of parking
   // spots and chargers. Lane entries sit in front of rack columns, not aisle
   // mouths, so robots queueing for a station never block an aisle.
-  class AcrFloor {
+  class AcrFloor extends WS.RobotFloor {
     constructor(cfg, sim) {
       const A = cfg.aisles, B = cfg.bays, L = cfg.levels, nPorts = cfg.pickPorts + cfg.goodsInPorts, ll = cfg.laneLength;
-      this.cfg = cfg; this.sim = sim;
-      Object.assign(this, { A, B, L }); this.SB = B;
-      this.LH = cfg.levelHeight / ZU; this.Z0 = 0.5; this.Z = this.Z0 + L * this.LH; // render levels
-      this.ioZ = 0.6; // handler height while driving
-      this.Y0 = 2; this.frontY = this.Y0 + B; this.laneY = this.frontY + 2; this.D = this.laneY + 2;
-      this.parkX = A * 3 + 2;
       // station pitch: lane, handover point and the put wall with its spur; a multiple of 3
       const pitch = 3 * Math.ceil(Math.max(ll + 4, 3.15 + (cfg.toteSlots - 1) * 0.52) / 3), sx = (k) => 3 + ll + k * pitch;
-      this.W = Math.max(this.parkX + 1, sx(nPorts - 1) + 2); this.shadowW = this.W;
-      const n = this.W * this.D;
-      this.type = new Uint8Array(n).fill(CELL.BLOCKED);
-      this.claim = new Int16Array(n).fill(-1);
-      this.colLock = new Int16Array(n).fill(-1); // unused; the control room reads it
-      this.laneOf = new Int16Array(n).fill(-1); this.laneIdx = new Int16Array(n).fill(-1); this.portOf = new Int16Array(n).fill(-1);
-      this.waitHeat = new Float32Array(n); this.passHeat = new Float32Array(n);
-      this.version = 0;
-      this.ports = []; this.chargers = [];
+      const Y0 = 2, laneY = Y0 + B + 2, parkX = A * 3 + 2;
+      super(Math.max(parkX + 1, sx(nPorts - 1) + 2), laneY + 2, CELL.BLOCKED);
+      this.cfg = cfg; this.sim = sim;
+      Object.assign(this, { A, B, L, Y0, laneY, parkX }); this.SB = B; this.frontY = Y0 + B; this.shadowW = this.W;
+      this.LH = cfg.levelHeight / ZU; this.Z0 = 0.5; this.Z = this.Z0 + L * this.LH; // render levels
+      this.ioZ = 0.6; // handler height while driving
       for (let y = 0; y < this.laneY; y++) {
         for (let x = 0; x < this.W; x++) {
           let t = CELL.HIGHWAY;
@@ -63,15 +54,9 @@
         const x = sx(k), lane = [];
         for (let j = 0; j < ll; j++) lane.push({ x: x - ll + j, y: this.laneY });
         const hand = { x, y: this.laneY };
-        lane.forEach((c, j) => { const i = this.idx(c.x, c.y); this.type[i] = CELL.LANE; this.laneOf[i] = k; this.laneIdx[i] = j; });
-        this.type[this.idx(x, this.laneY)] = CELL.PORT; this.portOf[this.idx(x, this.laneY)] = k;
-        this.ports.push({ kind: k < cfg.pickPorts ? 'PICK' : 'GOODS_IN', face: 'front', drop: { x, y: this.D - 1 }, lift: { x: x + 1, y: this.D - 1 }, lane, hand, entry: { x: x - ll, y: this.laneY - 1 }, cells: [...lane, hand] });
+        this.addStation({ kind: k < cfg.pickPorts ? 'PICK' : 'GOODS_IN', face: 'front', drop: { x, y: this.D - 1 }, lift: { x: x + 1, y: this.D - 1 }, lane, hand, entry: { x: x - ll, y: this.laneY - 1 } }, hand);
       }
     }
-    idx(x, y) { return y * this.W + x; }
-    cx(i) { return i % this.W; }
-    cy(i) { return (i / this.W) | 0; }
-    inside(x, y) { return x >= 0 && y >= 0 && x < this.W && y < this.D; }
     depthOf() { return 1; }
     levelZ(l) { return this.Z0 + l * this.LH; }
     laneX(a) { return a * 3 + 1.5; }
@@ -93,18 +78,13 @@
       const t = this.type[i];
       if (t === CELL.HIGHWAY || t === CELL.PARK) return this.dirOK(i, from);
       if (t === CELL.AISLE) return this.aisleOK(i, r, from);
-      if (t === CELL.LANE) return this.enterGoal(i, r, from);
+      if (t === CELL.LANE) return this.laneEnter(i, from);
       return false;
     }
-    // A lane cell is entered from the one before it (or the entry cell), a
-    // handover point only from the end of its lane, so robots queue in order.
+    // Lanes and handover points are entered in queue order (WS.RobotFloor.laneEnter).
     enterGoal(i, r, from) {
       const t = this.type[i];
-      if (t === CELL.LANE || t === CELL.PORT) {
-        const p = this.ports[t === CELL.LANE ? this.laneOf[i] : this.portOf[i]], j = t === CELL.LANE ? this.laneIdx[i] : p.lane.length;
-        const prev = j === 0 ? p.entry : p.lane[j - 1];
-        return from === this.idx(prev.x, prev.y);
-      }
+      if (t === CELL.LANE || t === CELL.PORT) return this.laneEnter(i, from);
       if (t === CELL.AISLE) return this.aisleOK(i, r, from);
       if (t === CELL.HIGHWAY || t === CELL.PARK) return this.dirOK(i, from);
       return t === CELL.CHARGER;
@@ -118,10 +98,6 @@
       return { [CELL.HIGHWAY]: '#0c1220', [CELL.AISLE]: '#111a2a', [CELL.PARK]: '#0d1a14', [CELL.LANE]: '#2a2208', [CELL.PORT]: '#3a2a0a', [CELL.CHARGER]: '#0f3321' }[t] || '#070b12';
     }
     get mapTitle() { return 'FLOOR · fill = totes per rack column'; }
-    decayHeat(dt) {
-      const f = Math.exp(-dt / 300);
-      for (let i = 0; i < this.waitHeat.length; i++) { this.waitHeat[i] *= f; this.passHeat[i] *= f; }
-    }
   }
 
   // The order totes' spur sits just past the put wall, which is wide here.
@@ -145,20 +121,6 @@
   // ---------------------------------------------------------------- tasks
   const T = { CHARGE: WS.Tasks.CHARGE, YIELD: WS.Tasks.YIELD, PARK: WS.Tasks.PARK };
 
-  // Drive through a station's queue lane one cell at a time to its handover point.
-  function* toHandover(sim, r, port) {
-    const g = sim.grid, h = port.hand;
-    if (r.x === h.x && r.y === h.y) return;
-    yield { op: 'move', x: port.entry.x, y: port.entry.y };
-    const cells = [...port.lane, h], free = (c) => g.claim[g.idx(c.x, c.y)] < 0;
-    for (let k = -1; k < cells.length - 1;) {
-      yield { op: 'until', fn: () => free(cells[k + 1]), waitState: 'WAITING_PORT' };
-      let j = k + 1;
-      while (j + 1 < cells.length && free(cells[j + 1])) j++;
-      yield { op: 'move', x: cells[j].x, y: cells[j].y };
-      k = cells.findIndex((c) => c.x === r.x && c.y === r.y);
-    }
-  }
 
   // One trip: load returning totes at a station, visit the stops (store and
   // take totes, handler up and down at each), hand the batch over at the
@@ -168,7 +130,7 @@
     if (t.pickup != null) {
       const port = sim.ports[t.pickup];
       r.state = 'MOVING_TO_TARGET';
-      yield* toHandover(sim, r, port);
+      yield* WS.Tasks.throughLane(sim, r, port, port.hand);
       r.state = 'AT_PORT'; r.busy = true;
       for (const bin of t.returns) {
         yield { op: 'wait', t: cfg.handoverTime };
@@ -210,7 +172,7 @@
       yield { op: 'until', fn: () => sim.visitors(port) < cfg.laneLength + 1, waitState: 'WAITING_PORT' };
       t.toDest = true;
       r.state = 'TRANSPORTING_TO_PORT';
-      yield* toHandover(sim, r, port);
+      yield* WS.Tasks.throughLane(sim, r, port, port.hand);
       r.state = 'AT_PORT'; r.busy = true;
       while (r.load.length) {
         yield { op: 'wait', t: cfg.handoverTime };

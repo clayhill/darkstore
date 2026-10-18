@@ -6,24 +6,13 @@
   'use strict';
   const CELL = WS.CELL;
 
-  class Grid {
+  class Grid extends WS.RobotFloor {
     constructor(cfg) {
-      this.W = cfg.gridW; this.D = cfg.gridD; this.Z = cfg.gridZ;
-      const n = this.W * this.D;
-      this.type = new Uint8Array(n);
-      this.stacks = Array.from({ length: n }, () => []);
-      this.claim = new Int16Array(n).fill(-1); // robot holding the cell (single occupancy)
-      this.colLock = new Int16Array(n).fill(-1); // robot owning the column for a lift/drop
-      this.waitHeat = new Float32Array(n); // decaying seconds of traffic waiting per cell
-      this.passHeat = new Float32Array(n); // decaying robot passes per cell
-      this.version = 0; // bumped whenever a stack changes (renderer cache key)
-      this.ports = []; this.chargers = [];
+      super(cfg.gridW, cfg.gridD, CELL.STORAGE); // version is bumped whenever a stack changes
+      this.Z = cfg.gridZ;
+      this.stacks = Array.from({ length: this.W * this.D }, () => []);
       this.layout(cfg);
     }
-    idx(x, y) { return y * this.W + x; }
-    cx(i) { return i % this.W; }
-    cy(i) { return (i / this.W) | 0; }
-    inside(x, y) { return x >= 0 && y >= 0 && x < this.W && y < this.D; }
     isStorage(i) { return this.type[i] === CELL.STORAGE; }
     // Traffic rules used by the router: robots drive over storage cells only;
     // ports and chargers are destinations, never thoroughfares.
@@ -69,11 +58,6 @@
         this.type[i] = CELL.CHARGER;
         this.chargers.push({ id: k, x, y: 0, robot: -1 });
       }
-    }
-
-    decayHeat(dt) {
-      const f = Math.exp(-dt / 300); // 5-minute time constant
-      for (let i = 0; i < this.waitHeat.length; i++) { this.waitHeat[i] *= f; this.passHeat[i] *= f; }
     }
   }
 
