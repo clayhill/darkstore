@@ -21,15 +21,16 @@
       const ro = new ResizeObserver(() => { const fresh = !this.iso.w; this.iso.resize(); if (fresh) this.iso.fit(); });
       ro.observe(document.getElementById('iso-wrap'));
       this.iso.resize(); this.iso.fit();
-      // optional URL parameters: ?warm=<sim seconds to pre-run>&view=floor|split|control&xray=1
+      // optional URL parameters: ?warm=<sim seconds to pre-run>&view=floor|split|control&xray=1&tilt=<degrees>
       const q = new URLSearchParams(location.search);
       const warm = +q.get('warm') || 0;
       for (let k = 0; k < warm / this.sim.cfg.tick; k++) this.sim.tick();
       if (q.get('view')) this.setView(q.get('view'));
-      for (const o of ['xray', 'heat']) if (q.get(o) === '1') document.querySelector(`[data-opt="${o}"]`).click();
+      for (const o of ['xray', 'heat', 'solid']) if (q.get(o) === '1') document.querySelector(`[data-opt="${o}"]`).click();
       const cut = document.getElementById('cut-level');
       if (cut && +q.get('cut')) { if (q.get('only') === '1') document.getElementById('cut-only').click(); cut.value = q.get('cut'); cut.dispatchEvent(new Event('input')); }
       if (q.get('tab')) this.ui.setTab(q.get('tab'));
+      if (+q.get('tilt')) this.iso.setTilt((+q.get('tilt') * Math.PI) / 180);
       if (+q.get('zoom')) this.iso.zoomAt(this.iso.w * (+q.get('zx') || 0.5), this.iso.h * (+q.get('zy') || 0.5), +q.get('zoom'));
       this.ui.refresh();
       this.render(1);

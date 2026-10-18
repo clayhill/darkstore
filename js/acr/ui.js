@@ -40,7 +40,7 @@
     live: ['putawayPolicy', 'handlerTime', 'handoverTime', 'minBatch', 'batchWait'],
     motion(r) { return `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}`; },
     mechanism(r) {
-      return `<dt>Handler</dt><dd>${(r.mast * WS.RACK_ZU).toFixed(1)} m up the mast${r.state === 'HANDLING' ? ' · reaching into the ' + side(r.face) + ' rack' : ''}</dd>
+      return `<dt>Handler</dt><dd>${(r.mast * WS.RACK_ZU).toFixed(1)} m up the mast${r.xfer ? ` · ${r.xfer.take ? 'taking a tote from' : 'putting a tote into'} the ${side(r.xfer.side)} rack` : ''}</dd>
         <dt>Back shelves</dt><dd>${r.load.length} / ${r.sim.cfg.robotSlots} totes</dd>`;
     },
     liftsLabel: 'totes handled',

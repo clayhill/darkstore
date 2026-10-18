@@ -5,7 +5,10 @@
  * packing, the dock) is WS.IsoRenderer in js/render/stations.js. */
 (function (WS) {
   'use strict';
-  const TW = 64, TH = 32, LV = 17;
+  // TW: screen width of a cell. The view looks down at an elevation (cam.tilt,
+  // 30° by default); ZK is a render level's screen height looking level, so at
+  // 30° a cell's diagonal is TW/2 deep and a level 17 px high, as before.
+  const TW = 64, TILT0 = Math.PI / 6, ZK = 17 / Math.cos(TILT0), TILT_MIN = 0.25, TILT_MAX = 1.35;
   const STATE_COLORS = {
     IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
     AT_PORT: '#2dd4bf', STORING: '#a78bfa', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
@@ -30,7 +33,8 @@
   class IsoView {
     constructor(canvas, app) {
       this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.app = app;
-      this.cam = { x: 0, y: 0, zoom: 0.8 };
+      this.cam = { x: 0, y: 0, zoom: 0.8, tilt: TILT0 };
+      this.ky = TW / 4; this.kz = 17; // screen y per (x + y) and per level at the current tilt
       this.opts = { xray: false, heat: false, paths: true, claims: true, labels: true };
       this.selected = null; this.hover = null;
       this.t = 0; this.CZ = 2.2; // conveyor height (levels)
@@ -38,7 +42,16 @@
       this.bindInput();
     }
     get sim() { return this.app.sim; }
-    P(x, y, z) { return [((x - y) * TW) / 2, ((x + y) * TH) / 2 - z * LV]; }
+    P(x, y, z) { return [((x - y) * TW) / 2, (x + y) * this.ky - z * this.kz]; }
+    // Look down at elevation t (radians), keeping the floor point at the
+    // centre of the view where it is.
+    setTilt(t) {
+      t = WS.U.clamp(t, TILT_MIN, TILT_MAX);
+      const w = this.toWorld(this.w / 2, this.h / 2, 0);
+      this.cam.tilt = t; this.ky = (TW / 2) * Math.sin(t); this.kz = ZK * Math.cos(t);
+      this.cam.y = this.h / 2 - this.P(w.x, w.y, 0)[1] * this.cam.zoom;
+      this.resetCaches();
+    }
 
     resize() {
       const r = this.canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
@@ -61,8 +74,8 @@
       this.cam.y = this.h / 2 - ((b.y0 + b.y1) / 2) * z;
     }
     toWorld(sx, sy, z) {
-      const wx = (sx - this.cam.x) / this.cam.zoom, wy = (sy - this.cam.y) / this.cam.zoom + z * LV;
-      const a = wx / (TW / 2), b = wy / (TH / 2);
+      const wx = (sx - this.cam.x) / this.cam.zoom, wy = (sy - this.cam.y) / this.cam.zoom + z * this.kz;
+      const a = wx / (TW / 2), b = wy / this.ky;
       return { x: (a + b) / 2, y: (b - a) / 2 };
     }
 
@@ -73,7 +86,7 @@
       let L = this.layers.get(name);
       if (!L) { L = { cv: document.createElement('canvas'), key: '', camKey: '', time: 0, cam: null }; this.layers.set(name, L); }
       const now = performance.now(), full = key + '|' + this.w + 'x' + this.h;
-      const camKey = this.cam.x.toFixed(1) + ',' + this.cam.y.toFixed(1) + ',' + this.cam.zoom.toFixed(4);
+      const camKey = this.cam.x.toFixed(1) + ',' + this.cam.y.toFixed(1) + ',' + this.cam.zoom.toFixed(4) + ',' + this.cam.tilt.toFixed(3);
       if ((full !== L.key || camKey !== L.camKey) && (now - L.time > 180 || !L.cam)) {
         L.cv.width = this.canvas.width; L.cv.height = this.canvas.height;
         const saved = this.ctx; this.ctx = L.cv.getContext('2d');
@@ -94,12 +107,15 @@
     bindInput() {
       const c = this.canvas;
       let drag = null;
-      c.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y, moved: false }; });
+      // drag pans; Shift-drag or right-drag tilts (up looks down more steeply)
+      c.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y, tilt: this.cam.tilt, tilting: e.shiftKey || e.button === 2, moved: false }; });
+      c.addEventListener('contextmenu', (e) => e.preventDefault());
       window.addEventListener('mousemove', (e) => {
         if (drag) {
           const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
           if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
-          this.cam.x = drag.cx + dx; this.cam.y = drag.cy + dy;
+          if (drag.tilting) this.setTilt(drag.tilt - dy * 0.006);
+          else { this.cam.x = drag.cx + dx; this.cam.y = drag.cy + dy; }
         } else if (e.target === c) {
           const r = c.getBoundingClientRect();
           this.hover = this.pick(e.clientX - r.left, e.clientY - r.top);
@@ -330,7 +346,6 @@
   }
 
   WS.IsoView = IsoView;
-  WS.ISO = { TW, TH, LV };
   WS.STATE_COLORS = STATE_COLORS;
   // colour of a mover state, the shared ones or the type's own (sim.extraStates)
   WS.stateColor = (sim, s) => STATE_COLORS[s] || sim.extraStates[s].color;

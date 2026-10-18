@@ -1,4 +1,4 @@
-/* SkyStack view: the shared see-through racking (WS.PreZoneRenderer) with a floor
+/* SkyStack view: the shared racking (WS.PreZoneRenderer) with a floor
  * rail and a top guide rail in every aisle, an orange stacker crane per aisle
  * (drive unit, mast, carriage with a twin load handler), returning totes waiting at
  * the I/O point and the pre-zone conveyor to the stations. */
@@ -11,13 +11,10 @@
     drawScene() {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();
-      this.drawRacking();
+      this.drawRackScene((aisle) => [() => this.drawCrane(aisle.crane)]);
       this.drawSelectedCell();
       const items = [];
-      for (const aisle of sim.aisles) {
-        items.push({ d: g.laneX(aisle.a) + aisle.crane.pos, fn: () => this.drawCrane(aisle.crane) });
-        items.push({ d: g.laneX(aisle.a) + g.B + 0.6, fn: () => this.drawInfeed(aisle) });
-      }
+      for (const aisle of sim.aisles) items.push({ d: g.laneX(aisle.a) + g.B + 0.6, fn: () => this.drawInfeed(aisle) });
       this.conveyorItems(items);
       this.drawStations(items);
     }
@@ -53,18 +50,22 @@
       this.faceY(y + 0.924, cx - 0.1, cx + 0.04, 1.42, 1.5, col);
       // lifting carriage: orange side plates, dark deck, telescopic forks
       const x0 = cx - 0.44, x1 = cx + 0.44, y0 = y - 0.3, y1 = y + 0.5;
-      let e = 0;
-      if (cr.state === 'HANDLING' && cr.op && cr.op.op === 'wait') e = Math.sin(Math.PI * Math.min(1, cr.op.t / cr.op.dur)) * 0.8;
+      const xf = this.xfer(cr), e = xf ? xf.reach * 0.8 : 0;
       this.box(x0, y0, z - 0.2, x1, y1, z - 0.04, '#334155', Object.assign({ top: '#475569' }, edge));
       for (const fy of [y0 + 0.12, y1 - 0.16]) {
-        const fx0 = cr.face === 0 ? x0 - e : x0 + 0.06, fx1 = cr.face === 1 ? x1 + e : x1 - 0.06;
+        const fx0 = xf && xf.side === 0 ? x0 - e : x0 + 0.06, fx1 = xf && xf.side === 1 ? x1 + e : x1 - 0.06;
         this.box(fx0, fy, z - 0.06, fx1, fy + 0.05, z, '#cbd5e1', { top: '#e2e8f0' });
       }
-      if (cr.face < 0 && e) this.box(cx - 0.3, y1, z - 0.06, cx + 0.3, y1 + e, z, '#cbd5e1', { top: '#e2e8f0' });
-      cr.load.forEach((id, k) => {
-        const c2 = this.toteColor(sim.inv.binById.get(id)), ya = y0 + 0.04 + k * 0.4;
-        this.toteBox(x0 + 0.1, ya, x1 - 0.1, ya + 0.36, z, c2);
-      });
+      if (xf && xf.side < 0) this.box(cx - 0.3, y1, z - 0.06, cx + 0.3, y1 + e, z, '#cbd5e1', { top: '#e2e8f0' });
+      // totes on the handler; one taken or put slides between its handler
+      // position and the rack (or the I/O point in front)
+      const tote = (id, k, u) => {
+        let x = cx, ya = y0 + 0.04 + k * 0.4;
+        if (u) { if (xf.side < 0) ya += (y1 + 0.3 - ya) * u; else x += (this.sideX(cr.a, xf.side) - cx) * u; }
+        this.toteBox(x - 0.34, ya, x + 0.34, ya + 0.36, z + (xf && xf.side >= 0 ? 0.06 * u : 0), this.toteColor(sim.inv.binById.get(id)));
+      };
+      cr.load.forEach((id, k) => tote(id, k, xf && !xf.take && xf.id === id ? xf.u : 0));
+      if (xf && xf.take && xf.u != null) tote(xf.id, cr.load.length, xf.u);
       for (const px of [x0, x1 - 0.07]) this.box(px, y0, z - 0.2, px + 0.07, y1, z + 0.5, ORANGE, or);
       this.faceY(y1 + 0.002, x0 + 0.1, x1 - 0.1, z - 0.16, z - 0.08, col);
       const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === cr.id;
@@ -73,7 +74,7 @@
     // returning totes waiting on the infeed for the crane
     drawInfeed(aisle) {
       const g = this.sim.grid;
-      aisle.inQ.slice(0, 2).forEach((it, k) => this.drawBin(g.laneX(aisle.a), g.B + 0.55 + k * 0.6, 1.4, it.bin.id, { w: 0.26, d: 0.28 }));
+      aisle.inQ.filter((it) => !this.moving.has(it.bin.id)).slice(0, 2).forEach((it, k) => this.drawBin(g.laneX(aisle.a), g.B + 0.55 + k * 0.6, 1.4, it.bin.id, { w: 0.26, d: 0.28 }));
     }
 
     machinePoints() {

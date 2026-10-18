@@ -12,8 +12,7 @@
     drawScene() {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();
-      this.drawRacking();
-      this.drawShuttles();
+      this.drawRackScene((aisle) => this.aisleItems(aisle));
       this.drawSelectedCell();
       const items = [];
       for (const aisle of sim.aisles) items.push({ d: g.laneX(aisle.a) + g.B, fn: () => this.drawLift(aisle) });
@@ -31,21 +30,23 @@
       }
     }
 
-    // Shuttles, and the totes waiting in each level's front buffers, on the
+    // An aisle's shuttles and the totes in its levels' front buffers, on the
     // levels the cut-away shows.
-    drawShuttles() {
-      const sim = this.sim, g = sim.grid, B = g.B;
-      for (const aisle of sim.aisles) {
-        const a = aisle.a;
-        for (let l = 0; l < g.L; l++) {
-          if (!this.levelShown(l)) continue;
-          const z = g.levelZ(l);
-          [[aisle.outBuf[l], a * 3], [aisle.inBuf[l], a * 3 + 2]].forEach(([buf, x0]) => buf.forEach((it, k) => {
-            const b = B - 1 - k;
-            this.toteBox(x0 + 0.1, b + 0.1, x0 + 0.9, b + 0.9, z + 0.06, this.toteColor(it.bin));
-          }));
-        }
-        for (const sh of aisle.shuttles) if (this.levelShown(sh.l)) this.drawShuttle(sh, a);
+    aisleItems(aisle) {
+      const a = aisle.a, items = [() => this.drawBuffers(aisle)];
+      for (const sh of aisle.shuttles) if (this.levelShown(sh.l)) items.push(() => this.drawShuttle(sh, a));
+      return items;
+    }
+    drawBuffers(aisle) {
+      const g = this.sim.grid, B = g.B, a = aisle.a;
+      for (let l = 0; l < g.L; l++) {
+        if (!this.levelShown(l)) continue;
+        const z = g.levelZ(l);
+        [[aisle.outBuf[l], a * 3], [aisle.inBuf[l], a * 3 + 2]].forEach(([buf, x0]) => buf.forEach((it, k) => {
+          if (this.moving.has(it.bin.id)) return;
+          const b = B - 1 - k;
+          this.toteBox(x0 + 0.1, b + 0.1, x0 + 0.9, b + 0.9, z + 0.06, this.toteColor(it.bin));
+        }));
       }
     }
     // A shuttle in safety orange: two end units carrying the telescopic arms,
@@ -55,13 +56,17 @@
       const sim = this.sim, g = sim.grid, z = g.levelZ(sh.l), cx = a * 3 + 1.5, y = sh.pos, x0 = cx - 0.42, x1 = cx + 0.42, y0 = y - 0.45, y1 = y + 0.45;
       const col = WS.stateColor(sim, sh.displayState), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 };
       if (!sh.idle) this.glow(cx, y, z + 0.3, 22, ORANGE, 0.4);
-      let e = 0;
-      if (sh.state === 'HANDLING' && sh.op && sh.op.op === 'wait') e = Math.sin(Math.PI * Math.min(1, sh.op.t / sh.op.dur)) * 0.75;
+      const xf = this.xfer(sh), e = xf ? xf.reach * 0.75 : 0;
       this.box(x0 + 0.04, y0 + 0.14, z + 0.02, x1 - 0.04, y1 - 0.14, z + 0.12, '#1f2937', { top: '#334155' });
-      if (sh.bin) this.toteBox(x0 + 0.1, y0 + 0.17, x1 - 0.1, y1 - 0.17, z + 0.12, this.toteColor(sim.inv.binById.get(sh.bin)));
+      // the tote on the deck, or sliding between the deck and the rack or a buffer
+      const id = xf && xf.u != null ? xf.id : sh.bin;
+      if (id) {
+        const u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u;
+        this.toteBox(tx - 0.32, y0 + 0.17, tx + 0.32, y1 - 0.17, z + 0.12 - 0.06 * u, this.toteColor(sim.inv.binById.get(id)));
+      }
       for (const [ya, yb] of [[y0, y0 + 0.14], [y1 - 0.14, y1]]) {
         this.box(x0, ya, z + 0.02, x1, yb, z + 0.38, ORANGE, Object.assign({ top: ORANGE_TOP }, edge));
-        const ax0 = sh.face === 0 ? x0 - e : x0, ax1 = sh.face === 1 ? x1 + e : x1;
+        const ax0 = xf && xf.side === 0 ? x0 - e : x0, ax1 = xf && xf.side === 1 ? x1 + e : x1;
         this.box(ax0, ya + 0.03, z + 0.38, ax1, yb - 0.03, z + 0.45, '#e2e8f0', { top: '#f8fafc' });
       }
       this.faceY(y1 + 0.002, x0 + 0.1, x1 - 0.1, z + 0.16, z + 0.28, col);

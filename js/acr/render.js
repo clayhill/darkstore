@@ -17,13 +17,17 @@
       this.drawCached('acr-floor', this.sim.cfg.aisleMode, () => this.drawRobotFloor());
       this.drawOverlays();
       if (this.opts.paths) this.drawPaths(alpha);
-      this.drawRacking();
-      this.drawSelectedCell();
-      const items = [];
+      // robots behind the racking (back cross aisle), in an aisle, or in front
+      // of it; with solid racking the racks hide the first two
+      const back = [], inAisle = this.sim.aisles.map(() => []), items = [];
       for (const r of this.sim.fleet) {
-        const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
-        items.push({ d: x + y + 1, fn: () => this.drawRobot(r, x, y) });
+        const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha, draw = () => this.drawRobot(r, x, y), lx = Math.round(x);
+        if (y + 0.5 < g.Y0) back.push(draw);
+        else if (y + 0.5 < g.frontY && lx < g.A * 3 && lx % 3 === 1) inAisle[(lx - 1) / 3].push({ y, draw });
+        else items.push({ d: x + y + 1, fn: draw });
       }
+      this.drawRackScene((aisle) => inAisle[aisle.a].sort((p, q) => p.y - q.y).map((it) => it.draw), back);
+      this.drawSelectedCell();
       for (const p of this.sim.ports) items.push({ d: p.hand.x + g.D - 0.2, fn: () => this.drawReturns(p) });
       this.conveyorItems(items);
       this.drawStations(items);
@@ -123,22 +127,27 @@
       this.faceY(cy + 0.423, cx - 0.14, cx + 0.14, 0.36, 0.44, col);
       // mast frame: back posts, shelves with totes, front post
       for (const [px, py] of [[x0, y0], [x1 - 0.07, y0], [x0, y1 - 0.07]]) this.box(px, py, BODY, px + 0.07, py + 0.07, H, '#e2e8f0', { top: '#f8fafc' });
+      const shelfZ = (k) => BODY + 0.5 + (k * (H - BODY - 1.6)) / Math.max(1, N - 1), xf = this.xfer(r);
       for (let k = 0; k < N; k++) {
-        const z = BODY + 0.5 + (k * (H - BODY - 1.6)) / Math.max(1, N - 1);
-        this.quadTop(x0, y0, x1, y1, z, 'rgba(203,213,225,0.55)', '#94a3b8', 1);
+        this.quadTop(x0, y0, x1, y1, shelfZ(k), 'rgba(203,213,225,0.55)', '#94a3b8', 1);
         const id = r.load[k];
-        if (id) this.toteBox(x0 + 0.05, y0 + 0.05, x1 - 0.05, y1 - 0.05, z, this.toteColor(sim.inv.binById.get(id)));
+        if (id && !(xf && xf.id === id)) this.toteBox(x0 + 0.05, y0 + 0.05, x1 - 0.05, y1 - 0.05, shelfZ(k), this.toteColor(sim.inv.binById.get(id)));
       }
       this.box(x1 - 0.07, y1 - 0.07, BODY, x1, y1, H, '#f8fafc', Object.assign({ top: '#ffffff' }, edge));
       this.box(x0, y0, H, x1, y1, H + 0.2, BLUE, Object.assign({ top: '#60a5fa' }, edge));
       this.box(cx - 0.06, cy - 0.06, H + 0.2, cx + 0.06, cy + 0.06, H + 0.45, col, { top: WS.shade(col, 0.35) });
       this.glow(cx, cy, H + 0.35, 12, col, 0.8);
       // handler: a tray with forks reaching left or right into the rack
-      let e = 0;
-      if (r.state === 'HANDLING' && r.op && r.op.op === 'timer') e = Math.sin(Math.PI * Math.min(1, r.op.t / r.op.dur)) * 0.75;
+      const e = xf ? xf.reach * 0.75 : 0;
       this.box(cx - 0.36, cy - 0.32, r.mast - 0.08, cx + 0.36, cy + 0.32, r.mast + 0.06, ORANGE, Object.assign({ top: '#fdba74' }, edge));
+      // a tote taken or put slides between its back shelf and the rack position
+      if (xf && xf.u != null) {
+        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), sx = this.sideX(Math.round((x - 1) / 3), xf.side), u = xf.u;
+        const tx = cx + (sx - cx) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
+        this.toteBox(tx - 0.25, y0 + 0.05, tx + 0.25, y1 - 0.05, tz, this.toteColor(sim.inv.binById.get(xf.id)));
+      }
       for (const fy of [cy - 0.24, cy + 0.18]) {
-        const fx0 = r.face ? cx - 0.3 : cx - 0.36 - e, fx1 = r.face ? cx + 0.36 + e : cx + 0.3;
+        const fx0 = xf && xf.side === 0 ? cx - 0.36 - e : cx - 0.3, fx1 = xf && xf.side === 1 ? cx + 0.36 + e : cx + 0.3;
         this.box(fx0, fy, r.mast + 0.06, fx1, fy + 0.06, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
       }
       if (r.state === 'HANDLING' || r.state === 'MAST') this.glow(cx, cy, r.mast + 0.3, 20, ORANGE, 0.45);

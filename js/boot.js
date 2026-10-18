@@ -69,14 +69,14 @@
       <div class="iso-wrap" id="iso-wrap">
         <canvas id="iso"></canvas>
         <div class="iso-tools" id="iso-tools">
-${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
+${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n          <button data-opt="solid" title="Draw the racking solid, so it hides the machines behind it; Shift-drag to look down into the aisles">Solid racking</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
           <button data-opt="paths" class="on">Paths</button>
           <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
         </div>
         <div class="legend" id="legend"></div>
-        <div class="hint">Drag to pan · scroll / pinch to zoom · click ${k.click}</div>
+        <div class="hint">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
       </div>
       <div class="control" id="control">
         <div class="kpi-row" id="kpis"></div>

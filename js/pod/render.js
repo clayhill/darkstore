@@ -126,7 +126,7 @@
     }
 
     // A pod standing still is drawn once into its own small canvas and copied
-    // from there; the sprite is redrawn when its stock, highlight or the zoom changes.
+    // from there; the sprite is redrawn when its stock, highlight, the zoom or the tilt changes.
     blitPod(cx, cy, pod) {
       const now = performance.now(), z = this.cam.zoom * this.dpr;
       if (Math.abs(z - this.zoomSeen) > 1e-6) { this.zoomSeen = z; this.zoomAt0 = now; }
@@ -135,10 +135,10 @@
       for (let k = 0; k < pod.comps.length; k++) { const c = pod.comps[k]; if (c.qty) sig = (sig * 31 + c.qty * (k + 1) + (this.opts.heat && c.gtin ? this.sim.inv.byGtin.get(c.gtin).cls.charCodeAt(0) : 0)) | 0; }
       let sp = this.sprites.get(pod.id);
       const rezoom = !sp || (Math.abs(sp.zoom - z) / z > 0.01 && now - this.zoomAt0 > 200);
-      if (!sp || sp.key !== sig || rezoom) {
+      if (!sp || sp.key !== sig || rezoom || sp.tilt !== this.cam.tilt) {
         const b = this.podBox, w = Math.ceil((b.x1 - b.x0) * z) + 2, h = Math.ceil((b.y1 - b.y0) * z) + 2;
         sp = sp || { cv: document.createElement('canvas') };
-        sp.cv.width = w; sp.cv.height = h; sp.key = sig; sp.zoom = z;
+        sp.cv.width = w; sp.cv.height = h; sp.key = sig; sp.zoom = z; sp.tilt = this.cam.tilt;
         const saved = this.ctx; this.ctx = sp.cv.getContext('2d');
         this.ctx.setTransform(z, 0, 0, z, -b.x0 * z + 1, -b.y0 * z + 1);
         this.drawPod(0, 0, pod.rot * QUARTER, pod, 0);
@@ -150,10 +150,10 @@
     }
     // screen-space box (world units) around a pod centred on the origin
     get podBox() {
-      if (!this._podBox) {
+      if (!this._podBox || this._podBox.tilt !== this.cam.tilt) {
         const pts = [];
         for (const u of [-0.6, 0.6]) for (const v of [-0.6, 0.6]) for (const z of [0, TOP + 0.3]) pts.push(this.P(u, v, z));
-        this._podBox = { x0: Math.min(...pts.map((p) => p[0])), x1: Math.max(...pts.map((p) => p[0])), y0: Math.min(...pts.map((p) => p[1])), y1: Math.max(...pts.map((p) => p[1])) };
+        this._podBox = { tilt: this.cam.tilt, x0: Math.min(...pts.map((p) => p[0])), x1: Math.max(...pts.map((p) => p[0])), y0: Math.min(...pts.map((p) => p[1])), y1: Math.max(...pts.map((p) => p[1])) };
       }
       return this._podBox;
     }

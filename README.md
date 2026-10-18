@@ -54,12 +54,17 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
 
 **In a simulation**
 
-- Drag to pan, scroll or pinch to zoom, **space** to pause, **Esc** to close panels.
+- Drag to pan, scroll or pinch to zoom, **Shift-drag** (or right-drag) to tilt the view from almost level
+  to nearly top-down, **space** to pause, **Esc** to close panels.
 - Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
 - **ABC & heat** colours storage by velocity class and shows traffic heat. CubeFlow's **X-ray** shows
   every buried bin; in the three racking systems the **Levels** slider cuts the racking away above
   a level (or shows one level only), so you can check level by level where the fast movers sit.
+- **Solid racking** (racking systems): by default the racking is see-through and the machines are
+  drawn on top; solid racking hides machines behind the shelves, like the real thing. Tilt the view
+  down to look into the aisles. Cranes, shuttles and robots slide each tote in and out of its rack
+  position with their forks or arms.
 - The scan box at the top takes GTINs, SSCCs, GRAIs, storage unit IDs (`B00042`, `POD-0042`,
   `ST00042`), order numbers (`SO-100001`), ASNs, robots (`R03`) and stations (`P01`).
 - The **Settings** tab changes policies live, or the scenario (size, fleet, speeds) with a restart.
@@ -72,6 +77,8 @@ Optional URL parameters for every simulation page, handy for demos:
 | `&view=floor\|split\|control` | Start in a given view |
 | `&xray=1`, `&heat=1` | Turn on X-ray stacks (CubeFlow only) / ABC & heat overlay |
 | `&cut=3`, `&only=1` | Racking types: show levels 1–3 / only level 3 |
+| `&solid=1` | Racking types: solid racking |
+| `&tilt=60` | View elevation in degrees (default 30) |
 
 ## The shared warehouse in detail
 

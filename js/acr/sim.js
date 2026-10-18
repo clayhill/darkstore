@@ -108,11 +108,11 @@
 
   // ---------------------------------------------------------------- robot
   // A WS.Robot with a mast: `mast` is the handler height (render levels),
-  // `load` the totes on its back shelves, `face` the rack side it works on.
+  // `load` the totes on its back shelves.
   class AcrRobot extends WS.Robot {
     constructor(sim, id, x, y) {
       super(sim, id, x, y);
-      this.mast = sim.grid.ioZ; this.load = []; this.face = 0; this.aisleWait = false;
+      this.mast = sim.grid.ioZ; this.load = []; this.xfer = null; this.aisleWait = false; // xfer: tote being taken or put, { id, take, side }
     }
     place() {}
     hold(id) { this.load.push(id); this.bin = this.load[0]; }
@@ -146,12 +146,11 @@
       yield { op: 'move', x: st.a * 3 + 1, y: g.Y0 + st.b };
       r.busy = true; // the robot blocks its aisle cell while the handler works
       for (const o of st.ops) {
-        r.face = o.s;
         r.state = 'MAST';
         yield { op: 'mast', to: g.levelZ(o.l), v };
-        r.state = 'HANDLING';
+        r.state = 'HANDLING'; r.xfer = { id: o.bin.id, take: o.kind === 'take', side: o.s };
         yield { op: 'wait', t: cfg.handlerTime };
-        r.lifts++; o.done = true;
+        r.xfer = null; r.lifts++; o.done = true;
         if (o.kind === 'put') {
           aisle.resv[sim.si(o.l, o.s, o.b)] = false;
           r.drop(o.bin.id);
