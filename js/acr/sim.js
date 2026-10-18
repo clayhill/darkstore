@@ -142,6 +142,7 @@
       const end = sim.backEnd(port);
       yield { op: 'mast', to: g.convZ - 0.06, v };
       for (const bin of t.returns) {
+        if (bin.robot !== r.id) continue; // a robot at the handover point took it first (sim.swapTote)
         const c = bin.conv;
         yield { op: 'until', fn: () => c.s >= c.len - 1e-6 };
         r.xfer = { id: bin.id, take: true, side: 1, at: end };
@@ -160,6 +161,7 @@
       yield { op: 'move', x: st.a * 3 + 1, y: g.Y0 + st.b };
       r.busy = true; // the robot blocks its aisle cell while the handler works
       for (const o of st.ops) {
+        if (o.kind === 'put' && !r.load.includes(o.bin.id)) { aisle.resv[sim.si(o.l, o.s, o.b)] = false; o.done = true; continue; }
         r.state = 'MAST';
         yield { op: 'mast', to: g.levelZ(o.l), v };
         r.state = 'HANDLING'; r.xfer = { id: o.bin.id, take: o.kind === 'take', side: o.s };
@@ -182,18 +184,42 @@
     }
     if (t.dest != null) {
       const port = sim.ports[t.dest];
-      // no more robots head for a station than its lane and handover point hold
-      yield { op: 'until', fn: () => sim.visitors(port) < cfg.laneLength + 1, waitState: 'WAITING_PORT' };
+      // No more robots head for a station than its lane and handover point
+      // hold. A robot already at its handover point goes on; one that would
+      // wait on another station's handover point or lane, or in a one-way
+      // aisle (robots behind it could not pass), drives to parking first.
+      if (!sim.canVisit(port, r)) {
+        const here = g.type[g.idx(r.x, r.y)];
+        if (here === CELL.PORT || here === CELL.LANE || (here === CELL.AISLE && cfg.aisleMode === 'oneway')) {
+          const i = sim.parkingCell(r);
+          r.state = 'TRANSPORTING_TO_PORT';
+          if (i >= 0) yield { op: 'move', x: g.cx(i), y: g.cy(i) };
+        }
+        yield { op: 'until', fn: () => sim.canVisit(port, r), waitState: 'WAITING_PORT' };
+      }
       t.toDest = true;
       r.state = 'TRANSPORTING_TO_PORT';
       yield* WS.Tasks.throughLane(sim, r, port.docks[0]);
       r.state = 'AT_PORT'; r.busy = true;
-      // the handler puts the totes onto the infeed in front, each once the one before has rolled on
-      const a = sim.infeedStart(port);
+      // The handler puts the totes onto the infeed in front, each once the one
+      // before has rolled on. While the infeed is full and the station is held
+      // up by its full return conveyor, it takes returning totes off that onto
+      // free shelves: the robot that would empty it may be queueing behind
+      // this one.
+      const a = sim.infeedStart(port), end = sim.backEnd(port), deliver = r.load.slice();
       yield { op: 'mast', to: g.convZ - 0.06, v };
-      while (r.load.length) {
-        const bin = sim.inv.binById.get(r.load[0]);
-        yield { op: 'until', fn: () => sim.convFree(a.x, a.y), waitState: 'WAITING_PORT' };
+      for (const id of deliver) {
+        const bin = sim.inv.binById.get(id);
+        while (!sim.convFree(a.x, a.y)) {
+          const ret = sim.swapTote(port, r);
+          if (!ret) { yield { op: 'until', fn: () => sim.convFree(a.x, a.y) || !!sim.swapTote(port, r, true), waitState: 'WAITING_PORT' }; continue; }
+          r.xfer = { id: ret.id, take: true, side: 1, at: end };
+          yield { op: 'wait', t: cfg.handoverTime };
+          r.xfer = null;
+          port.back.splice(port.back.indexOf(ret), 1);
+          sim.convRemove(ret.conv); ret.conv = null;
+          ret.loc = 'robot'; r.hold(ret.id);
+        }
         r.xfer = { id: bin.id, take: false, side: 2, at: a }; // side 2: forward
         yield { op: 'wait', t: cfg.handoverTime };
         r.xfer = null;
@@ -315,6 +341,7 @@
       const cfg = this.cfg, N = cfg.robotSlots;
       // aisle locking: a trip only uses aisles no other robot holds
       const open = (a) => cfg.aisleMode !== 'lock' || this.aisles[a].lock < 0;
+      if (r.load.length) return this.planHeld(r, open);
       const pend = this.pendingTasks().filter((t) => t.type === 'RETRIEVE' && t.bin.loc === 'grid' && open(t.bin.aisle));
       let dest = null;
       for (const t of pend) { const p = this.ports[t.bin.requests[0].port]; if (this.portRoom(p) > 0) { dest = p; break; } }
@@ -386,6 +413,41 @@
       if (!returns.length && !takes.length) return null;
       if (cfg.aisleMode === 'lock') for (const o of ops) this.aisles[o.a].lock = r.id;
       return { type: 'TRIP', pickup: returns.length ? pick.idx : null, returns, stops: this.route(ops, returns.length ? pick.hand.x : r.x), dest: takes.length || carry ? dest.idx : null, priority: 5, takes: takes.length, puts: returns.length - carry };
+    }
+    // A robot still holds totes it took off a return conveyor at a handover
+    // point: it stores them, except those a station wants, which it carries
+    // there (one station per trip; totes for another one are stored).
+    planHeld(r, open) {
+      const ops = [], held = r.load.map((id) => this.inv.binById.get(id)), reserved = [];
+      let dest = null, carry = 0;
+      for (const bin of held) {
+        const p = bin.requests.length ? this.ports[bin.requests[0].port] : null;
+        if (p && (!dest || p === dest)) { dest = p; carry++; continue; }
+        const slot = this.storeSlot(bin, [], open);
+        if (!slot) { for (const q of reserved) this.aisles[q.a].resv[this.si(q.l, q.s, q.b)] = false; return null; }
+        this.aisles[slot.a].resv[this.si(slot.l, slot.s, slot.b)] = true; reserved.push(slot);
+        ops.push(Object.assign({ kind: 'put', bin }, slot));
+      }
+      if (dest) dest.inbound += carry;
+      if (this.cfg.aisleMode === 'lock') for (const o of ops) this.aisles[o.a].lock = r.id;
+      return { type: 'TRIP', pickup: null, returns: [], stops: this.route(ops, r.x), dest: carry ? dest.idx : null, priority: 5, takes: 0, puts: ops.length };
+    }
+    // The returning tote at the end of a station's return conveyor, if the
+    // station is held up by it (its last tote cannot roll off the pick
+    // position) and robot r at its handover point has a free shelf for it; it
+    // becomes r's (unless peek). A tote another robot planned to collect is
+    // taken out of that plan.
+    swapTote(port, r, peek) {
+      const bin = port.back[0];
+      if (!bin || !bin.conv || bin.conv.s < bin.conv.len - 1e-6 || r.load.length >= this.cfg.robotSlots || this.portClear(port)) return null;
+      if (peek) return bin;
+      const o = bin.robot >= 0 ? this.fleet[bin.robot] : null, t = o && o.task;
+      if (t && t.type === 'TRIP') {
+        t.returns = t.returns.filter((b) => b !== bin);
+        if (t.dest != null && bin.requests.length && bin.requests[0].port === t.dest) this.ports[t.dest].inbound--;
+      }
+      bin.robot = r.id;
+      return bin;
     }
     // Stops in visiting order: aisles from the end nearest the start, each
     // aisle in its driving direction; at a stop, stores first, low levels first.

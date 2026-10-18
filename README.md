@@ -323,7 +323,15 @@ positions near the trip's retrievals, takes up to a shelf-full of totes that one
 most urgent first, then the ones closest to it) and hands them over at that station, 2 s per tote. A
 trip waits for at least 4 totes unless the oldest has waited 25 s. No more robots head for a station
 than its lane holds, so a queue never spills into the cross aisle; a robot with a batch waits at its
-last stop until there is room.
+last stop until there is room (in a one-way aisle, or on another station's lane, it drives to the
+parking column first, so it never holds up the robots behind it).
+
+**Swapping at the handover point.** A station whose return conveyor is full cannot present its next
+tote, and the robot that would empty that conveyor may be queueing behind the one delivering. So a
+robot at the handover point that cannot put its totes onto the full infeed takes returning totes off
+the return conveyor onto its free shelves; its next trip stores them, or carries them to the station
+that wants them. Without this the system gridlocked above about 400 orders per hour; now it holds
+about 550 order lines per hour under any load.
 
 **Aisle traffic.** A setting, to compare: with aisle locking (the default) a trip holds its aisles
 from planning until it has left them, and other robots drive around them; with one-way aisles,
