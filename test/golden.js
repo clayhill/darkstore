@@ -1,17 +1,26 @@
 // Regression check: runs every storage type for a fixed time and seed and
 // compares a fingerprint of the run with test/golden/<kind>.txt. A refactor
 // that should not change behaviour must leave these files byte-identical.
-//   node test/golden.js            check all types
-//   node test/golden.js pod        check one type
+// Besides the defaults, a few runs cover settings the defaults leave unused.
+//   node test/golden.js            check every run
+//   node test/golden.js pod        check one run (a type or a variant name)
 //   node test/golden.js --update   rewrite the golden files after an intended change
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const HOURS = 2, SEED = 7, EVERY = 1800; // s between fingerprints
 const dir = path.join(__dirname, 'golden');
+// run name → [storage type, settings on top of its defaults]
+const RUNS = {
+  cube: ['cube', {}], 'cube-nearest': ['cube', { putawayPolicy: 'nearest' }],
+  pod: ['pod', {}], 'pod-notunnel': ['pod', { tunnelling: 'off' }],
+  shuttle: ['shuttle', {}],
+  crane: ['crane', {}], 'crane-single': ['crane', { handlerSlots: 1 }],
+  acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],
+};
 
 // Child mode: run one type and print its fingerprint lines.
 if (process.argv[2] === '--one') {
-  const WS = require('./load'), kind = process.argv[3];
-  const sim = new WS.SIMS[kind]({ seed: SEED });
+  const WS = require('./load'), [kind, cfg] = RUNS[process.argv[3]];
+  const sim = new WS.SIMS[kind](Object.assign({ seed: SEED }, cfg));
   const hash = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193); return (h >>> 0).toString(16).padStart(8, '0'); };
   const num = (v) => Math.round(v * 1000) / 1000;
   const counters = () => Object.entries(sim.kpi).filter(([, v]) => typeof v === 'number').map(([k, v]) => `${k}=${num(v)}`).join(' ');
@@ -31,7 +40,7 @@ if (process.argv[2] === '--one') {
 const update = process.argv.includes('--update');
 const kinds = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 let failed = 0;
-for (const kind of kinds.length ? kinds : ['cube', 'pod', 'shuttle', 'crane', 'acr']) {
+for (const kind of kinds.length ? kinds : Object.keys(RUNS)) {
   const t0 = Date.now();
   const out = execFileSync(process.execPath, [__filename, '--one', kind], { encoding: 'utf8' });
   const file = path.join(dir, kind + '.txt'), secs = ((Date.now() - t0) / 1000).toFixed(1) + ' s';

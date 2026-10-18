@@ -276,8 +276,10 @@ js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
 js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
 js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), render, ui
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr]
-test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, and compares a
-            fingerprint of stock, fleet, orders and KPIs with test/golden/<type>.txt
+test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
+            non-default settings (nearest putaway, no tunnelling, one-tote crane handler,
+            one-way aisles), and compares a fingerprint of stock, fleet, orders and KPIs
+            with test/golden/<run>.txt
 ```
 
 A refactor must leave `npm test` passing. A change that is meant to alter behaviour updates the
