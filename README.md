@@ -204,7 +204,7 @@ velocity policy, busy pods end up near the stations.
 |---|---|
 | ![Close-up of the aisle fronts: shuttles carrying totes, lifts and the pick stations](docs/screenshots/rail-closeup.png) | ![RailRunner control room: lift utilization, shuttle cycles and a levels-by-aisles map](docs/screenshots/rail-control.png) |
 | **Close-up:** shuttles bring totes to the aisle front, lifts take them down to the stations | **Control room:** lift utilization, shuttle cycles and a map of every level of every aisle |
-| ![RailRunner in 3D: racking with a shuttle on every level, lift towers and the stations](docs/screenshots/rail-3d.png) | ![Close-up in 3D: shuttles in the levels, a lift carriage and the pre-zone conveyor](docs/screenshots/rail-3d-closeup.png) |
+| ![RailRunner in 3D: racking with a shuttle on every level, lift towers and the stations](docs/screenshots/rail-3d.png) | ![Close-up in 3D: lift platforms at the aisle fronts and the one-way pre-zone loop to the stations](docs/screenshots/rail-3d-closeup.png) |
 | **3D:** the racking, cyan lift towers at the aisle fronts and the stations | **3D close-up:** orange shuttles on every level, a lift and the conveyors |
 
 **Racking.** Aisles of racking with totes single deep on both sides, several levels high. The two
@@ -281,7 +281,7 @@ aisle-changing cranes and a limit on the I/O conveyor.
 |---|---|
 | ![Close-up of the robots: masts with back shelves carrying totes, handlers reaching into the racking](docs/screenshots/acr-closeup.png) | ![StackPilot control room: totes per trip, trip time split, aisle waits and the floor map](docs/screenshots/acr-control.png) |
 | **Close-up:** robots carry several totes on their back shelves; the handler runs up the mast at each stop | **Control room:** totes per trip, the fleet's time split, aisle waits and the live floor map |
-| ![StackPilot in 3D: shelving aisles, robots with tall masts and the stations in front](docs/screenshots/acr-3d.png) | ![Close-up in 3D: robots with their back shelves at the stations and in the aisles](docs/screenshots/acr-3d-closeup.png) |
+| ![StackPilot in 3D: shelving aisles, robots with tall masts and the stations in front](docs/screenshots/acr-3d.png) | ![Close-up in 3D: a robot handing totes onto a station's conveyor, its return conveyor alongside](docs/screenshots/acr-3d-closeup.png) |
 | **3D:** shelving, robots with masts, queue lanes and stations | **3D close-up:** robots with back shelves, the handler on the mast |
 
 StackPilot stores totes in racking like RailRunner and SkyStack, but its machines are battery robots
