@@ -6,9 +6,10 @@
 (function (WS) {
   'use strict';
 
-  const STATES = ['IDLE', 'MOVING_TO_TARGET', 'DIGGING_BIN', 'LIFTING_POD', 'MAST', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING', 'YIELDING'];
+  // States every type may use; a type adds its own in sim.extraStates (they count as work).
+  const STATES = ['IDLE', 'MOVING_TO_TARGET', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING', 'YIELDING'];
   // KPI buckets: utilization = WORK / total
-  const BUCKET = { IDLE: 'IDLE', YIELDING: 'IDLE', MOVING_TO_TARGET: 'WORK', DIGGING_BIN: 'WORK', LIFTING_POD: 'WORK', MAST: 'WORK', HANDLING: 'WORK', TRANSPORTING_TO_PORT: 'WORK', AT_PORT: 'WORK', STORING: 'WORK', RESTACKING: 'WORK', WAITING_IN_TRAFFIC: 'WAIT', WAITING_PORT: 'WAIT', TO_CHARGER: 'CHARGE', CHARGING: 'CHARGE' };
+  const BUCKET = { IDLE: 'IDLE', YIELDING: 'IDLE', MOVING_TO_TARGET: 'WORK', HANDLING: 'WORK', TRANSPORTING_TO_PORT: 'WORK', AT_PORT: 'WORK', STORING: 'WORK', WAITING_IN_TRAFFIC: 'WAIT', WAITING_PORT: 'WAIT', TO_CHARGER: 'CHARGE', CHARGING: 'CHARGE' };
 
   class Mover {
     constructor(sim, id, name) {
@@ -16,14 +17,15 @@
       this.x = 0; this.y = 0; this.rx = 0; this.ry = 0; this.prx = 0; this.pry = 0; // render position (current / previous tick)
       this.state = 'IDLE'; this.task = null; this.gen = null; this.op = null; this.bin = null;
       this.v = 0; this.idleTime = 0; this.tasksDone = 0; this.distance = 0; this.lifts = 0;
-      this.stateTime = {}; STATES.forEach((s) => (this.stateTime[s] = 0));
+      this.stateTime = {}; [...STATES, ...Object.keys(sim.extraStates)].forEach((s) => (this.stateTime[s] = 0));
     }
     get displayState() { return this.op && this.op.waitState ? this.op.waitState : this.state; }
-    get bucket() { return BUCKET[this.displayState] || 'IDLE'; }
+    bucketOf(s) { return BUCKET[s] || (s in this.sim.extraStates ? 'WORK' : 'IDLE'); }
+    get bucket() { return this.bucketOf(this.displayState); }
     // share of the time spent working
     get utilization() {
       let t = 0, w = 0;
-      for (const [k, v] of Object.entries(this.stateTime)) { t += v; if (BUCKET[k] === 'WORK') w += v; }
+      for (const [k, v] of Object.entries(this.stateTime)) { t += v; if (this.bucketOf(k) === 'WORK') w += v; }
       return t ? w / t : 0;
     }
   }

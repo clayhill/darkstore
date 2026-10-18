@@ -6,7 +6,7 @@
  * WS.IsoRenderer. */
 (function (WS) {
   'use strict';
-  const C = WS.CELL, { STATE_COLORS } = WS;
+  const C = WS.CELL;
   const BODY = 0.55; // drive unit height (render levels)
 
   class AcrRenderer extends WS.RackRenderer {
@@ -89,7 +89,7 @@
       if (sim.cfg.aisleMode === 'lock') {
         for (const aisle of sim.aisles) {
           if (aisle.lock < 0) continue;
-          const x = aisle.a * 3 + 1, col = STATE_COLORS[sim.fleet[aisle.lock].displayState];
+          const x = aisle.a * 3 + 1, col = WS.stateColor(sim, sim.fleet[aisle.lock].displayState);
           this.quadTop(x + 0.1, g.Y0, x + 0.9, g.frontY, 0.01, WS.rgba(col, 0.1), WS.rgba(col, 0.55), 1.2);
         }
       }
@@ -111,7 +111,7 @@
     // tote loaded), the handler at its current height reaching into the rack
     // while it takes or puts a tote.
     drawRobot(r, x, y) {
-      const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = STATE_COLORS[r.displayState];
+      const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = WS.stateColor(this.sim, r.displayState);
       const cx = x + 0.5, cy = y + 0.5, H = g.Z + 0.5, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.28, y1 = cy + 0.28;
       this.quadTop(cx - 0.36, cy - 0.34, cx + 0.48, cy + 0.5, 0.005, 'rgba(0,0,0,0.35)');
       this.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, BODY, '#334155', { top: '#475569' });

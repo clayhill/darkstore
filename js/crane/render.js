@@ -4,7 +4,6 @@
  * the I/O point and the pre-zone conveyor to the stations. */
 (function (WS) {
   'use strict';
-  const { STATE_COLORS } = WS;
 
   class CraneRenderer extends WS.PreZoneRenderer {
     drawScene() {
@@ -29,7 +28,7 @@
     }
 
     drawCrane(cr) {
-      const sim = this.sim, g = sim.grid, cx = g.laneX(cr.a), y = cr.pos, z = cr.z, col = STATE_COLORS[cr.displayState], top = g.Z + 0.35;
+      const sim = this.sim, g = sim.grid, cx = g.laneX(cr.a), y = cr.pos, z = cr.z, col = WS.stateColor(this.sim, cr.displayState), top = g.Z + 0.35;
       if (!cr.idle) this.glow(cx, y, z + 0.4, 26, col, 0.5);
       // drive unit on the floor rail, mast behind the carriage, guide wheels at the top
       this.box(cx - 0.3, y - 0.55, 0, cx + 0.3, y + 0.55, 0.32, '#273244', { top: '#3b4a60', left: '#222b3a', right: '#1a2230' });

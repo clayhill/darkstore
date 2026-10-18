@@ -67,6 +67,8 @@
     // and fetchCost(unit). The order flow, ports, inventory, router and KPIs
     // are shared.
     createLayout() { return new Layout(this); }
+    // states only this type uses: { KEY: { label, color } }; they count as work
+    get extraStates() { return {}; }
     compLabel(k) { return 'compartment ' + (k + 1); }
     // depth of a stored unit counted from the top (1 = directly reachable)
     unitDepth(bin) { return this.grid.depthOf(this.inv.binColumn(bin), bin.id); }

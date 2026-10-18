@@ -5,10 +5,15 @@
   'use strict';
   const TERMS = { unit: 'bin', Unit: 'Bin', units: 'bins', Units: 'Bins', store: 'grid', Store: 'Grid', port: 'port', ports: 'ports' };
 
+  const EXTRA = { DIGGING_BIN: { label: 'Digging', color: '#f59e0b' }, RESTACKING: { label: 'Restacking', color: '#fb923c' } };
+  const LEGEND = ['IDLE', 'MOVING_TO_TARGET', 'DIGGING_BIN', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING'];
+
   class CubeSim extends WS.Sim {
     get kind() { return 'cube'; }
     get terms() { return TERMS; }
     get taskTypes() { return WS.CubeTasks; }
+    get extraStates() { return EXTRA; }
+    get legendStates() { return LEGEND; }
     defaults() { return WS.CUBE_CONFIG; }
     createGrid() { return new WS.Grid(this.cfg); }
     describe() { return `Grid ${this.cfg.gridW}×${this.cfg.gridD}×${this.cfg.gridZ} online · ${this.fleet.length} robots · ${this.inv.bins.length} bins · ${this.ports.length} ports`; }

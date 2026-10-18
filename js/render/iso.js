@@ -7,8 +7,8 @@
   'use strict';
   const TW = 64, TH = 32, LV = 17;
   const STATE_COLORS = {
-    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', DIGGING_BIN: '#f59e0b', LIFTING_POD: '#f59e0b', MAST: '#e879f9', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
-    AT_PORT: '#2dd4bf', STORING: '#a78bfa', RESTACKING: '#fb923c', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
+    IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
+    AT_PORT: '#2dd4bf', STORING: '#a78bfa', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
     TO_CHARGER: '#facc15', CHARGING: '#fde047', YIELDING: '#cbd5e1',
   };
   const CLASS_COLORS = { A: '#f2705f', B: '#f2b84b', C: '#5b8def', E: '#3a4658' };
@@ -245,7 +245,7 @@
       for (const r of sim.fleet) {
         if (!r.path || !r.op || r.op.op !== 'move') continue;
         const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
-        const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id, col = STATE_COLORS[r.displayState];
+        const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id, col = WS.stateColor(this.sim, r.displayState);
         c.beginPath();
         let p = P(x + 0.5, y + 0.5, z + 0.05); c.moveTo(p[0], p[1]);
         for (let k = r.pi + 1; k < r.path.length; k++) { p = P(r.path[k].x + 0.5, r.path[k].y + 0.5, z + 0.05); c.lineTo(p[0], p[1]); }
@@ -258,7 +258,7 @@
     drawClaims(z) {
       const g = this.sim.grid;
       for (const r of this.sim.fleet) {
-        const col = STATE_COLORS[r.displayState];
+        const col = WS.stateColor(this.sim, r.displayState);
         for (const i of r.claims) {
           const x = g.cx(i), y = g.cy(i);
           if (x === r.x && y === r.y) continue;
@@ -329,6 +329,8 @@
   WS.IsoView = IsoView;
   WS.ISO = { TW, TH, LV };
   WS.STATE_COLORS = STATE_COLORS;
+  // colour of a mover state, the shared ones or the type's own (sim.extraStates)
+  WS.stateColor = (sim, s) => STATE_COLORS[s] || sim.extraStates[s].color;
   WS.CLASS_COLORS = CLASS_COLORS;
   WS.roundRect = roundRect;
   WS.shade = shade;

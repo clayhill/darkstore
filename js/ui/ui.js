@@ -6,7 +6,7 @@
   'use strict';
   const U = WS.U, BC = WS.Barcode, esc = U.esc;
   const $ = (s, r) => (r || document).querySelector(s);
-  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', DIGGING_BIN: 'Digging', LIFTING_POD: 'Lifting pod', MAST: 'Mast up/down', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', RESTACKING: 'Restacking', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
+  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
   const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
   const SEV_ICON = { critical: '⛔', warning: '⚠️', info: 'ℹ️' };
   const LOG_COL = { order: '#7dd3fc', release: '#93c5fd', pick: '#86efac', pack: '#c4b5fd', ship: '#4ade80', inbound: '#fde68a', warn: '#fca5a5', penalty: '#fb923c', robot: '#facc15', system: '#e2e8f0' };
@@ -21,7 +21,7 @@
     get terms() { return this.sim.terms; }
     // the storage type's own UI pieces (js/<type>/ui.js)
     get type() { return WS.TypeUI[this.sim.kind]; }
-    stateLabel(k) { return (this.sim.stateLabels || {})[k] || STATE_LABEL[k]; }
+    stateLabel(k) { const sim = this.sim; return (sim.stateLabels || {})[k] || (sim.extraStates[k] || {}).label || STATE_LABEL[k]; }
 
     init() {
       const app = this.app;
@@ -56,8 +56,8 @@
         else if (k === 'label') this.showLabel(id); else if (k === 'asn') this.showReceipt(id);
         else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
       });
-      const legend = this.sim.legendStates || Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING' && k !== 'LIFTING_POD');
-      $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.STATE_COLORS[k]}"></i>${this.stateLabel(k)}</span>`).join('') +
+      const legend = this.sim.legendStates || [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
+      $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') +
         `<span class="faint">· ABC: <i style="background:${WS.CLASS_COLORS.A}"></i> A <i style="background:${WS.CLASS_COLORS.B}"></i> B <i style="background:${WS.CLASS_COLORS.C}"></i> C</span>`;
       this.setTab('inbound');
     }
@@ -128,7 +128,7 @@
       const batt = this.sim.cfg.chargers > 0;
       $('#fleet').innerHTML = `<tr><th>${this.terms.machine || 'Robot'}</th><th>State</th>${batt ? '<th>Battery</th>' : ''}<th>Task</th><th class="r">Util</th></tr>` + this.sim.fleet.map((r) => {
         const st = r.displayState;
-        return `<tr class="click" data-open="robot:${r.id}"><td><b>${r.name}</b></td><td><span class="sdot" style="background:${WS.STATE_COLORS[st]}"></span>${this.stateLabel(st)}</td>${batt ? `<td>${this.battBar(r.battery)}</td>` : ''}<td>${this.taskText(r)}</td><td class="r">${Math.round(r.utilization * 100)}%</td></tr>`;
+        return `<tr class="click" data-open="robot:${r.id}"><td><b>${r.name}</b></td><td><span class="sdot" style="background:${WS.stateColor(this.sim, st)}"></span>${this.stateLabel(st)}</td>${batt ? `<td>${this.battBar(r.battery)}</td>` : ''}<td>${this.taskText(r)}</td><td class="r">${Math.round(r.utilization * 100)}%</td></tr>`;
       }).join('');
     }
     renderLog() {
@@ -371,10 +371,10 @@
     inspectRobot(r) {
       const st = r.displayState, sim = this.sim;
       const tot = Object.values(r.stateTime).reduce((a, b) => a + b, 0) || 1;
-      const bars = Object.entries(r.stateTime).filter(([, v]) => v / tot > 0.01).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i style="width:${(v / tot) * 100}%;background:${WS.STATE_COLORS[k]}" title="${this.stateLabel(k)} ${Math.round((v / tot) * 100)}%"></i>`).join('');
+      const bars = Object.entries(r.stateTime).filter(([, v]) => v / tot > 0.01).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i style="width:${(v / tot) * 100}%;background:${WS.stateColor(this.sim, k)}" title="${this.stateLabel(k)} ${Math.round((v / tot) * 100)}%"></i>`).join('');
       const T = this.type;
       const dest = r.goal && r.op && r.op.op === 'move' ? `${r.goal.x}, ${r.goal.y}` : '—';
-      return `<div class="hd"><span class="sdot" style="background:${WS.STATE_COLORS[st]};width:12px;height:12px"></span><b>${this.terms.machine || 'Robot'} ${r.name}</b><span class="pill">${this.stateLabel(st)}</span><button class="close">×</button></div>
+      return `<div class="hd"><span class="sdot" style="background:${WS.stateColor(this.sim, st)};width:12px;height:12px"></span><b>${this.terms.machine || 'Robot'} ${r.name}</b><span class="pill">${this.stateLabel(st)}</span><button class="close">×</button></div>
         <dl class="kv"><dt>Position</dt><dd>${T.position ? T.position(r) : `X ${r.x} · Y ${r.y}`}${r.busy ? ' <span class="pill BACKORDER">cell blocked</span>' : ''}</dd>
         <dt>Speed</dt><dd>${(T.speed ? T.speed(r) : r.v * sim.cfg.cellSize).toFixed(2)} m/s · ${T.motion(r)}</dd>
         <dt>Destination</dt><dd>${dest}</dd><dt>Task</dt><dd>${this.taskText(r)}</dd>

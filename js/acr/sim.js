@@ -12,7 +12,8 @@
   'use strict';
   const CELL = Object.assign(WS.CELL, { AISLE: 6, PARK: 7 });
   const TERMS = { unit: 'tote', Unit: 'Tote', units: 'totes', Units: 'Totes', store: 'racking', Store: 'Racking', port: 'station', ports: 'stations', machine: 'Robot' };
-  const STATE_LABELS = { MOVING_TO_TARGET: 'To a location', STORING: 'To store', MAST: 'Mast up/down', HANDLING: 'Handler', TRANSPORTING_TO_PORT: 'To station', AT_PORT: 'Handover', WAITING_PORT: 'Waiting (port queue)' };
+  const EXTRA = { MAST: { label: 'Mast up/down', color: '#e879f9' } };
+  const STATE_LABELS = { MOVING_TO_TARGET: 'To a location', STORING: 'To store', HANDLING: 'Handler', TRANSPORTING_TO_PORT: 'To station', AT_PORT: 'Handover', WAITING_PORT: 'Waiting (port queue)' };
   const LEGEND = ['IDLE', 'MOVING_TO_TARGET', 'STORING', 'MAST', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING'];
   const ZU = WS.RACK_ZU;
 
@@ -191,6 +192,7 @@
     get terms() { return TERMS; }
     get stateLabels() { return STATE_LABELS; }
     get legendStates() { return LEGEND; }
+    get extraStates() { return EXTRA; }
     get taskTypes() { return T; }
     defaults() { return WS.ACR_CONFIG; }
     createGrid() { return new AcrFloor(this.cfg, this); }

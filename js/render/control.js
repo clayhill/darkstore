@@ -85,7 +85,7 @@
       }
       // claims and paths (robots only)
       for (const r of sim.fleet) {
-        const col = WS.STATE_COLORS[r.displayState];
+        const col = WS.stateColor(this.sim, r.displayState);
         c.strokeStyle = col; c.globalAlpha = 0.6; c.lineWidth = 1;
         if (r.claims) for (const i of r.claims) { if (g.cx(i) === r.x && g.cy(i) === r.y) continue; c.strokeRect(m.ox + g.cx(i) * s + 2.5, m.oy + g.cy(i) * s + 2.5, s - 5, s - 5); }
         if (r.path && r.op && r.op.op === 'move') {
@@ -100,7 +100,7 @@
       const sel = this.app.ui.selection;
       for (const r of sim.fleet) {
         const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
-        const col = WS.STATE_COLORS[r.displayState], px = m.ox + x * s, py = m.oy + y * s;
+        const col = WS.stateColor(this.sim, r.displayState), px = m.ox + x * s, py = m.oy + y * s;
         if (r.busy) { c.strokeStyle = `rgba(239,68,68,${(0.5 + 0.5 * Math.sin(t * 6)).toFixed(2)})`; c.lineWidth = 2; c.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1); }
         c.fillStyle = col; WS.roundRect(c, px + s * 0.14, py + s * 0.14, s * 0.72, s * 0.72, 3); c.fill();
         if (r.bin) { c.fillStyle = '#0f172a'; c.fillRect(px + s * 0.3, py + s * 0.3, s * 0.4, s * 0.4); }

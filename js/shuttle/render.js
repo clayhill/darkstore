@@ -3,7 +3,7 @@
  * at the front of every aisle, and the pre-zone conveyor to the stations. */
 (function (WS) {
   'use strict';
-  const { shade, STATE_COLORS } = WS;
+  const { shade } = WS;
   const TOTE_H = WS.RACK_TOTE_H;
 
   class ShuttleRenderer extends WS.PreZoneRenderer {
@@ -41,7 +41,7 @@
           }));
         }
         for (const sh of aisle.shuttles) {
-          const z = g.levelZ(sh.l), x0 = a * 3 + 1.08, x1 = a * 3 + 1.92, y0 = sh.pos - 0.45, y1 = sh.pos + 0.45, col = STATE_COLORS[sh.displayState];
+          const z = g.levelZ(sh.l), x0 = a * 3 + 1.08, x1 = a * 3 + 1.92, y0 = sh.pos - 0.45, y1 = sh.pos + 0.45, col = WS.stateColor(this.sim, sh.displayState);
           if (!sh.idle) this.glow(a * 3 + 1.5, sh.pos, z + 0.3, 22, col, 0.55);
           // dark chassis on the rails, a state-coloured light band, a yellow load handler on top
           this.box(x0, y0, z + 0.02, x1, y1, z + 0.34, '#273244', { top: '#3b4a60', left: '#222b3a', right: '#1a2230' });
@@ -59,7 +59,7 @@
       const g = this.sim.grid, lift = aisle.lift, x0 = aisle.a * 3 + 1.08, x1 = aisle.a * 3 + 1.92, y0 = g.B + 0.06, y1 = g.B + 0.94;
       for (const [px, py] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) this.box(px - 0.04, py - 0.04, 0, px + 0.04, py + 0.04, g.Z + 0.8, '#64748b');
       this.box(x0 - 0.04, y0 - 0.04, g.Z + 0.8, x1 + 0.04, y1 + 0.04, g.Z + 1.1, '#475569');
-      const col = STATE_COLORS[lift.displayState];
+      const col = WS.stateColor(this.sim, lift.displayState);
       this.box(x0 + 0.04, y0 + 0.04, lift.z - 0.12, x1 - 0.04, y1 - 0.04, lift.z, '#94a3b8', { top: '#334155' });
       this.faceY(y1 - 0.039, x0 + 0.04, x1 - 0.04, lift.z - 0.12, lift.z - 0.02, col);
       if (lift.bin) { const b = this.sim.inv.binById.get(lift.bin), c2 = this.toteColor(b); this.box(x0 + 0.12, y0 + 0.1, lift.z, x1 - 0.12, y1 - 0.1, lift.z + TOTE_H, c2, { top: shade(c2, 0.15) }); }

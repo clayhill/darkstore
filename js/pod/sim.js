@@ -8,6 +8,7 @@
   'use strict';
   const TERMS = { unit: 'pod', Unit: 'Pod', units: 'pods', Units: 'Pods', store: 'floor', Store: 'Floor', port: 'station', ports: 'stations' };
   const STATE_LABELS = { MOVING_TO_TARGET: 'To pod', TRANSPORTING_TO_PORT: 'To station', AT_PORT: 'At station', STORING: 'Returning pod', WAITING_PORT: 'Waiting (queue)' };
+  const EXTRA = { LIFTING_POD: { label: 'Lifting pod', color: '#f59e0b' } };
   const LEGEND = ['IDLE', 'MOVING_TO_TARGET', 'LIFTING_POD', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING'];
   const QUARTER = Math.PI / 2;
 
@@ -88,6 +89,7 @@
     get terms() { return TERMS; }
     get stateLabels() { return STATE_LABELS; }
     get legendStates() { return LEGEND; }
+    get extraStates() { return EXTRA; }
     get taskTypes() { return T; }
     defaults() { return WS.POD_CONFIG; }
     createGrid() { return new WS.PodFloor(this.cfg); }
