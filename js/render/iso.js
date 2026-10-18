@@ -173,6 +173,9 @@
     // rectangles and discs lying in a vertical plane: faceY on y = const (left-facing), faceX on x = const (right-facing)
     faceY(y, xa, xb, za, zb, fill, stroke) { const P = this.P.bind(this); this.poly([P(xa, y, za), P(xb, y, za), P(xb, y, zb), P(xa, y, zb)], fill, stroke); }
     faceX(x, ya, yb, za, zb, fill, stroke) { const P = this.P.bind(this); this.poly([P(x, ya, za), P(x, yb, za), P(x, yb, zb), P(x, ya, zb)], fill, stroke); }
+    // black-and-yellow hazard stripes on a vertical face, n segments
+    hazardY(y, xa, xb, za, zb, n) { for (let k = 0; k < n; k++) this.faceY(y, xa + ((xb - xa) * k) / n, xa + ((xb - xa) * (k + 1)) / n, za, zb, k % 2 ? '#111827' : '#facc15'); }
+    hazardX(x, ya, yb, za, zb, n) { for (let k = 0; k < n; k++) this.faceX(x, ya + ((yb - ya) * k) / n, ya + ((yb - ya) * (k + 1)) / n, za, zb, k % 2 ? '#0b1220' : '#d4a90f'); }
     discY(cx, y, cz, r, rz, fill) { const pts = []; for (let k = 0; k < 14; k++) { const a = (k * Math.PI) / 7; pts.push(this.P(cx + r * Math.cos(a), y, cz + rz * Math.sin(a))); } this.poly(pts, fill); }
     discX(x, cy, cz, r, rz, fill) { const pts = []; for (let k = 0; k < 14; k++) { const a = (k * Math.PI) / 7; pts.push(this.P(x, cy + r * Math.cos(a), cz + rz * Math.sin(a))); } this.poly(pts, fill); }
     wheelY(cx, y, cz, r, rz) { this.discY(cx, y, cz, r, rz, '#0b0f17'); this.discY(cx, y + 0.001, cz, r * 0.45, rz * 0.45, '#64748b'); }

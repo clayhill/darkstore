@@ -8,6 +8,7 @@
   'use strict';
   const C = WS.CELL;
   const BODY = 0.55; // drive unit height (render levels)
+  const BLUE = '#2563eb', ORANGE = '#f97316';
 
   class AcrRenderer extends WS.RackRenderer {
     drawScene(alpha) {
@@ -107,39 +108,44 @@
     }
 
     // ---------------------------------------------------------------- robots
-    // Drive unit, mast with the back shelves (top shelf first holds the first
-    // tote loaded), the handler at its current height reaching into the rack
-    // while it takes or puts a tote.
+    // A case-handling robot: a white drive unit with a dark bumper and a blue
+    // accent, a white mast frame with the back shelves (the totes it carries),
+    // a blue top beam with a status beacon, and the orange handler at its
+    // current height, its forks reaching into the rack while it takes or puts.
     drawRobot(r, x, y) {
-      const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = WS.stateColor(this.sim, r.displayState);
+      const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = WS.stateColor(sim, r.displayState);
       const cx = x + 0.5, cy = y + 0.5, H = g.Z + 0.5, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.28, y1 = cy + 0.28;
+      const edge = { stroke: 'rgba(15,23,42,0.5)', lw: 0.8 };
       this.quadTop(cx - 0.36, cy - 0.34, cx + 0.48, cy + 0.5, 0.005, 'rgba(0,0,0,0.35)');
-      this.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, BODY, '#334155', { top: '#475569' });
-      this.faceY(cy + 0.421, cx - 0.36, cx + 0.36, 0.28, 0.4, col);
-      this.faceX(cx + 0.421, cy - 0.36, cy + 0.36, 0.28, 0.4, col);
-      // mast: back posts, shelves with totes, front post
-      for (const [px, py] of [[x0, y0], [x1 - 0.06, y0], [x0, y1 - 0.06]]) this.box(px, py, BODY, px + 0.06, py + 0.06, H, '#64748b');
-      this.ctx.globalAlpha = 0.3;
-      this.box(x0, y0, BODY, x1, y1, H, '#475569', { top: '#64748b' });
-      this.ctx.globalAlpha = 1;
+      this.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, BODY, '#e2e8f0', Object.assign({ top: '#f8fafc' }, edge));
+      this.faceY(cy + 0.421, cx - 0.42, cx + 0.42, 0.02, 0.12, '#1e293b'); this.faceX(cx + 0.421, cy - 0.42, cy + 0.42, 0.02, 0.12, '#0f172a');
+      this.faceY(cy + 0.422, cx - 0.36, cx + 0.36, 0.22, 0.3, BLUE); this.faceX(cx + 0.422, cy - 0.36, cy + 0.36, 0.22, 0.3, '#1d4ed8');
+      this.faceY(cy + 0.423, cx - 0.14, cx + 0.14, 0.36, 0.44, col);
+      // mast frame: back posts, shelves with totes, front post
+      for (const [px, py] of [[x0, y0], [x1 - 0.07, y0], [x0, y1 - 0.07]]) this.box(px, py, BODY, px + 0.07, py + 0.07, H, '#e2e8f0', { top: '#f8fafc' });
       for (let k = 0; k < N; k++) {
         const z = BODY + 0.5 + (k * (H - BODY - 1.6)) / Math.max(1, N - 1);
-        this.quadTop(x0, y0, x1, y1, z, 'rgba(71,85,105,0.7)', '#64748b', 1);
+        this.quadTop(x0, y0, x1, y1, z, 'rgba(203,213,225,0.55)', '#94a3b8', 1);
         const id = r.load[k];
-        if (id) this.toteBox(x0 + 0.04, y0 + 0.04, x1 - 0.04, y1 - 0.04, z, this.toteColor(sim.inv.binById.get(id)));
+        if (id) this.toteBox(x0 + 0.05, y0 + 0.05, x1 - 0.05, y1 - 0.05, z, this.toteColor(sim.inv.binById.get(id)));
       }
-      this.box(x1 - 0.06, y1 - 0.06, BODY, x1, y1, H, '#cbd5e1');
-      this.box(x0, y0, H, x1, y1, H + 0.18, '#f97316', { top: '#fb923c' });
-      // handler: a tray on the mast, reaching left or right into the rack
+      this.box(x1 - 0.07, y1 - 0.07, BODY, x1, y1, H, '#f8fafc', Object.assign({ top: '#ffffff' }, edge));
+      this.box(x0, y0, H, x1, y1, H + 0.2, BLUE, Object.assign({ top: '#60a5fa' }, edge));
+      this.box(cx - 0.06, cy - 0.06, H + 0.2, cx + 0.06, cy + 0.06, H + 0.45, col, { top: WS.shade(col, 0.35) });
+      this.glow(cx, cy, H + 0.35, 12, col, 0.8);
+      // handler: a tray with forks reaching left or right into the rack
       let e = 0;
       if (r.state === 'HANDLING' && r.op && r.op.op === 'timer') e = Math.sin(Math.PI * Math.min(1, r.op.t / r.op.dur)) * 0.75;
-      const hx0 = r.face ? cx - 0.34 : cx - 0.34 - e, hx1 = r.face ? cx + 0.34 + e : cx + 0.34;
-      this.box(hx0, cy - 0.3, r.mast - 0.06, hx1, cy + 0.3, r.mast + 0.08, '#f97316', { top: '#fdba74' });
-      if (r.state === 'HANDLING' || r.state === 'MAST') this.glow(cx, cy, r.mast + 0.3, 18, col, 0.35);
+      this.box(cx - 0.36, cy - 0.32, r.mast - 0.08, cx + 0.36, cy + 0.32, r.mast + 0.06, ORANGE, Object.assign({ top: '#fdba74' }, edge));
+      for (const fy of [cy - 0.24, cy + 0.18]) {
+        const fx0 = r.face ? cx - 0.3 : cx - 0.36 - e, fx1 = r.face ? cx + 0.36 + e : cx + 0.3;
+        this.box(fx0, fy, r.mast + 0.06, fx1, fy + 0.06, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
+      }
+      if (r.state === 'HANDLING' || r.state === 'MAST') this.glow(cx, cy, r.mast + 0.3, 20, ORANGE, 0.45);
       if (r.displayState === 'WAITING_IN_TRAFFIC' || r.busy) this.glow(cx, cy, BODY + 0.4, 20, col, 0.35 + 0.25 * Math.sin(this.t * 6));
       const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id;
       if (sel) this.quadTop(x - 0.06, y - 0.06, x + 1.06, y + 1.06, 0.02, null, '#38bdf8', 2.5);
-      if (this.opts.labels) this.robotTag(r, cx, cy, H + 1.2, 'rgba(241,245,249,0.85)');
+      if (this.opts.labels) this.robotTag(r, cx, cy, H + 1.4, 'rgba(241,245,249,0.85)');
     }
     // totes back from a station, waiting on its return conveyor for a robot
     drawReturns(p) {

@@ -22,6 +22,7 @@
       super(sim, id, `C${a + 1}`);
       this.a = a; this.pos = sim.ioPos; this.z = sim.grid.ioZ; this.axis = 'xz';
       this.jobs = []; // retrievals waiting for this crane
+      this.face = -1; // where the forks reach: 0 left rack, 1 right rack, -1 the I/O point; for the view
       this.load = []; // tote ids on the load handler
     }
     place() {
@@ -40,7 +41,7 @@
   function* craneCycle(sim, cr, stores, rets) {
     const cfg = sim.cfg, g = sim.grid, aisle = sim.aisles[cr.a], t0 = sim.time;
     for (const it of stores) {
-      cr.state = 'HANDLING';
+      cr.state = 'HANDLING'; cr.face = -1;
       yield { op: 'wait', t: cfg.forkTime };
       aisle.inQ.splice(aisle.inQ.indexOf(it), 1);
       it.bin.loc = 'crane'; it.bin.robot = cr.id; cr.hold(it.bin.id);
@@ -48,7 +49,7 @@
     for (const it of stores) {
       cr.state = 'STORING';
       yield sim.craneTravel(it.b + 0.5, g.levelZ(it.l));
-      cr.state = 'HANDLING';
+      cr.state = 'HANDLING'; cr.face = it.s;
       yield { op: 'wait', t: cfg.forkTime };
       aisle.resv[sim.si(it.l, it.s, it.b)] = false;
       cr.drop(it.bin.id);
@@ -59,7 +60,7 @@
       const bin = t.bin;
       cr.state = 'MOVING_TO_TARGET';
       yield sim.craneTravel(bin.bay + 0.5, g.levelZ(bin.level));
-      cr.state = 'HANDLING';
+      cr.state = 'HANDLING'; cr.face = bin.side;
       yield { op: 'wait', t: cfg.forkTime };
       sim.take(bin);
       bin.loc = 'crane'; bin.robot = cr.id; bin.task = null; cr.hold(bin.id);
@@ -68,7 +69,7 @@
     cr.state = rets.length ? 'TRANSPORTING_TO_PORT' : 'MOVING_TO_TARGET';
     yield sim.craneTravel(sim.ioPos, g.ioZ);
     for (const t of rets) {
-      cr.state = 'HANDLING';
+      cr.state = 'HANDLING'; cr.face = -1;
       yield { op: 'wait', t: cfg.forkTime };
       cr.drop(t.bin.id); cr.lifts++;
       const port = sim.ports[t.port];

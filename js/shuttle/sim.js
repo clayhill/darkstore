@@ -17,6 +17,7 @@
     constructor(sim, id, a, l) {
       super(sim, id, `S${a + 1}.${String(l + 1).padStart(2, '0')}`);
       this.a = a; this.l = l; this.pos = sim.front; this.jobs = []; this.axis = 'y';
+      this.face = 0; // rack side the load handler works on (0 left, 1 right); for the view
     }
     place() { this.rx = this.a * 4 + 1; this.ry = this.sim.cfg.levels - 1 - this.l; this.x = this.a; this.y = this.l; }
   }
@@ -38,13 +39,13 @@
     const cfg = sim.cfg, aisle = sim.aisles[sh.a], bin = item.bin;
     sh.state = 'MOVING_TO_TARGET';
     yield sim.shuttleTravel(sim.front);
-    sh.state = 'HANDLING';
+    sh.state = 'HANDLING'; sh.face = 1; // the inbound buffer is on the right
     yield { op: 'wait', t: cfg.handlerTime };
     aisle.inBuf[sh.l].splice(aisle.inBuf[sh.l].indexOf(item), 1);
     bin.loc = 'shuttle'; bin.robot = sh.id; sh.bin = bin.id;
     sh.state = 'STORING';
     yield sim.shuttleTravel(item.b + 0.5);
-    sh.state = 'HANDLING';
+    sh.state = 'HANDLING'; sh.face = item.s;
     yield { op: 'wait', t: cfg.handlerTime };
     aisle.resv[sim.si(item.l, item.s, item.b)] = false;
     sim.place(bin, sh.a, item.l, item.s, item.b);
@@ -54,7 +55,7 @@
     const cfg = sim.cfg, aisle = sim.aisles[sh.a], bin = task.bin;
     sh.state = 'MOVING_TO_TARGET';
     yield sim.shuttleTravel(bin.bay + 0.5);
-    sh.state = 'HANDLING';
+    sh.state = 'HANDLING'; sh.face = bin.side;
     yield { op: 'wait', t: cfg.handlerTime };
     sim.take(bin);
     bin.loc = 'shuttle'; bin.robot = sh.id; sh.bin = bin.id; bin.task = null;
@@ -62,7 +63,7 @@
     sh.state = 'TRANSPORTING_TO_PORT';
     yield sim.shuttleTravel(sim.front);
     yield { op: 'until', fn: () => aisle.outBuf[sh.l].length < cfg.bufferSize, waitState: 'WAITING_PORT' };
-    sh.state = 'HANDLING';
+    sh.state = 'HANDLING'; sh.face = 0; // the outbound buffer is on the left
     yield { op: 'wait', t: cfg.handlerTime };
     aisle.outBuf[sh.l].push({ bin, port: task.port, t: sim.time });
     bin.loc = 'buffer'; sh.bin = null; sh.lifts++; sim.onCycle();

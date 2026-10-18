@@ -1,10 +1,12 @@
 /* RailRunner view: the shared see-through racking (WS.PreZoneRenderer) with a pair
- * of shuttle rails per level, shuttles running inside the aisles, a lift tower
- * at the front of every aisle, and the pre-zone conveyor to the stations. */
+ * of shuttle rails per level, orange shuttles running inside the aisles, a cyan
+ * lift tower at the front of every aisle, and the pre-zone conveyor to the
+ * stations. */
 (function (WS) {
   'use strict';
   const { shade } = WS;
   const TOTE_H = WS.RACK_TOTE_H;
+  const ORANGE = '#f97316', ORANGE_TOP = '#fdba74', CYAN = '#06b6d4', CYAN_TOP = '#67e8f9';
 
   class ShuttleRenderer extends WS.PreZoneRenderer {
     drawScene() {
@@ -39,35 +41,47 @@
           if (!this.levelShown(l)) continue;
           const z = g.levelZ(l);
           [[aisle.outBuf[l], a * 3], [aisle.inBuf[l], a * 3 + 2]].forEach(([buf, x0]) => buf.forEach((it, k) => {
-            const b = B - 1 - k, col = '#f59e0b';
-            this.box(x0 + 0.1, b + 0.1, z + 0.06, x0 + 0.9, b + 0.9, z + 0.06 + TOTE_H, col, { top: shade(col, 0.2) });
+            const b = B - 1 - k;
+            this.toteBox(x0 + 0.1, b + 0.1, x0 + 0.9, b + 0.9, z + 0.06, this.toteColor(it.bin));
           }));
         }
-        for (const sh of aisle.shuttles) {
-          if (!this.levelShown(sh.l)) continue;
-          const z = g.levelZ(sh.l), x0 = a * 3 + 1.08, x1 = a * 3 + 1.92, y0 = sh.pos - 0.45, y1 = sh.pos + 0.45, col = WS.stateColor(this.sim, sh.displayState);
-          if (!sh.idle) this.glow(a * 3 + 1.5, sh.pos, z + 0.3, 22, col, 0.55);
-          // dark chassis on the rails, a state-coloured light band, a yellow load handler on top
-          this.box(x0, y0, z + 0.02, x1, y1, z + 0.34, '#273244', { top: '#3b4a60', left: '#222b3a', right: '#1a2230' });
-          this.faceY(y1 + 0.002, x0 + 0.06, x1 - 0.06, z + 0.14, z + 0.24, col);
-          this.faceX(x1 + 0.002, y0 + 0.06, y1 - 0.06, z + 0.14, z + 0.24, shade(col, -0.25));
-          this.quadTop(x0 + 0.12, y0 + 0.08, x1 - 0.12, y1 - 0.08, z + 0.341, sh.idle ? '#5c4a14' : '#ca8a04');
-          if (sh.bin) { const b = sim.inv.binById.get(sh.bin), c2 = this.toteColor(b); this.box(x0 + 0.08, y0 + 0.08, z + 0.34, x1 - 0.08, y1 - 0.08, z + 0.34 + TOTE_H, c2, { top: shade(c2, 0.15) }); }
-          const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === sh.id;
-          if (sel) this.quadTop(x0 - 0.1, y0 - 0.1, x1 + 0.1, y1 + 0.1, z + 0.02, null, '#38bdf8', 2.5);
-        }
+        for (const sh of aisle.shuttles) if (this.levelShown(sh.l)) this.drawShuttle(sh, a);
       }
     }
-    // Lift tower in front of the aisle with its carriage and the I/O transfer.
+    // A shuttle in safety orange: two end units carrying the telescopic arms,
+    // which reach into the left or right rack while it takes or puts a tote,
+    // a dark deck between them for the tote, a status light on the front.
+    drawShuttle(sh, a) {
+      const sim = this.sim, g = sim.grid, z = g.levelZ(sh.l), cx = a * 3 + 1.5, y = sh.pos, x0 = cx - 0.42, x1 = cx + 0.42, y0 = y - 0.45, y1 = y + 0.45;
+      const col = WS.stateColor(sim, sh.displayState), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 };
+      if (!sh.idle) this.glow(cx, y, z + 0.3, 22, ORANGE, 0.4);
+      let e = 0;
+      if (sh.state === 'HANDLING' && sh.op && sh.op.op === 'wait') e = Math.sin(Math.PI * Math.min(1, sh.op.t / sh.op.dur)) * 0.75;
+      this.box(x0 + 0.04, y0 + 0.14, z + 0.02, x1 - 0.04, y1 - 0.14, z + 0.12, '#1f2937', { top: '#334155' });
+      if (sh.bin) this.toteBox(x0 + 0.1, y0 + 0.17, x1 - 0.1, y1 - 0.17, z + 0.12, this.toteColor(sim.inv.binById.get(sh.bin)));
+      for (const [ya, yb] of [[y0, y0 + 0.14], [y1 - 0.14, y1]]) {
+        this.box(x0, ya, z + 0.02, x1, yb, z + 0.38, ORANGE, Object.assign({ top: ORANGE_TOP }, edge));
+        const ax0 = sh.face === 0 ? x0 - e : x0, ax1 = sh.face === 1 ? x1 + e : x1;
+        this.box(ax0, ya + 0.03, z + 0.38, ax1, yb - 0.03, z + 0.45, '#e2e8f0', { top: '#f8fafc' });
+      }
+      this.faceY(y1 + 0.002, x0 + 0.1, x1 - 0.1, z + 0.16, z + 0.28, col);
+      this.faceX(x1 + 0.002, y1 - 0.12, y1 - 0.02, z + 0.16, z + 0.28, col);
+      const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === sh.id;
+      if (sel) this.quadTop(x0 - 0.1, y0 - 0.1, x1 + 0.1, y1 + 0.1, z + 0.02, null, '#38bdf8', 2.5);
+    }
+    // Vertical lift in front of the aisle: cyan columns and header, and a
+    // carriage with a roller conveyor that carries one tote.
     drawLift(aisle) {
-      const g = this.sim.grid, lift = aisle.lift, x0 = aisle.a * 3 + 1.08, x1 = aisle.a * 3 + 1.92, y0 = g.B + 0.06, y1 = g.B + 0.94;
-      for (const [px, py] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) this.box(px - 0.04, py - 0.04, 0, px + 0.04, py + 0.04, g.Z + 0.8, '#64748b');
-      this.box(x0 - 0.04, y0 - 0.04, g.Z + 0.8, x1 + 0.04, y1 + 0.04, g.Z + 1.1, '#475569');
-      const col = WS.stateColor(this.sim, lift.displayState);
-      this.box(x0 + 0.04, y0 + 0.04, lift.z - 0.12, x1 - 0.04, y1 - 0.04, lift.z, '#94a3b8', { top: '#334155' });
-      this.faceY(y1 - 0.039, x0 + 0.04, x1 - 0.04, lift.z - 0.12, lift.z - 0.02, col);
-      if (lift.bin) { const b = this.sim.inv.binById.get(lift.bin), c2 = this.toteColor(b); this.box(x0 + 0.12, y0 + 0.1, lift.z, x1 - 0.12, y1 - 0.1, lift.z + TOTE_H, c2, { top: shade(c2, 0.15) }); }
-      if (!lift.idle) this.glow(aisle.a * 3 + 1.5, g.B + 0.5, lift.z + 0.5, 18, col, 0.45);
+      const g = this.sim.grid, lift = aisle.lift, x0 = aisle.a * 3 + 1.06, x1 = aisle.a * 3 + 1.94, y0 = g.B + 0.06, y1 = g.B + 0.94, H = g.Z + 0.8;
+      const col = WS.stateColor(this.sim, lift.displayState), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 }, cy = Object.assign({ top: CYAN_TOP }, edge);
+      for (const px of [x0, x1 - 0.1]) this.box(px, y0, 0, px + 0.1, y0 + 0.12, H, CYAN, cy);
+      this.box(x0, y0, H, x1, y0 + 0.16, H + 0.3, CYAN, cy);
+      this.hazardY(y0 + 0.122, x0, x0 + 0.1, 0.1, 0.9, 3); this.hazardY(y0 + 0.122, x1 - 0.1, x1, 0.1, 0.9, 3);
+      if (!lift.idle) this.glow(aisle.a * 3 + 1.5, g.B + 0.5, lift.z + 0.4, 20, CYAN, 0.45);
+      this.box(x0 + 0.1, y0 + 0.12, lift.z - 0.16, x1 - 0.1, y1 - 0.04, lift.z, CYAN, Object.assign({ top: '#164e63' }, edge));
+      for (let k = 1; k < 6; k++) { const ry = y0 + 0.12 + ((y1 - y0 - 0.16) * k) / 6; this.line(this.P(x0 + 0.12, ry, lift.z + 0.001), this.P(x1 - 0.12, ry, lift.z + 0.001), '#67e8f9', 1); }
+      this.faceY(y1 - 0.038, x0 + 0.16, x1 - 0.16, lift.z - 0.13, lift.z - 0.05, col);
+      if (lift.bin) { const b = this.sim.inv.binById.get(lift.bin), c2 = this.toteColor(b); this.box(x0 + 0.16, y0 + 0.18, lift.z, x1 - 0.16, y1 - 0.1, lift.z + TOTE_H, c2, { top: shade(c2, 0.15) }); }
       const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === lift.id;
       if (sel) this.quadTop(x0 - 0.1, y0 - 0.1, x1 + 0.1, y1 + 0.1, lift.z, null, '#38bdf8', 2.5);
       // totes waiting to go up
