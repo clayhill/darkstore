@@ -123,7 +123,7 @@
           <div class="row meta"><span>${p.inbound} inbound · ${slots}</span><span class="qdots">${dots}</span></div>
           <div class="bar" title="busy ${Math.round(busy * 100)}% · starved ${Math.round(starve * 100)}%"><i style="width:${busy * 100}%;background:#3987e5"></i><i style="width:${starve * 100}%;background:#d95926"></i></div>
           <div class="row meta"><span>busy ${Math.round(busy * 100)}% · starved ${Math.round(starve * 100)}%</span><span>${p.stats.presented} ${this.terms.units} · ${p.stats.lines} lines</span></div></div>`;
-      }).join('') + `<div class="note">Bar: operator busy (blue) vs. waiting for ${this.terms.units} with demand queued (orange). Cap ${cfg.portInboundCap} ${this.terms.units} in flight per ${this.terms.port}.</div>`;
+      }).join('') + `<div class="note">${this.type.portsNote || `Bar: operator busy (blue) vs. waiting for ${this.terms.units} with demand queued (orange). Cap ${cfg.portInboundCap} ${this.terms.units} in flight per ${this.terms.port}.`}</div>`;
     }
     renderAlerts() {
       const a = this.sim.kpi.alerts;
@@ -186,7 +186,7 @@
         <div class="field"><label>Target storage ${tm.unit} (optional — leave empty for system slotting)</label><input type="text" id="rc-bin" placeholder="e.g. ${sample}"></div>
         <div class="lines" id="rc-lines"></div>
         <div class="btns"><button class="btn primary" id="rc-go">Create receipt &amp; call ${tm.units} to goods-in</button></div>
-        <div class="note">The IMS reserves compartment space (same-SKU top-up first, then empty compartments). Robots bring those ${tm.units} to the goods-in ${tm.port}, the operator decants and scans each unit, then the ${tm.unit} is stored back using the slotting policy.</div>
+        <div class="note">${this.type.inboundNote || `The IMS reserves compartment space (same-SKU top-up first, then empty compartments). Robots bring those ${tm.units} to the goods-in ${tm.port}, the operator decants and scans each unit, then the ${tm.unit} is stored back using the slotting policy.`}</div>
       </div></div>
       <div class="sect"><h3>New product <span class="sub">assigns a GS1 GTIN-13</span></h3><div class="card">
         <div class="field"><label>Name</label><input type="text" id="np-name" placeholder="e.g. Espresso Cups 4pk"></div>
@@ -415,6 +415,7 @@
       return `<div class="comp ${hl ? 'hl' : ''}"><span class="faint">#${k + 1}</span><b>${c.qty}</b>${c.gtin ? esc(this.sim.inv.byGtin.get(c.gtin).name) : '<span class="faint">empty</span>'}</div>`;
     }
     inspectPort(p) {
+      if (this.type.inspectPort) return this.type.inspectPort(this, p);
       const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine, tm = this.terms;
       let hmi = `<div class="hmi"><div class="muted">Waiting for next ${tm.unit}…</div></div>`;
       if (j) {

@@ -105,13 +105,19 @@
       this.sim.kpi.onLinePicked(qty);
       if (o.lines.every((l) => l.picked >= l.qty)) {
         o.status = 'PICKED'; o.times.picked = this.sim.time;
+        if (this.sim.onOrderPicked) return this.sim.onOrderPicked(o, port); // the type takes the tote on from here
         port.slots[o.slot] = null;
-        const pk = this.packers.reduce((a, b) => (a.queue.length + a.incoming + (a.cur ? 1 : 0) <= b.queue.length + b.incoming + (b.cur ? 1 : 0) ? a : b));
-        pk.incoming++;
-        o.status = 'CONVEYOR';
-        this.toConveyor({ kind: 'tote', order: o, packer: pk.idx, path: this.sim.layout.toteRoute(port, o.slot, pk.idx) });
+        this.toPacking(o, (pk) => this.sim.layout.toteRoute(port, o.slot, pk));
         this.sim.log('pick', `${o.id} complete at ${port.name} — tote ${o.tote.id} to packing`);
       }
+    }
+    // An order tote onto the takeaway conveyor (route(packer) from where it
+    // starts) to the pack station with the least work.
+    toPacking(o, route) {
+      const pk = this.packers.reduce((a, b) => (a.queue.length + a.incoming + (a.cur ? 1 : 0) <= b.queue.length + b.incoming + (b.cur ? 1 : 0) ? a : b));
+      pk.incoming++;
+      o.status = 'CONVEYOR';
+      this.toConveyor({ kind: 'tote', order: o, packer: pk.idx, path: route(pk.idx) });
     }
 
     // ---------------------------------------------------------------- inbound

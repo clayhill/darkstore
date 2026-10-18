@@ -32,6 +32,11 @@
       map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
       sim: ['js/acr/config.js', 'js/acr/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js'],
     },
+    amr: {
+      name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
+      map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',
+      sim: ['js/amr/config.js', 'js/amr/floor.js', 'js/amr/sim.js'], view: ['js/amr/render.js', 'js/amr/ui.js'],
+    },
   };
   const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',
     'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/floor.js', 'js/sim/rack.js'];

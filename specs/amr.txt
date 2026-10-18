@@ -1,0 +1,96 @@
+DarkStore - robots alongside pickers (collaborative AMRs)
+=========================================================
+
+Read common.txt first.
+
+1. Overview
+
+This one is not goods-to-person. Storage is ordinary low shelving that
+people can reach, and people still walk the aisles and pick. What the robots
+take over is the walking with a cart: a robot carries a few order totes from
+shelf to shelf and waits beside each one until a picker comes, picks into the
+right tote and confirms on the robot's screen. Pickers stay in a zone of
+aisles and go from robot to robot; robots come and go. When the totes are
+full the robot drives itself to a drop-off point.
+
+It is the most common first step into warehouse automation, because the
+shelving and the people stay, and robots can be added a few at a time.
+
+2. Layout
+
+- A location is [aisle][side][bay][level][slot]. A shelf bay is one storage
+  unit in the model; it never moves.
+- The floor is a grid: shelf cells, aisle cells (aisles two cells wide, so a
+  robot waiting at a shelf leaves room to pass), cross-aisles at the back and
+  front, station lanes, parking places and chargers.
+- The robot stops on the aisle cell beside the shelf bay; the picker stands
+  next to it.
+- Induct & drop-off stations sit at the front. Empty order totes are staged
+  there, one per released order, until a robot takes them; full totes go
+  from there onto the takeaway conveyor to packing.
+
+3. Equipment
+
+- Robots: a drive unit with a small tote rack (two decks, two totes each) and
+  a tablet on a mast that shows the picker what to pick. Acceleration,
+  braking, turning on the spot, battery use with charging trips.
+- Pickers: people walking at a set speed. They do not reserve floor cells;
+  they step around robots. Per stop: scan the location, then for each line
+  pick the units into the tote and confirm.
+- Station operator: takes full totes off a robot and puts empty ones on, a
+  fixed time per tote.
+
+4. Picking
+
+1. Orders are released to a station with a free staging slot and an empty
+   tote, and their stock is reserved as in common.txt.
+2. A robot takes up to N staged orders (its tote positions). It waits for a
+   full batch unless the oldest order has waited long enough.
+3. Its stops are the shelf locations of all the batch's lines, one stop per
+   location. It drives them in an S-shape: aisles left to right, into the
+   first from the front, out of the next one at the back, and so on.
+4. At each stop it waits for a picker. Each picker takes the stop in their
+   zone that has waited longest, also stops a robot is still driving to, so
+   they meet it there. An idle picker helps out in another zone where robots
+   are waiting.
+5. After the last stop the robot queues at an induct & drop-off station. The
+   operator takes the totes off onto the packing conveyor and, if orders are
+   staged there, puts the next batch on. Otherwise the robot parks.
+
+Putaway is the same tour the other way round: the goods-in operator loads
+received cases onto a robot, and at each stop a picker puts the goods into
+the location the IMS reserved for them.
+
+5. Traffic
+
+- Robots reserve cells and route with A*, as on the other robot floors. A
+  robot waiting at a stop blocks its cell; others pass in the other half of
+  the aisle.
+- Station lanes are driven in order; idle robots wait in parking rows along
+  the front and back so they keep the aisles clear.
+- Pickers walk over aisle and cross-aisle cells without blocking robots.
+
+6. Storage policy
+
+Locations do not move, so the choice is where to pick a line from: the IMS
+prefers a location already on a stop for that station, then one in an aisle
+with little work waiting, then one near the stations. This spreads the work
+over the picker zones.
+
+7. Output
+
+- Picker utilization (walking and picking), metres walked.
+- How long a robot waits for a picker at a stop.
+- Lines per stop, totes dropped per station.
+- The robots' time split: driving, waiting for pickers, at stations,
+  in traffic.
+
+8. Parameters
+
+- Shelving: 6 aisles, 14 bays per side, 4 levels × 2 slots per bay; a cell is
+  0.75 m.
+- Robots: 10, 4 order totes each, 1.2 m/s, 0.8 s to turn.
+- Pickers: 6, walking 1.1 m/s, zone picking on.
+- Pick: 1.5 s scan per stop, then per line 1 s + 3.2 s per unit + 1 s confirm.
+- Station: 3.5 s per tote on or off; 8 orders staged per station; a robot
+  leaves with a part batch after 30 s.

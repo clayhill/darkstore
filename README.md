@@ -2,10 +2,10 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the five simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the six simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of five
-storage systems and watch robots, operators and orders move through it in real time: totes and bins
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of six
+systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
 
@@ -14,6 +14,8 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
+Five of the six systems work this way. The sixth, AisleMate, is the common first step towards it:
+people still pick from ordinary shelving, and robots carry the order totes to them.
 
 **What every simulation shares**
 
@@ -28,7 +30,7 @@ the systems apart is how they store goods and fetch them; everything around the 
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The five systems**
+**The six systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -37,10 +39,11 @@ the systems apart is how they store goods and fetch them; everything around the 
 | [**RailRunner**](https://clayhill.github.io/darkstore/railrunner.html) | Shuttle AS/RS | Totes in racking | A shuttle per level, a lift per aisle | The lift as the bottleneck |
 | [**SkyStack**](https://clayhill.github.io/darkstore/skystack.html) | Stacker crane AS/RS | Totes in high racking | One crane per aisle | Cycle times against FEM 9.851 |
 | [**StackPilot**](https://clayhill.github.io/darkstore/stackpilot.html) | Case-handling robots (ACR) | Totes on shelving | Robots collecting batches of totes | Totes per trip, aisle traffic |
+| [**AisleMate**](https://clayhill.github.io/darkstore/aislemate.html) | Robots alongside pickers (collaborative AMRs) | Goods on ordinary shelving | Robots with order totes, pickers walking to them | Robot waits for pickers, picker utilization |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
-by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt` and `acr.txt` describe the five
-systems.
+by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt` and `amr.txt` describe
+the six systems.
 
 ## Run
 
@@ -51,7 +54,7 @@ To run it locally, open `index.html` in Safari (or any modern browser). It has n
 dependencies, so double-clicking the file works. Only the 3D view needs a network connection: it loads
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
-`skystack.html` and `stackpilot.html`.
+`skystack.html`, `stackpilot.html` and `aislemate.html`.
 
 **In a simulation**
 
@@ -59,7 +62,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   to nearly top-down, **space** to pause, **Esc** to close panels.
 - Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D**: a free 3D view of the whole warehouse, in all five systems. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all six systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
@@ -107,7 +110,7 @@ decaying pick velocity, and ABC classes (top 20 % / next 30 % / rest). Each syst
 storage policy, but all of them put fast movers in their fastest positions by default; *nearest* and
 *random* policies are there to compare.
 
-**Robot traffic** (CubeFlow, PodSwarm, StackPilot). Routing is direction-aware A* (turns cost time).
+**Robot traffic** (CubeFlow, PodSwarm, StackPilot, AisleMate). Routing is direction-aware A* (turns cost time).
 Traffic control uses moving-block cell reservations: a robot may only enter cells it has claimed, and
 it always claims its braking distance ahead, so only one robot can occupy a cell at a time. To resolve
 conflicts and deadlocks, a robot that waits too long re-routes around stopped robots, idle robots are
@@ -129,7 +132,7 @@ hotspots, starved or blocked stations, backorders, tote shortage and low battery
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The five systems in detail
+## The six systems in detail
 
 ### CubeFlow — cube storage
 
@@ -319,11 +322,58 @@ how the fleet's working time splits into driving, mast travel, handling, handove
 aisle waits. A robot needs minutes to bring a batch, so each station keeps 12 orders open on a wide
 put wall. Not modelled yet: double-deep storage and robots that climb the racking.
 
+### AisleMate — robots alongside pickers
+
+![AisleMate: shelving aisles with robots waiting at the shelves, pickers beside them and the stations in front](docs/screenshots/amr-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the aisles: robots carrying order totes, pickers picking into them](docs/screenshots/amr-closeup.png) | ![AisleMate control room: picker utilization, robot waits for pickers, lines per stop and the floor map](docs/screenshots/amr-control.png) |
+| **Close-up:** robots with order totes on two decks wait beside the shelves; pickers walk up and pick into them | **Control room:** picker utilization, how long robots wait for a picker, lines per stop |
+| ![AisleMate in 3D: rows of shelving, robots in the aisles and the induct stations in front](docs/screenshots/amr-3d.png) | ![Close-up in 3D: a picker at a robot waiting beside the shelf, its tablet lit](docs/screenshots/amr-3d-closeup.png) |
+| **3D:** shelving, robots, pickers and the stations | **3D close-up:** a picker at a robot, the tablet showing what to pick |
+
+AisleMate is not goods-to-person: the shelving stays, people still pick, and robots take over the
+walking with a cart. It shows what a warehouse gets from robots without new storage, and how the
+balance between robots and pickers decides the throughput.
+
+**Floor.** Rows of shelving with aisles two cells wide, so a robot waiting at a shelf leaves room
+to pass; a cross-aisle at the back and the front, parking rows along the front and back walls and
+chargers on the back wall. A shelf bay is one stock location with 4 levels of 2 slots. Induct &
+drop-off stations sit at the front, each with a short queue lane, the operator and a rack of order
+totes staged for the robots; a goods-in station is on the right.
+
+**Robots.** A drive unit with two decks for 4 order totes and a tablet on a mast. A robot takes up
+to 4 orders staged at a station (it leaves with fewer once the oldest has waited 30 s) and drives an
+S-shaped route past the locations of their lines, one stop per location. At each stop it waits,
+tablet lit, until a picker has worked it. After the last stop it queues at a station: the operator
+takes the full totes off onto the packing conveyor (3.5 s each) and, if orders are staged there,
+puts the next batch on in the same visit.
+
+**Pickers.** People walking at 1.1 m/s who do not reserve floor cells. With zone picking (the
+default) the aisles are split over the pickers; a picker takes the stop in their zone that has waited
+longest, also stops a robot is still driving to, so they meet it there, and an idle picker helps in
+a zone where robots are waiting. Per stop: 1.5 s to scan the location, then per line 1 s, 3.2 s per
+unit and 1 s to confirm.
+
+**Putaway.** The goods-in operator loads received cases onto a robot, which drives a putaway tour
+of up to 6 locations; at each stop a picker puts the goods away.
+
+**Storage policy.** Locations do not move, so the choice is where to pick a line from: a location
+already on a stop for that station first, then one in an aisle with little work waiting, then one
+near the stations. That spreads the work over the picker zones.
+
+**KPIs.** Picker utilization and metres walked, how long a robot waits for a picker per stop, lines
+per stop and the robots' time split. With the default 10 robots and 6 pickers the site picks about
+560 order lines per hour, keeping up with 300 orders per hour; robots spend about a third of their
+time waiting for pickers, which is normal for this kind of system. Not modelled yet: pickers
+following a robot through the aisle, pick carts, picker breaks.
+
 ## Development
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html
+cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, aislemate.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -344,10 +394,11 @@ js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, u
 js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
 js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
 js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), render, ui
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr]
+js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, no tunnelling, one-tote crane handler,
-            one-way aisles), and compares a fingerprint of stock, fleet, orders and KPIs
+            one-way aisles, no picker zones), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 

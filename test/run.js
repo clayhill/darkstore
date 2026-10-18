@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -66,6 +66,16 @@ function checkPods() {
     if (!r) throw new Error(`pod ${b.id} (${b.loc}) not carried by any robot`);
   }
   if (n !== 0) throw new Error('pod count mismatch');
+}
+// shelving: locations never move; every released order tote is staged at
+// exactly one station or rides on exactly one robot; no robot waits for ever
+function checkShelves() {
+  for (const b of sim.inv.bins) if (b.loc !== 'grid' || g.binAt[g.idx(b.x, b.y)] !== b.id) throw new Error('location moved ' + b.id);
+  const at = new Map(), put = (o, w) => { if (at.has(o)) throw new Error(`${o.id} at ${at.get(o)} and ${w}`); at.set(o, w); };
+  for (const p of sim.ports) p.slots.forEach((o) => o && put(o, p.code));
+  for (const r of sim.fleet) { if (r.totes.length > sim.cfg.robotTotes) throw new Error(r.name + ' overloaded'); r.totes.forEach((o) => put(o, r.name)); }
+  for (const o of sim.oms.orders) if (['RELEASED', 'PICKING', 'PICKED'].includes(o.status) && !at.has(o)) throw new Error(`${o.id} (${o.status}) nowhere`);
+  for (const st of sim.stops) if (st.arrived && sim.time - st.since > 900) throw new Error(`${st.robot.name} waiting for a picker since ${st.since.toFixed(0)}`);
 }
 // cube: every grid bin exactly once in stacks, stack heights <= Z
 function checkStacks() {

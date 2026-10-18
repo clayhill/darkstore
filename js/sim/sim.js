@@ -51,7 +51,7 @@
       this.grid = this.createGrid();
       this.inv = new WS.Inventory(this);
       this.router = new WS.Router(this);
-      this.ports = this.grid.ports.map((d, k) => new WS.Port(this, k, d));
+      this.ports = this.grid.ports.map((d, k) => this.createPort(k, d));
       this.layout = this.createLayout();
       this.kpi = new WS.KPI(this);
       this.fleet = [];
@@ -67,6 +67,7 @@
     // and fetchCost(unit). The order flow, ports, inventory, router and KPIs
     // are shared.
     createLayout() { return new Layout(this); }
+    createPort(k, def) { return new WS.Port(this, k, def); }
     // states only this type uses: { KEY: { label, color } }; they count as work
     get extraStates() { return {}; }
     compLabel(k) { return 'compartment ' + (k + 1); }

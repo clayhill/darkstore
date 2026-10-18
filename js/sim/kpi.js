@@ -88,7 +88,7 @@
       }
       for (const p of sim.ports) {
         if (p.recentStarve > 0.35 && p.stats.t > 120)
-          out.push({ sev: p.recentStarve > 0.6 ? 'critical' : 'warning', key: 'starve' + p.idx, title: p.name + ' starved', msg: `Waiting for ${sim.terms.units} ${(p.recentStarve * 100).toFixed(0)}% of recent time`, port: p.idx });
+          out.push({ sev: p.recentStarve > 0.6 ? 'critical' : 'warning', key: 'starve' + p.idx, title: p.name + ' starved', msg: `Waiting for ${sim.terms.starve || sim.terms.units} ${(p.recentStarve * 100).toFixed(0)}% of recent time`, port: p.idx });
         if (p.outQ.length >= 2 && p.job && p.job.next >= p.job.lines.length && p.job.t >= p.job.total)
           out.push({ sev: 'warning', key: 'blocked' + p.idx, title: p.name + ' blocked', msg: 'Outgoing bins not collected — robot shortage', port: p.idx });
       }
@@ -101,6 +101,7 @@
       if (waiting > sim.fleet.length * 0.3) out.push({ sev: 'warning', key: 'jam', title: 'Congestion', msg: `${waiting} of ${sim.fleet.length} robots waiting in traffic` });
       const recentPen = this.penaltyLog.filter((e) => e.t > sim.time - 600).length;
       if (recentPen >= 3) out.push({ sev: 'info', key: 'bury', title: 'Fast movers buried', msg: `${recentPen} burial penalties in the last 10 min` });
+      if (sim.extraAlerts) out.push(...sim.extraAlerts());
       this.alerts = out;
     }
   }

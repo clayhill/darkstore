@@ -1,10 +1,10 @@
 DarkStore - specs
 =================
 
-The simulator should eventually cover several kinds of goods-to-person
-warehouse automation. Each kind gets its own spec. The parts that every kind
-shares (time model, orders, inventory, workstations, output) are written down
-once, in common.txt.
+The simulator should eventually cover several kinds of warehouse
+automation, most of them goods-to-person. Each kind gets its own spec. The
+parts that every kind shares (time model, orders, inventory, workstations,
+output) are written down once, in common.txt.
 
   common.txt    shared rules, read this first
   cube.txt      cube storage: bins stacked in a grid, robots on top
@@ -18,6 +18,9 @@ once, in common.txt.
                 (implemented as StackPilot)
   crane.txt     stacker crane AS/RS: one crane per aisle, mini-load (totes)
                 or unit-load (pallets) (mini-load implemented as SkyStack)
+  amr.txt       robots alongside pickers: people still pick from ordinary
+                shelving, robots carry the order totes to them (not
+                goods-to-person; implemented as AisleMate)
 
 Each type spec follows the same outline:
 

@@ -15,6 +15,7 @@ const RUNS = {
   shuttle: ['shuttle', {}],
   crane: ['crane', {}], 'crane-single': ['crane', { handlerSlots: 1 }],
   acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],
+  amr: ['amr', {}], 'amr-nozones': ['amr', { zonePicking: 'off' }],
 };
 
 // Child mode: run one type and print its fingerprint lines.
