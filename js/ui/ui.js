@@ -32,7 +32,7 @@
       $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) this.setTab(b.dataset.tab); });
       $('#iso-tools').addEventListener('click', (e) => {
         const b = e.target.closest('button'); if (!b) return;
-        if (b.id === 'btn-fit') { app.iso.fit(); return; }
+        if (b.id === 'btn-fit') { (app.view === '3d' ? app.gl : app.iso).fit(); return; }
         if (!b.dataset.opt) return;
         const k = b.dataset.opt; app.iso.opts[k] = !app.iso.opts[k]; b.classList.toggle('on', app.iso.opts[k]);
       });

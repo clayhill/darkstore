@@ -51,6 +51,15 @@ h3 .sub { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(
 .view-floor .control { display: none; }
 .view-control .stage { grid-template-columns: 1fr; }
 .view-control .iso-wrap { display: none; }
+.view-3d .stage { grid-template-columns: 1fr; }
+.view-3d .control, .view-3d #iso, .view-3d .hint2d, .view-3d [data-opt="xray"], .view-3d [data-opt="solid"], .view-3d .cut { display: none; }
+#gl, #gl-labels { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+#gl { cursor: grab; touch-action: none; }
+#gl-labels { pointer-events: none; }
+.view-3d #gl, .view-3d #gl-labels { display: block; }
+.hint3d, .iso-tools .only3d { display: none; }
+.view-3d .hint3d { display: block; top: 14px; bottom: auto; }
+.view-3d .iso-tools .only3d { display: inline-block; }
 .view-split .stage { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
 .iso-wrap { position: relative; min-height: 0; overflow: hidden; }
 #iso { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; display: block; }

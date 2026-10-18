@@ -13,7 +13,7 @@
       sim: ['js/cube/config.js', 'js/cube/grid.js', 'js/cube/tasks.js', 'js/cube/sim.js'], view: ['js/cube/render.js', 'js/cube/ui.js'],
     },
     pod: {
-      name: 'PodSwarm', sub: 'Pod robots', scan: 'pod, tote, order', click: 'robots, pods, stations',
+      name: 'PodSwarm', sub: 'Pod robots', scan: 'pod, tote, order', click: 'robots, pods, stations', three: ['js/pod/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pods at stations', fleet: 'Fleet',
       sim: ['js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js'], view: ['js/pod/render.js', 'js/pod/ui.js'],
     },
@@ -56,7 +56,7 @@
     <div class="seg views" id="views">
       <button data-view="floor" class="on">Floor</button>
       <button data-view="split">Split</button>
-      <button data-view="control">Control room</button>
+${k.three ? '      <button data-view="3d" title="Free 3D view: orbit, walk through the warehouse, follow a robot">3D</button>\n' : ''}      <button data-view="control">Control room</button>
     </div>
     <form class="scan" id="scan-form" autocomplete="off">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2 4h2v16H2zm3 0h1v16H5zm2 0h2v16H7zm3 0h1v16h-1zm3 0h2v16h-2zm3 0h1v16h-1zm2 0h1v16h-1zm2 0h2v16h-2z"/></svg>
@@ -68,15 +68,18 @@
     <section class="stage">
       <div class="iso-wrap" id="iso-wrap">
         <canvas id="iso"></canvas>
+${k.three ? '        <canvas id="gl"></canvas><canvas id="gl-labels"></canvas>\n' : ''}
         <div class="iso-tools" id="iso-tools">
 ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n          <button data-opt="solid" title="Draw the racking solid, so it hides the machines behind it; Shift-drag to look down into the aisles">Solid racking</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
           <button data-opt="paths" class="on">Paths</button>
           <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
-        <div class="hint">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
+        <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
+        <div class="hint hint3d">Drag to orbit · right-drag to pan · scroll to zoom · WASD to move · double-click a robot to follow</div>
       </div>
       <div class="control" id="control">
         <div class="kpi-row" id="kpis"></div>
@@ -112,7 +115,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
   <div class="modal hidden" id="modal"><div class="modal-card" id="modal-card"></div></div>
   <div class="toast" id="toast"></div>
 `);
-  for (const src of [...SHARED, ...k.sim, 'js/render/iso.js', 'js/render/stations.js', 'js/render/control.js', ...k.view, 'js/ui/ui.js', 'js/main.js']) {
+  for (const src of [...SHARED, ...k.sim, 'js/render/iso.js', 'js/render/stations.js', 'js/render/control.js', ...k.view, ...(k.three ? ['js/render3d/view3d.js', ...k.three] : []), 'js/ui/ui.js', 'js/main.js']) {
     const s = document.createElement('script');
     s.src = src + '?t=' + T; s.async = false; // run in this order
     document.body.appendChild(s);

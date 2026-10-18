@@ -18,10 +18,10 @@
       this.iso = new this.Kind.Renderer(document.getElementById('iso'), this);
       this.cr = new WS.ControlRoom(this, document.getElementById('crmap'), document.getElementById('chT'), document.getElementById('chU'));
       this.ui = new WS.UI(this);
-      const ro = new ResizeObserver(() => { const fresh = !this.iso.w; this.iso.resize(); if (fresh) this.iso.fit(); });
+      const ro = new ResizeObserver(() => { const fresh = !this.iso.w; this.iso.resize(); if (fresh) this.iso.fit(); if (this.gl) this.gl.resize(); });
       ro.observe(document.getElementById('iso-wrap'));
       this.iso.resize(); this.iso.fit();
-      // optional URL parameters: ?warm=<sim seconds to pre-run>&view=floor|split|control&xray=1&tilt=<degrees>
+      // optional URL parameters: ?warm=<sim seconds to pre-run>&view=floor|split|control|3d&xray=1&tilt=<degrees>
       const q = new URLSearchParams(location.search);
       const warm = +q.get('warm') || 0;
       for (let k = 0; k < warm / this.sim.cfg.tick; k++) this.sim.tick();
@@ -39,18 +39,31 @@
     restart(cfg) {
       this.sim = new this.Kind.Sim(cfg);
       this.iso.selected = null; this.iso.resetCaches();
+      if (this.gl) this.gl.reset();
       this.ui.onRestart();
       this.iso.fit();
       this.ui.toast('Simulation restarted');
     },
     setView(v) {
+      if (v === '3d' && !this.gl) return this.open3d();
       this.view = v;
       document.getElementById('layout').className = 'layout view-' + v;
       [...document.getElementById('views').children].forEach((b) => b.classList.toggle('on', b.dataset.view === v));
-      this.iso.resize(); this.iso.fit(); this.ui.refresh();
+      if (v === '3d') { this.gl.resize(); if (!this.gl.fitted) { this.gl.fitted = true; this.gl.fit(); } } else { this.iso.resize(); this.iso.fit(); }
+      this.ui.refresh();
+    },
+    // The 3D view loads three.js the first time it is opened.
+    open3d() {
+      if (!this.Kind.Renderer3D || this.loading3d) return this.loading3d;
+      this.ui.toast('Loading the 3D view…');
+      this.loading3d = WS.View3D.create(this.Kind.Renderer3D, document.getElementById('gl'), document.getElementById('gl-labels'), this)
+        .then((gl) => { this.gl = gl; this.setView('3d'); })
+        .catch((e) => { this.loading3d = null; this.ui.toast('The 3D view could not load (' + e.message + '). It needs an internet connection the first time.', true); });
+      return this.loading3d;
     },
     render(alpha) {
-      if (this.view !== 'control') this.iso.draw(alpha);
+      if (this.view === '3d') this.gl.draw(alpha);
+      else if (this.view !== 'control') this.iso.draw(alpha);
       if (this.view !== 'floor') { this.cr.drawMap(alpha); this.cr.drawThroughput(); this.cr.drawUtil(); }
     },
     frame(t) {
@@ -74,7 +87,7 @@
   };
   const KINDS = {
     cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer }),
-    pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer }),
+    pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer, Renderer3D: WS.PodRenderer3D }),
     shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer }),
     crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer }),
     acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer }),
