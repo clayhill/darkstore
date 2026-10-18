@@ -165,6 +165,31 @@
       const q = ln.order ? L.slotPos(p, ln.order.slot) : pick;
       return { base, helper, assist: false, color: `hsl(${(parseInt(ln.gtin.slice(7, 12), 10) * 47) % 360},55%,60%)`, tip: { x: pick.x + (q.x - pick.x) * s, y: pick.y + (q.y - pick.y) * s, z: CZ + 0.9 + 1.4 * Math.sin(Math.PI * s), hold: ph > 0.08 && ph < 0.5 } };
     }
+    // A decanting cell: the case opener stands beside where the operator
+    // would (src), the arm (at base) carries each opened carton over the
+    // storage unit, tips it while the goods pour in, and goes back empty.
+    // While an operator decants an item the cell cannot tip, the arm waits.
+    decantPose(p) {
+      const L = this.sim.layout, base = L.operatorPos(p), pick = L.pickPos(p), CZ = this.CZ, j = p.job, ln = p.currentLine, front = p.face === 'front';
+      const src = front ? { x: base.x + 0.9, y: base.y - 0.15 } : { x: base.x - 0.15, y: base.y + 0.9 };
+      const helper = front ? { x: base.x - 0.75, y: base.y } : { x: base.x, y: base.y - 0.75 };
+      const out = { base, src, helper, assist: false, carton: true, tip: { x: src.x, y: src.y, z: CZ + 1.6, hold: false } };
+      if (!j || !ln || p.mode !== 'auto') return out;
+      if (ln.assist) return Object.assign(out, { assist: true });
+      const f = Math.min(1, Math.max(0, (j.t - ln.start) / Math.max(0.1, ln.at - ln.start))), ease = (u) => u * u * (3 - 2 * u);
+      const s = f < 0.35 ? ease(f / 0.35) : f < 0.8 ? 1 : 1 - ease((f - 0.8) / 0.2);
+      out.tip = { x: src.x + (pick.x - src.x) * s, y: src.y + (pick.y - src.y) * s, z: CZ + 1.6, hold: f < 0.8 };
+      out.pour = f >= 0.35 && f < 0.8 ? (f - 0.35) / 0.45 : 0;
+      out.color = `hsl(${(parseInt(ln.gtin.slice(7, 12), 10) * 47) % 360},55%,60%)`;
+      return out;
+    }
+    drawCaseOpener(a) {
+      const s = a.src, CZ = this.CZ;
+      this.box(s.x - 0.32, s.y - 0.32, 0, s.x + 0.32, s.y + 0.32, CZ + 0.5, '#64748b', { top: '#334155' });
+      this.faceY(s.y + 0.322, s.x - 0.22, s.x + 0.22, CZ - 0.6, CZ + 0.2, '#0f172a');
+      this.glow(s.x, s.y + 0.32, CZ - 0.2, 12, '#f87171', 0.5); // cutter
+      if (!a.tip.hold || a.assist) this.parcel(s.x - 0.18, s.y - 0.15, s.x + 0.18, s.y + 0.15, CZ + 0.5, 0.45); // next carton waiting
+    }
     drawArm(a) {
       const P = this.P.bind(this), b = a.base, t = a.tip, top = this.CZ + 2.6;
       this.box(b.x - 0.26, b.y - 0.26, 0, b.x + 0.26, b.y + 0.26, 0.35, '#334155');
@@ -175,7 +200,11 @@
       this.box(t.x - 0.08, t.y - 0.08, top - 0.12, t.x + 0.08, t.y + 0.08, top + 0.15, '#d97706');
       this.line(P(t.x, t.y, top - 0.1), P(t.x, t.y, t.z + 0.22), '#94a3b8', 3);
       this.box(t.x - 0.09, t.y - 0.09, t.z, t.x + 0.09, t.y + 0.09, t.z + 0.22, '#475569');
-      if (t.hold) this.box(t.x - 0.08, t.y - 0.07, t.z - 0.3, t.x + 0.08, t.y + 0.07, t.z, '#888888', { top: a.color, left: a.color, right: a.color });
+      if (t.hold && a.carton) {
+        this.parcel(t.x - 0.18, t.y - 0.15, t.x + 0.18, t.y + 0.15, t.z - 0.45, 0.45);
+        // the goods pouring out of the tipped carton into the storage unit
+        if (a.pour) for (let k = 0; k < 3; k++) { const z = t.z - 0.5 - ((a.pour * 3 + k / 3) % 1) * 1.2; this.box(t.x - 0.05 + k * 0.05, t.y - 0.04, z, t.x + k * 0.05, t.y + 0.04, z + 0.1, '#888888', { top: a.color, left: a.color, right: a.color }); }
+      } else if (t.hold) this.box(t.x - 0.08, t.y - 0.07, t.z - 0.3, t.x + 0.08, t.y + 0.07, t.z, '#888888', { top: a.color, left: a.color, right: a.color });
     }
 
     // ---------------------------------------------------------------- packing
@@ -266,7 +295,12 @@
       for (const p of sim.ports) {
         const op = L.operatorPos(p);
         this.drawPortBody(p, add);
-        if (p.arm) {
+        if (p.decanter) {
+          const a = this.decantPose(p);
+          add(a.src.x + a.src.y, () => this.drawCaseOpener(a));
+          add(op.x + op.y + 0.5, () => this.drawArm(a));
+          if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, '#22c55e'));
+        } else if (p.arm) {
           const a = this.armPose(p);
           add(op.x + op.y + 0.5, () => this.drawArm(a));
           if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, '#f97316'));
@@ -361,7 +395,7 @@
       for (const p of sim.ports) {
         const pos = p.face === 'front' ? { x: p.drop.x + 1, y: g.D + 0.2 } : { x: g.W + 0.2, y: p.drop.y + 1 };
         const st = p.job ? (p.mode === 'manual' ? 'MANUAL' : 'ACTIVE') : p.inQ.length ? 'INBOUND' : 'WAITING';
-        this.text(`${p.code} ${p.kind === 'PICK' ? (p.arm ? 'ROBOT PICK' : 'PICK') : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 6.2, { size: 10, bg: 'rgba(15,23,42,0.82)', color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
+        this.text(`${p.code} ${p.kind === 'PICK' ? (p.arm ? 'ROBOT PICK' : 'PICK') : p.decanter ? 'AUTO GOODS-IN' : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 6.2, { size: 10, bg: 'rgba(15,23,42,0.82)', color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
       }
       for (const pk of sim.oms.packers) {
         const q = L.packerPos(pk.idx);

@@ -89,6 +89,10 @@
       if (prod.weight > 1.5 || h % 20 === 0) return 0;
       return h % 5 === 1 ? 0.8 : 0.98;
     }
+    // Whether a decanting cell can tip a product's carton into a storage unit,
+    // also from its item reference: fragile or loose items (1 in 8) and heavy
+    // ones (over 2 kg a unit) are decanted by hand.
+    tippable(prod) { return prod.weight <= 2 && parseInt(prod.gtin.slice(7, 12), 10) % 8 !== 3; }
     isEmpty(bin) { return bin.comps.every((c) => !c.gtin && c.qty === 0 && c.incoming === 0); }
     available(prod) { return prod.onHand - prod.reserved; }
 

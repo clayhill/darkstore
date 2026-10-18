@@ -27,6 +27,11 @@
     // by hand. armExceptions 'route' keeps orders with such items away from
     // the arm stations at release.
     armStations: 0, armPerUnit: 4.5, armAssistDelay: 20, armExceptions: 'assist', // 'assist' | 'route'
+    // Automated decanting: the first autoDecant goods-in stations are robotic
+    // cells (0 = none). A case opener cuts each carton open and an arm tips it
+    // into the storage unit: decantCase s per receipt line plus decantTip s per
+    // unit. Items it cannot tip are decanted by an operator who comes over.
+    autoDecant: 0, decantCase: 6, decantTip: 0.2,
 
     // Outbound
     packStations: 3, packBase: 18, packPerUnit: 4, // manual pack benches: s per order + s per unit

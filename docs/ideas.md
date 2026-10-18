@@ -22,7 +22,7 @@ Auto-bagging and box-making machines, plus a sorter that combines totes from sev
 
 ### 3. Automated unloading and decanting at goods-in
 
-**Status:** Idea
+**Status:** Built: automated goods-in stations in Settings (robotic decanting cells, operator for items they cannot tip).
 
 A machine opens cartons and tips goods into totes instead of a person. A variation on the existing goods-in model.
 

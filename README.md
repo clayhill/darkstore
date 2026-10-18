@@ -134,6 +134,14 @@ arms picked.
 same-SKU compartments first. Those units come to the goods-in station, the operator decants into
 them, and they are then stored. Optional min/max auto-replenishment creates receipts automatically.
 
+**Automated decanting** (the same five systems). Settings can turn the first goods-in stations into
+robotic decanting cells: a case opener cuts each supplier carton open and an arm carries it over the
+storage unit and tips the goods into the compartment (6 s per carton plus 0.2 s per unit, against
+2 s plus 1.6 s per unit by hand). Fragile, loose or heavy items (about 1 in 8 products, from a fixed
+property of the product) an operator comes over and decants by hand. In the default scenarios a cell
+needs about 40 % less station time per received unit; the control room shows the share of receipt
+lines the cells tipped.
+
 **Inventory (IMS).** Tracks the item master, storage units with compartments, stock reservations,
 decaying pick velocity, and ABC classes (top 20 % / next 30 % / rest). Each system has its own
 storage policy, but all of them put fast movers in their fastest positions by default; *nearest* and
@@ -434,7 +442,8 @@ js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), ren
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
 test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
-            non-default settings (nearest putaway, robot arm stations, packing machines, no tunnelling, one-tote crane handler,
+            non-default settings (nearest putaway, robot arm stations, automated decanting,
+            packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```

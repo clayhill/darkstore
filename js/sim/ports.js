@@ -41,6 +41,21 @@
       }
       return t;
     }
+    // A decanting cell works here instead of an operator; decanter counts its work.
+    setDecanter() {
+      this.decanter = { lines: 0, units: 0, assists: 0 };
+      this.name = 'Auto goods-in ' + (this.idx + 1);
+    }
+    // Seconds the cell needs for a receipt line: open the carton and tip it,
+    // or, for an item it cannot tip, an operator who comes over and decants
+    // by hand (ln.assist).
+    decantLine(ln) {
+      const sim = this.sim, c = sim.cfg, d = this.decanter;
+      d.lines++; d.units += ln.qty;
+      if (sim.inv.tippable(sim.inv.byGtin.get(ln.gtin))) { ln.assist = 0; return c.decantCase + ln.qty * c.decantTip; }
+      ln.assist = ln.qty; d.assists++;
+      return c.armAssistDelay + 2.0 + ln.qty * c.decantPerUnit;
+    }
     canAccept() { return this.queueRoom() > 0; }
     queueRoom() { return this.entryReserved ? 0 : 2 - this.inQ.length; } // totes the infeed still takes
     demand() {
@@ -69,7 +84,8 @@
       for (const ln of lines) {
         if (sim.lineOverhead) t += sim.lineOverhead(bin, ln, prev, this); // e.g. turning a pod to another face
         ln.start = t;
-        t += this.kind !== 'PICK' ? 2.0 + ln.qty * cfg.decantPerUnit : this.arm ? this.armLine(ln) : 1.0 + ln.qty * cfg.pickPerUnit + cfg.putConfirm;
+        if (this.kind === 'PICK') t += this.arm ? this.armLine(ln) : 1.0 + ln.qty * cfg.pickPerUnit + cfg.putConfirm;
+        else t += this.decanter ? this.decantLine(ln) : 2.0 + ln.qty * cfg.decantPerUnit;
         ln.at = t; prev = ln;
       }
       if (this.kind === 'GOODS_IN') t += 1.5; // bin confirm

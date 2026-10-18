@@ -528,7 +528,14 @@
       for (const p of sim.ports) {
         this.portLive(p);
         const op = L.operatorPos(p);
-        if (p.arm) {
+        if (p.decanter) {
+          const a = WS.IsoRenderer.prototype.decantPose.call(this, p), s = a.src, D = this.dy;
+          D.box.box(s.x - 0.32, s.y - 0.32, 0, s.x + 0.32, s.y + 0.32, CZ + 0.5, '#64748b');
+          D.lit.box(s.x - 0.22, s.y + 0.32, CZ - 0.3, s.x + 0.22, s.y + 0.33, CZ - 0.1, '#f87171');
+          if (!a.tip.hold || a.assist) this.parcel(D.box, s.x - 0.18, s.y - 0.15, s.x + 0.18, s.y + 0.15, CZ + 0.5, 0.45, false);
+          this.arm(a);
+          if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, '#22c55e');
+        } else if (p.arm) {
           const a = WS.IsoRenderer.prototype.armPose.call(this, p);
           this.arm(a);
           if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, '#f97316');
@@ -597,7 +604,10 @@
       D.cyl.cyl(t.x, t.y, top - 0.15, top + 0.15, 0.1, '#d97706');
       D.cyl.cyl(t.x, t.y, t.z + 0.22, top - 0.1, 0.035, '#94a3b8');
       D.box.box(t.x - 0.09, t.y - 0.09, t.z, t.x + 0.09, t.y + 0.09, t.z + 0.22, '#475569');
-      if (t.hold) D.box.box(t.x - 0.08, t.y - 0.07, t.z - 0.3, t.x + 0.08, t.y + 0.07, t.z, a.color);
+      if (t.hold && a.carton) {
+        this.parcel(D.box, t.x - 0.18, t.y - 0.15, t.x + 0.18, t.y + 0.15, t.z - 0.45, 0.45, false);
+        if (a.pour) for (let k = 0; k < 3; k++) { const z = t.z - 0.5 - ((a.pour * 3 + k / 3) % 1) * 1.2; D.box.box(t.x - 0.05 + k * 0.05, t.y - 0.04, z, t.x + k * 0.05, t.y + 0.04, z + 0.1, a.color); }
+      } else if (t.hold) D.box.box(t.x - 0.08, t.y - 0.07, t.z - 0.3, t.x + 0.08, t.y + 0.07, t.z, a.color);
     }
 
     // ---------------------------------------------------------------- packing machines
@@ -710,7 +720,7 @@
       for (const p of sim.ports) {
         const pos = p.face === 'front' ? { x: p.drop.x + 1, y: g.D + 0.2 } : { x: g.W + 0.2, y: p.drop.y + 1 };
         const st = p.job ? (p.mode === 'manual' ? 'MANUAL' : 'ACTIVE') : p.inQ.length ? 'INBOUND' : 'WAITING';
-        this.label(`${p.code} ${p.kind === 'PICK' ? (p.arm ? 'ROBOT PICK' : 'PICK') : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 7.2, { size: 10, bg, color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
+        this.label(`${p.code} ${p.kind === 'PICK' ? (p.arm ? 'ROBOT PICK' : 'PICK') : p.decanter ? 'AUTO GOODS-IN' : 'GOODS-IN'} · ${st}`, pos.x, pos.y, 7.2, { size: 10, bg, color: p.kind === 'PICK' ? '#fdba74' : '#86efac' });
       }
       for (const pk of sim.oms.packers) { const q = L.packerPos(pk.idx); this.label(`${pk.name} · ${pk.queue.length} queued`, q.x, q.y, 5, { size: 10, bg, color: '#7dd3fc' }); }
       const d = L.dock(), tr = sim.oms.truck;

@@ -57,6 +57,9 @@
       // the first armStations pick stations get a robot arm
       let arms = this.armsAllowed ? this.cfg.armStations || 0 : 0;
       for (const p of this.ports) if (p.kind === 'PICK' && arms > 0) { arms--; p.setArm(); }
+      // and the first autoDecant goods-in stations a decanting cell
+      let cells = this.armsAllowed ? this.cfg.autoDecant || 0 : 0;
+      for (const p of this.ports) if (p.kind === 'GOODS_IN' && cells > 0) { cells--; p.setDecanter(); }
       this.layout = this.createLayout();
       this.kpi = new WS.KPI(this);
       this.fleet = [];
