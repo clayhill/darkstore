@@ -18,17 +18,17 @@
       sim: ['js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js'], view: ['js/pod/render.js', 'js/pod/ui.js'],
     },
     shuttle: {
-      name: 'RailRunner', sub: 'Shuttle AS/RS', scan: 'tote, order, machine', click: 'shuttles, lifts, racks, stations',
+      name: 'RailRunner', cut: true, sub: 'Shuttle AS/RS', scan: 'tote, order, machine', click: 'shuttles, lifts, racks, stations',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
       sim: ['js/sim/prezone.js', 'js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js'],
     },
     crane: {
-      name: 'SkyStack', sub: 'Stacker crane AS/RS', scan: 'tote, order, crane', click: 'cranes, racks, stations',
+      name: 'SkyStack', cut: true, sub: 'Stacker crane AS/RS', scan: 'tote, order, crane', click: 'cranes, racks, stations',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Crane',
       sim: ['js/sim/prezone.js', 'js/crane/config.js', 'js/crane/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/crane/render.js', 'js/crane/ui.js'],
     },
     acr: {
-      name: 'StackPilot', sub: 'Case-handling robots', scan: 'tote, order, robot', click: 'robots, rack columns, stations',
+      name: 'StackPilot', cut: true, sub: 'Case-handling robots', scan: 'tote, order, robot', click: 'robots, rack columns, stations',
       map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
       sim: ['js/acr/config.js', 'js/acr/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js'],
     },
@@ -69,7 +69,7 @@
       <div class="iso-wrap" id="iso-wrap">
         <canvas id="iso"></canvas>
         <div class="iso-tools" id="iso-tools">
-${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
+${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
           <button data-opt="paths" class="on">Paths</button>
           <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
           <button data-opt="labels" class="on">Labels</button>

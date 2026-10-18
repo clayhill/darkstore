@@ -186,6 +186,7 @@
       if (best) return best;
       // a rack column at some level, from the top down
       for (let l = g.L - 1; l >= 0; l--) {
+        if (!this.levelShown(l)) continue;
         const w = this.toWorld(sx, sy, g.levelZ(l) + 0.5), x = Math.floor(w.x), y = Math.floor(w.y);
         if (g.inside(x, y) && g.type[g.idx(x, y)] === C.STORAGE) return { kind: 'cell', id: g.idx(x, y) };
       }

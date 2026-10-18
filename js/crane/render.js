@@ -24,7 +24,7 @@
       const g = this.sim.grid, P = this.P.bind(this), cx = a * 3 + 1.5, y1 = g.B + 1;
       this.quadTop(cx - 0.12, 0, cx + 0.12, y1, 0.02, '#3f3a22');
       this.line(P(cx, 0, 0.03), P(cx, y1, 0.03), 'rgba(250,204,21,0.6)', 1.2);
-      this.line(P(cx, 0, g.Z + 0.35), P(cx, y1, g.Z + 0.35), 'rgba(250,204,21,0.45)', 1.2);
+      if (this.opts.cutTop == null) this.line(P(cx, 0, g.Z + 0.35), P(cx, y1, g.Z + 0.35), 'rgba(250,204,21,0.45)', 1.2);
     }
 
     drawCrane(cr) {

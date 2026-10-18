@@ -10,7 +10,9 @@
   const TOTE_H = 0.9; // render levels
 
   class RackRenderer extends WS.IsoRenderer {
-    drawRacking() { const g = this.sim.grid; this.drawCached('racks', g.version + '|' + this.opts.heat + '|' + this.reqKey(), () => this.renderRacks()); }
+    drawRacking() { const g = this.sim.grid, o = this.opts; this.drawCached('racks', g.version + '|' + o.heat + '|' + this.reqKey() + '|' + o.cutTop + o.cutOnly, () => this.renderRacks()); }
+    // Cut-away (the Levels slider): all levels, levels up to opts.cutTop, or that level only.
+    levelShown(l) { const t = this.opts.cutTop; return t == null || (this.opts.cutOnly ? l === t : l <= t); }
     // requested totes are drawn white, so the cache must notice new requests
     reqKey() { let n = 0; for (const b of this.sim.binsWithRequests) n += b.loc === 'grid' ? 1 : 0; return n; }
 
@@ -26,15 +28,17 @@
     // two bays. Bays start at y = g.Y0 (0 unless a cross aisle runs behind them).
     renderRacks() {
       const sim = this.sim, g = sim.grid, inv = sim.inv, P = this.P.bind(this), Y0 = g.Y0 || 0, B = Y0 + g.B, c = this.ctx;
+      const t = this.opts.cutTop, Z = t == null ? g.Z : g.levelZ(t) + g.LH, zb = t != null && this.opts.cutOnly ? g.levelZ(t) - 0.2 : g.Z0 - 0.2;
       for (const aisle of sim.aisles) {
         const a = aisle.a;
         for (const s of [0, 1]) {
           const x0 = a * 3 + s * 2, x1 = x0 + 1, faceX = s === 0 ? x1 : x0; // tote ends face the aisle
           this.quadTop(x0, Y0, x1, B, 0.01, 'rgba(0,0,0,0.3)');
           c.globalAlpha = 0.18;
-          this.box(x0, Y0, g.Z0 - 0.2, x1, B, g.Z, '#334155');
+          this.box(x0, Y0, zb, x1, B, Z, '#334155');
           c.globalAlpha = 1;
           for (let l = 0; l < g.L; l++) {
+            if (!this.levelShown(l)) continue;
             const z = g.levelZ(l);
             for (let b = 0; b < g.SB; b++) {
               const id = aisle.slot[sim.si(l, s, b)];
@@ -47,11 +51,11 @@
             this.line(P(x1, Y0, z), P(x1, B, z), 'rgba(203,213,225,0.35)', 1);
             this.line(P(x0, B, z), P(x1, B, z), 'rgba(203,213,225,0.5)', 1);
           }
-          for (let b = Y0; b <= B; b += 2) this.line(P(x1, b, 0), P(x1, b, g.Z), 'rgba(148,163,184,0.4)', 1);
-          for (const [px, py] of [[x0, B], [x1, B], [x1, Y0]]) this.line(P(px, py, 0), P(px, py, g.Z), '#94a3b8', 1.6);
-          this.line(P(x0, B, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
-          this.line(P(x1, Y0, g.Z), P(x1, B, g.Z), '#94a3b8', 1.6);
-          this.line(P(x0, Y0, g.Z), P(x0, B, g.Z), 'rgba(148,163,184,0.6)', 1);
+          for (let b = Y0; b <= B; b += 2) this.line(P(x1, b, 0), P(x1, b, Z), 'rgba(148,163,184,0.4)', 1);
+          for (const [px, py] of [[x0, B], [x1, B], [x1, Y0]]) this.line(P(px, py, 0), P(px, py, Z), '#94a3b8', 1.6);
+          this.line(P(x0, B, Z), P(x1, B, Z), '#94a3b8', 1.6);
+          this.line(P(x1, Y0, Z), P(x1, B, Z), '#94a3b8', 1.6);
+          this.line(P(x0, Y0, Z), P(x0, B, Z), 'rgba(148,163,184,0.6)', 1);
         }
         this.drawLaneRails(a);
       }

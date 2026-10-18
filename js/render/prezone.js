@@ -49,6 +49,7 @@
       if (m) return m;
       // a rack side at some level: try levels from the top down
       for (let l = g.L - 1; l >= 0; l--) {
+        if (!this.levelShown(l)) continue;
         const w = this.toWorld(sx, sy, g.levelZ(l) + 0.5), a = Math.floor(w.x / 3), part = Math.floor(w.x - a * 3);
         if (a < 0 || a >= g.A || w.y < 0 || w.y >= g.B || part === 1) continue;
         return { kind: 'cell', id: sim.mapGrid.idx(a * 4 + part, g.L - 1 - l) };

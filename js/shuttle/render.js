@@ -22,18 +22,21 @@
     drawLaneRails(a) {
       const g = this.sim.grid, P = this.P.bind(this), lx = a * 3 + 1, B = g.B;
       for (let l = 0; l < g.L; l++) {
+        if (!this.levelShown(l)) continue;
         const z = g.levelZ(l);
         this.line(P(lx + 0.12, 0, z), P(lx + 0.12, B, z), 'rgba(250,204,21,0.35)', 1);
         this.line(P(lx + 0.88, 0, z), P(lx + 0.88, B, z), 'rgba(250,204,21,0.35)', 1);
       }
     }
 
-    // Shuttles, and the totes waiting in each level's front buffers.
+    // Shuttles, and the totes waiting in each level's front buffers, on the
+    // levels the cut-away shows.
     drawShuttles() {
       const sim = this.sim, g = sim.grid, B = g.B;
       for (const aisle of sim.aisles) {
         const a = aisle.a;
         for (let l = 0; l < g.L; l++) {
+          if (!this.levelShown(l)) continue;
           const z = g.levelZ(l);
           [[aisle.outBuf[l], a * 3], [aisle.inBuf[l], a * 3 + 2]].forEach(([buf, x0]) => buf.forEach((it, k) => {
             const b = B - 1 - k, col = '#f59e0b';
@@ -41,6 +44,7 @@
           }));
         }
         for (const sh of aisle.shuttles) {
+          if (!this.levelShown(sh.l)) continue;
           const z = g.levelZ(sh.l), x0 = a * 3 + 1.08, x1 = a * 3 + 1.92, y0 = sh.pos - 0.45, y1 = sh.pos + 0.45, col = WS.stateColor(this.sim, sh.displayState);
           if (!sh.idle) this.glow(a * 3 + 1.5, sh.pos, z + 0.3, 22, col, 0.55);
           // dark chassis on the rails, a state-coloured light band, a yellow load handler on top
@@ -72,7 +76,7 @@
     machinePoints() {
       const g = this.sim.grid, out = [];
       for (const aisle of this.sim.aisles) {
-        for (const sh of aisle.shuttles) out.push({ id: sh.id, x: g.laneX(aisle.a), y: sh.pos, z: g.levelZ(sh.l) + 0.3 });
+        for (const sh of aisle.shuttles) if (this.levelShown(sh.l)) out.push({ id: sh.id, x: g.laneX(aisle.a), y: sh.pos, z: g.levelZ(sh.l) + 0.3 });
         out.push({ id: aisle.lift.id, x: g.laneX(aisle.a), y: g.B + 0.5, z: aisle.lift.z });
       }
       return out;

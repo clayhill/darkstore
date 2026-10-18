@@ -33,8 +33,10 @@
       $('#iso-tools').addEventListener('click', (e) => {
         const b = e.target.closest('button'); if (!b) return;
         if (b.id === 'btn-fit') { app.iso.fit(); return; }
+        if (!b.dataset.opt) return;
         const k = b.dataset.opt; app.iso.opts[k] = !app.iso.opts[k]; b.classList.toggle('on', app.iso.opts[k]);
       });
+      this.bindCut();
       $('#btn-mapheat').addEventListener('click', (e) => { app.cr.heat = !app.cr.heat; e.target.textContent = app.cr.heat ? 'Heat on' : 'Heat off'; e.target.classList.toggle('on', app.cr.heat); });
       $('#btn-mapheat').classList.add('on');
       $('#scan-form').addEventListener('submit', (e) => { e.preventDefault(); const v = $('#scan').value.trim(); if (v) this.scan(v); });
@@ -67,7 +69,22 @@
       const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
       clearTimeout(this.tt); this.tt = setTimeout(() => (t.className = 'toast'), 2600);
     }
-    onRestart() { this.selection = null; this.logSeen = 0; $('#inspector').classList.add('hidden'); this.rcLines = []; this.soLines = []; this.setTab(this.tab); }
+    // Racking cut-away (rack types): show levels 1…n, or level n only.
+    bindCut() {
+      const range = $('#cut-level');
+      if (!range) return;
+      const label = $('#cut-label'), only = $('#cut-only'), opts = () => this.app.iso.opts;
+      const show = () => {
+        const n = +range.value, o = opts();
+        o.cutTop = n >= this.sim.cfg.levels && !o.cutOnly ? null : n - 1;
+        label.textContent = o.cutTop == null ? 'all' : o.cutOnly ? `${n} only` : `1–${n}`;
+      };
+      range.addEventListener('input', show);
+      only.addEventListener('click', () => { const o = opts(); o.cutOnly = !o.cutOnly; only.classList.toggle('on', o.cutOnly); show(); });
+      this.resetCut = () => { range.max = this.sim.cfg.levels; range.value = range.max; opts().cutOnly = false; only.classList.remove('on'); show(); };
+      this.resetCut();
+    }
+    onRestart() { if (this.resetCut) this.resetCut(); this.selection = null; this.logSeen = 0; $('#inspector').classList.add('hidden'); this.rcLines = []; this.soLines = []; this.setTab(this.tab); }
 
     // ---------------------------------------------------------------- periodic refresh
     refresh() {
