@@ -57,20 +57,20 @@
       M.setPosition(cx + uc * c + vc * s, ((z0 + z1) / 2) * LZ, cy - uc * s + vc * c);
       this.put(color, pick);
     }
-    // cylinder of radius r: upright from z0 to z1 (axis 'z'), or lying along x or y
-    // from a to b around (p, q) = (y, z) or (x, z)
+    // cylinder of radius r (cells): upright from level z0 to z1, or lying along x
+    // (cylX) or y (cylY) with its axis at level z
     cyl(cx, cy, z0, z1, r, color, pick, a = 0) {
       M.makeRotationY(a); M.scale(V.set(2 * r, (z1 - z0) * LZ, 2 * r));
       M.setPosition(cx, ((z0 + z1) / 2) * LZ, cy);
       this.put(color, pick);
     }
     cylX(x0, x1, y, z, r, color, pick) {
-      M.makeRotationZ(Math.PI / 2); M.scale(V.set(2 * r, x1 - x0, 2 * r * LZ));
+      M.makeRotationZ(Math.PI / 2); M.scale(V.set(2 * r, x1 - x0, 2 * r));
       M.setPosition((x0 + x1) / 2, z * LZ, y);
       this.put(color, pick);
     }
     cylY(x, y0, y1, z, r, color, pick) {
-      M.makeRotationX(Math.PI / 2); M.scale(V.set(2 * r, y1 - y0, 2 * r * LZ));
+      M.makeRotationX(Math.PI / 2); M.scale(V.set(2 * r, y1 - y0, 2 * r));
       M.setPosition(x, z * LZ, (y0 + y1) / 2);
       this.put(color, pick);
     }
@@ -139,7 +139,7 @@
       this.st = mk(); this.dy = mk();
       this.paths = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 }));
       this.paths.frustumCulled = false; scene.add(this.paths);
-      this.cam = { tx: 0, ty: 0, yaw: Math.PI / 4, pitch: 0.62, dist: 40, walk: false, ex: 0, ey: 0, follow: null };
+      this.cam = { tx: 0, ty: 0, tz: 0, yaw: Math.PI / 4, pitch: 0.62, dist: 40, walk: false, ex: 0, ey: 0, follow: null };
       this.keys = new Set(); this.ray = new THREE.Raycaster(); this.last = 0;
       this.staticKey = null;
       this.bindInput();
@@ -167,7 +167,7 @@
     fit() {
       // look at the storage from the front-right corner, with the stations and packing in view
       const b = this.bounds(), g = this.sim.grid, c = this.cam;
-      Object.assign(c, { walk: false, follow: null, tx: (b.x0 + b.x1) * 0.42, ty: g.D * 0.62, yaw: Math.PI / 5, pitch: 0.72 });
+      Object.assign(c, { walk: false, follow: null, tz: 0, tx: (b.x0 + b.x1) * 0.42, ty: g.D * 0.62, yaw: Math.PI / 5, pitch: 0.72 });
       c.dist = Math.max(b.x1 - b.x0, b.y1 - b.y0) * 1.05 / Math.min(1, this.w / this.h);
       this.syncWalkButton();
     }
@@ -270,11 +270,13 @@
       }
       if (cam.follow != null) {
         const r = this.followPos(cam.follow, alpha);
-        if (r) { cam.tx += (r.x - cam.tx) * Math.min(1, dt * 6); cam.ty += (r.y - cam.ty) * Math.min(1, dt * 6); } else cam.follow = null;
+        const k = Math.min(1, dt * 6);
+        if (r) { cam.tx += (r.x - cam.tx) * k; cam.ty += (r.y - cam.ty) * k; cam.tz += (this.robotZ - cam.tz) * k; } else cam.follow = null;
       }
-      const cp = Math.cos(cam.pitch);
-      this.camera.position.set(cam.tx + cam.dist * cp * Math.sin(cam.yaw), cam.dist * Math.sin(cam.pitch), cam.ty + cam.dist * cp * Math.cos(cam.yaw));
-      this.camera.lookAt(cam.tx, 0, cam.ty);
+      // the camera orbits a point at level tz (the robots' level while following one)
+      const cp = Math.cos(cam.pitch), tz = cam.tz * LZ;
+      this.camera.position.set(cam.tx + cam.dist * cp * Math.sin(cam.yaw), tz + cam.dist * Math.sin(cam.pitch), cam.ty + cam.dist * cp * Math.cos(cam.yaw));
+      this.camera.lookAt(cam.tx, tz, cam.ty);
     }
     // where a followed robot is drawn now (cell centre); a type may override
     followPos(id, alpha) {
@@ -313,7 +315,12 @@
     }
     extraBatches() { return []; }
     pickFloor(f) {
-      const sim = this.sim, L = sim.layout;
+      const sim = this.sim, L = sim.layout, g = sim.grid;
+      // conveyor workstation footprint next to the storage
+      for (const p of sim.ports) {
+        if (p.face === 'front' && f.x >= p.drop.x && f.x <= p.drop.x + 4.6 && f.y >= g.D && f.y <= g.D + 2.8) return { kind: 'port', id: p.idx };
+        if (p.face === 'right' && f.x >= g.W && f.x <= g.W + 2.8 && f.y >= p.drop.y - 0.2 && f.y <= p.drop.y + 2.2) return { kind: 'port', id: p.idx };
+      }
       for (const pk of sim.oms.packers) { const q = L.packerPos(pk.idx); if (Math.abs(f.x - q.x) < 1.2 && Math.abs(f.y - q.y) < 1.2) return { kind: 'packer', id: pk.idx }; }
       const d = L.dock();
       if (f.x > d.x - 1 && f.x < d.x + 6 && Math.abs(f.y - d.y) < 1.6) return { kind: 'dock' };
@@ -570,20 +577,22 @@
       if (!s) return;
       const o = this.selectionBox(s, alpha);
       if (!o) return;
-      const [x0, y0, x1, y1] = o, t = 0.05, z = 0.02, B = this.dy.lit, c = '#38bdf8';
+      const [x0, y0, x1, y1, z = 0.02] = o, t = 0.05, B = this.dy.lit, c = '#38bdf8';
       B.box(x0, y0, z, x1, y0 + t, z + 0.08, c); B.box(x0, y1 - t, z, x1, y1, z + 0.08, c);
       B.box(x0, y0, z, x0 + t, y1, z + 0.08, c); B.box(x1 - t, y0, z, x1, y1, z + 0.08, c);
     }
-    // floor rectangle to outline for a selection; types add their own kinds
+    // floor rectangle [x0, y0, x1, y1, z] to outline for a selection; types add their own kinds
     selectionBox(s, alpha) {
       const sim = this.sim, L = sim.layout;
-      if (s.kind === 'robot') { const p = this.followPos(s.id, alpha); return p && [p.x - 0.56, p.y - 0.56, p.x + 0.56, p.y + 0.56]; }
+      if (s.kind === 'robot') { const p = this.followPos(s.id, alpha); return p && [p.x - 0.56, p.y - 0.56, p.x + 0.56, p.y + 0.56, this.robotZ + 0.02]; }
       if (s.kind === 'packer') { const q = L.packerPos(s.id); return [q.x - 1.1, q.y - 0.65, q.x + 1.1, q.y + 0.65]; }
       return null;
     }
+    // level the robots drive on (CubeFlow: the grid top)
+    get robotZ() { return 0; }
     // planned routes of moving robots, and the cells they reserved ahead
     drawPaths(alpha) {
-      const sim = this.sim, pos = [], cols = [], c = new THREE.Color();
+      const sim = this.sim, pos = [], cols = [], c = new THREE.Color(), zl = this.robotZ * LZ + 0.03;
       if (this.opts.paths && sim.fleet.length && sim.fleet[0].path !== undefined) {
         for (const r of sim.fleet) {
           if (!r.path || !r.op || r.op.op !== 'move') continue;
@@ -591,7 +600,7 @@
           let px = r.prx + (r.rx - r.prx) * alpha + 0.5, py = r.pry + (r.ry - r.pry) * alpha + 0.5;
           for (let k = r.pi + 1; k < r.path.length; k++) {
             const qx = r.path[k].x + 0.5, qy = r.path[k].y + 0.5;
-            pos.push(px, 0.03, py, qx, 0.03, qy); cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
+            pos.push(px, zl, py, qx, zl, qy); cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
             px = qx; py = qy;
           }
         }
@@ -606,7 +615,7 @@
           const color = WS.stateColor(sim, r.displayState);
           for (const i of r.claims) {
             const x = g.cx(i), y = g.cy(i);
-            if (x !== r.x || y !== r.y) this.dy.clear.box(x + 0.12, y + 0.12, 0.01, x + 0.88, y + 0.88, 0.04, color);
+            if (x !== r.x || y !== r.y) this.dy.clear.box(x + 0.12, y + 0.12, this.robotZ + 0.01, x + 0.88, y + 0.88, this.robotZ + 0.04, color);
           }
         }
         this.dy.clear.end();

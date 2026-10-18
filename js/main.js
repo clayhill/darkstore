@@ -86,7 +86,7 @@
     },
   };
   const KINDS = {
-    cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer }),
+    cube: () => ({ Sim: WS.CubeSim, Renderer: WS.CubeRenderer, Renderer3D: WS.CubeRenderer3D }),
     pod: () => ({ Sim: WS.PodSim, Renderer: WS.PodRenderer, Renderer3D: WS.PodRenderer3D }),
     shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer }),
     crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer }),

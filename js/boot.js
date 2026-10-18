@@ -8,7 +8,7 @@
   const T = new URLSearchParams(document.currentScript.src.split('?')[1] || '').get('t') || Date.now();
   const KINDS = {
     cube: {
-      name: 'CubeFlow', sub: 'Cube AS/RS', scan: 'bin, tote, order', xray: true, click: 'robots, cells, ports',
+      name: 'CubeFlow', sub: 'Cube AS/RS', scan: 'bin, tote, order', xray: true, click: 'robots, cells, ports', three: ['js/cube/render3d.js'],
       map: 'Grid surface', stations: 'Workstations', flow: 'Bins at ports', fleet: 'Fleet',
       sim: ['js/cube/config.js', 'js/cube/grid.js', 'js/cube/tasks.js', 'js/cube/sim.js'], view: ['js/cube/render.js', 'js/cube/ui.js'],
     },
