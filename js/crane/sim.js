@@ -9,7 +9,7 @@
  * way back. A twin load handler can carry two totes, so one cycle does up to
  * two stores and two retrievals.
  * The racking, storage policy and conveyor are shared with RailRunner
- * (WS.RackSim, js/sim/rack.js); the crane is a WS.Machine (js/sim/machine.js). */
+ * (WS.PreZoneSim, js/sim/prezone.js); the crane is a WS.Machine (js/sim/machine.js). */
 (function (WS) {
   'use strict';
   const TERMS = { unit: 'tote', Unit: 'Tote', units: 'totes', Units: 'Totes', store: 'racking', Store: 'Racking', port: 'station', ports: 'stations', machine: 'Crane' };
@@ -78,7 +78,7 @@
   }
 
   // ---------------------------------------------------------------- simulation
-  class CraneSim extends WS.RackSim {
+  class CraneSim extends WS.PreZoneSim {
     get kind() { return 'crane'; }
     get terms() { return TERMS; }
     get stateLabels() { return STATE_LABELS; }
@@ -88,7 +88,7 @@
     rackShape() { return { Z0: 0.4, frontBays: 0 }; }
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles} cranes · ${this.inv.bins.length} totes`; }
     get ioPos() { return this.cfg.bays + 0.5; } // the crane's position at the I/O point
-    newAisle() { return { crane: null }; }
+    newAisle(a) { return Object.assign(super.newAisle(a), { crane: null }); }
     createMachines() {
       this.cycles = { single: 0, dual: 0, singleT: 0, dualT: 0 };
       for (const aisle of this.aisles) { aisle.crane = new Crane(this, aisle.a, aisle.a); this.fleet.push(aisle.crane); }

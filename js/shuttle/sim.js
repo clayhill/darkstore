@@ -5,7 +5,7 @@
  * Returning totes ride back to an aisle, the lift brings them up to the level's
  * inbound buffer, and the shuttle puts them away.
  * The racking, storage policy and conveyor are shared with the crane
- * (WS.RackSim, js/sim/rack.js); the machines are WS.Machine (js/sim/machine.js). */
+ * (WS.PreZoneSim, js/sim/prezone.js); the machines are WS.Machine (js/sim/machine.js). */
 (function (WS) {
   'use strict';
   const TERMS = { unit: 'tote', Unit: 'Tote', units: 'totes', Units: 'Totes', store: 'racking', Store: 'Racking', port: 'station', ports: 'stations', machine: 'Machine' };
@@ -103,7 +103,7 @@
   }
 
   // ---------------------------------------------------------------- simulation
-  class ShuttleSim extends WS.RackSim {
+  class ShuttleSim extends WS.PreZoneSim {
     get kind() { return 'shuttle'; }
     get terms() { return TERMS; }
     get stateLabels() { return STATE_LABELS; }
@@ -113,7 +113,7 @@
     rackShape() { return { Z0: 2.4, frontBays: 2 }; } // the two front bays of each side are level buffers
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles * c.levels} shuttles · ${c.aisles} lifts · ${this.inv.bins.length} totes`; }
     get front() { return this.cfg.bays - 1; } // shuttle position in front of the two buffer bays
-    newAisle() { const L = this.cfg.levels; return { outBuf: Array.from({ length: L }, () => []), inBuf: Array.from({ length: L }, () => []), shuttles: [], lift: null }; }
+    newAisle(a) { const L = this.cfg.levels; return Object.assign(super.newAisle(a), { outBuf: Array.from({ length: L }, () => []), inBuf: Array.from({ length: L }, () => []), shuttles: [], lift: null }); }
     createMachines() {
       let id = 0;
       for (const aisle of this.aisles) for (let l = 0; l < this.cfg.levels; l++) { const sh = new Shuttle(this, id++, aisle.a, l); aisle.shuttles.push(sh); this.fleet.push(sh); }

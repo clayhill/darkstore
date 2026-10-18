@@ -2,7 +2,7 @@
 // returns the WS namespace with the simulation class of each storage type.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
-const files = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/floor.js', 'js/sim/machine.js', 'js/sim/rack.js',
+const files = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/floor.js', 'js/sim/machine.js', 'js/sim/rack.js', 'js/sim/prezone.js',
   'js/cube/config.js', 'js/cube/grid.js', 'js/cube/tasks.js', 'js/cube/sim.js', 'js/pod/config.js', 'js/pod/floor.js', 'js/pod/sim.js',
   'js/shuttle/config.js', 'js/shuttle/sim.js', 'js/crane/config.js', 'js/crane/sim.js', 'js/acr/config.js', 'js/acr/sim.js'];
 for (const f of files) vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });

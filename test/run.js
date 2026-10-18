@@ -26,7 +26,7 @@ function checkRacking() {
   const where = new Map(), put = (id, w) => { if (where.has(id)) throw new Error(`${id} in ${where.get(id)} and ${w}`); where.set(id, w); };
   for (const a of sim.aisles) {
     a.slot.forEach((id, i) => { if (id) put(id, 'slot'); });
-    a.inQ.forEach((it) => put(it.bin.id, 'inQ'));
+    if (a.inQ) a.inQ.forEach((it) => put(it.bin.id, 'inQ'));
     if (a.crane) { a.crane.load.forEach((id) => put(id, a.crane.name)); continue; }
     if (!a.shuttles) continue;
     a.outBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'outBuf')));

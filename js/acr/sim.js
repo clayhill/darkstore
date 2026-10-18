@@ -225,11 +225,9 @@
       const g = this.grid, y = g.D - 0.45;
       return [{ x: from.hand.x + 1.5, y: g.D }, { x: from.hand.x + 1.5, y }, { x: to.hand.x + 0.5, y }, { x: to.hand.x + 0.5, y: g.D }];
     }
-    // A tote leaves a station: on to the next station that wants it, or onto
-    // the return conveyor, where it waits for a robot to store it.
-    onPortOut(port, bin) {
-      if (bin.requests.length) { super.onPortOut(port, bin); return; }
-      port.takeOut();
+    // A tote no station needs goes onto the return conveyor, where it waits
+    // for a robot to store it.
+    returnTote(port, bin) {
       this.convey(bin, this.backPath(port), () => { port.back.push(bin); bin.loc = 'buffer'; bin.robot = -1; bin.backT = this.time; return true; }, true);
     }
 

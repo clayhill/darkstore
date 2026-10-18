@@ -1,4 +1,4 @@
-/* RailRunner view: the shared see-through racking (WS.RackRenderer) with a pair
+/* RailRunner view: the shared see-through racking (WS.PreZoneRenderer) with a pair
  * of shuttle rails per level, shuttles running inside the aisles, a lift tower
  * at the front of every aisle, and the pre-zone conveyor to the stations. */
 (function (WS) {
@@ -6,7 +6,7 @@
   const { shade, STATE_COLORS } = WS;
   const TOTE_H = WS.RACK_TOTE_H;
 
-  class ShuttleRenderer extends WS.RackRenderer {
+  class ShuttleRenderer extends WS.PreZoneRenderer {
     drawScene() {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();

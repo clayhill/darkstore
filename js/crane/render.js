@@ -1,4 +1,4 @@
-/* SkyStack view: the shared see-through racking (WS.RackRenderer) with a floor
+/* SkyStack view: the shared see-through racking (WS.PreZoneRenderer) with a floor
  * rail and a top guide rail in every aisle, a stacker crane per aisle (mast,
  * drive unit, carriage with a twin load handler), returning totes waiting at
  * the I/O point and the pre-zone conveyor to the stations. */
@@ -6,7 +6,7 @@
   'use strict';
   const { STATE_COLORS } = WS;
 
-  class CraneRenderer extends WS.RackRenderer {
+  class CraneRenderer extends WS.PreZoneRenderer {
     drawScene() {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();

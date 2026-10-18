@@ -168,7 +168,7 @@
     }
 
     drawLabels() {
-      WS.IsoRenderer.prototype.drawLabels.call(this);
+      super.drawLabels();
       const g = this.sim.grid;
       for (const aisle of this.sim.aisles) this.text(`AISLE ${aisle.a + 1}`, g.laneX(aisle.a), g.frontY + 0.3, g.Z + 1.2, { size: 10, bg: 'rgba(15,23,42,0.82)', color: '#fde68a' });
     }

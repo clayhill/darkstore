@@ -189,7 +189,7 @@ in sequence on the conveyor.
 
 ## What is modelled: SkyStack
 
-SkyStack uses the same racking, storage policy and conveyor as RailRunner (`js/sim/rack.js`), with one
+SkyStack uses the same racking, storage policy and conveyor as RailRunner (`js/sim/prezone.js`), with one
 stacker crane per aisle instead of shuttles and lifts.
 
 **Crane.** The crane drives along a floor rail while its carriage moves up or down the mast, each with
@@ -264,10 +264,11 @@ js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet member base),
             robot (battery robot state machine, shared tasks such as driving through a
             station's queue lane), floor (cells, traffic heat and queue lanes of every robot floor), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
-            kpi, sim (loop, layout), rack (racking, storage policy and conveyor for
-            RailRunner, SkyStack and StackPilot)
+            kpi, sim (loop, layout), rack (tote slots, seeding and conveyors of every racking
+            type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
+            paths and putaway: RailRunner and SkyStack)
 js/render/  iso (shared isometric view: stations, packing, dock), control (SCADA map + charts),
-            rack (see-through racking and conveyors, also used by StackPilot)
+            rack (see-through racking), prezone (pre-zone conveyor, levels × aisles picking)
 js/ui/      ui (panels, inspector, labels, scanning), rack (rack inspector for both rack types)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
             slotting), render, ui (KPI tiles, settings, stack inspector)
