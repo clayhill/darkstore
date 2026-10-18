@@ -2,20 +2,119 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-A browser simulator for goods-to-person warehouse automation. Each type of system has its own
-simulation and name:
+![Landing page: choose one of the five simulations](docs/screenshots/landing.png)
 
-- **CubeFlow**: cube storage, a grid-based AS/RS where bins are stacked and robots dig from above.
-- **PodSwarm**: pod robots that lift shelving units off the floor and carry them to stations.
-- **RailRunner**: a shuttle AS/RS with a shuttle on every rack level and a lift per aisle.
-- **SkyStack**: a stacker crane AS/RS with one crane per aisle of high racking.
-- **StackPilot**: case-handling robots (ACR) that collect a batch of totes from shelving on one trip.
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of five
+storage systems and watch robots, operators and orders move through it in real time: totes and bins
+fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
+the same order flow, so you can compare how they behave under the same demand.
 
-The specs are in [`specs/`](specs/README.txt). `common.txt` holds the rules shared by every storage
-type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt` and `acr.txt` describe the five types
-implemented here.
+## The idea
 
-### CubeFlow
+In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
+totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
+the systems apart is how they store goods and fetch them; everything around the storage is the same.
+
+**What every simulation shares**
+
+- **Orders** stream in continuously, are released to a station with a free put-wall slot, and are
+  picked to light into order totes. You can run a station yourself in manual mode.
+- **Inventory** with SKUs, compartments, reservations and ABC velocity classes; the storage policy
+  keeps fast movers in the fastest positions.
+- **Inbound:** receipts are decanted at a goods-in station, with optional automatic replenishment.
+- **Outbound:** packing stations print GS1 shipping labels, and a truck leaves when full or at its
+  cut-off.
+- **Control room:** live KPIs, a map of the storage, station status, throughput and utilization
+  charts, and bottleneck alerts.
+- **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
+
+**The five systems**
+
+| Simulation | System | Storage unit | What moves | Worth watching |
+|---|---|---|---|---|
+| [**CubeFlow**](https://clayhill.github.io/darkstore/cubeflow.html) | Cube storage AS/RS | Bins stacked in a grid | Robots on top of the grid, digging bins out | Dig ratio, buried fast movers |
+| [**PodSwarm**](https://clayhill.github.io/darkstore/podswarm.html) | Pod robots | Shelving pods on the floor | Robots carrying whole pods to stations | Hit rate per pod visit |
+| [**RailRunner**](https://clayhill.github.io/darkstore/railrunner.html) | Shuttle AS/RS | Totes in racking | A shuttle per level, a lift per aisle | The lift as the bottleneck |
+| [**SkyStack**](https://clayhill.github.io/darkstore/skystack.html) | Stacker crane AS/RS | Totes in high racking | One crane per aisle | Cycle times against FEM 9.851 |
+| [**StackPilot**](https://clayhill.github.io/darkstore/stackpilot.html) | Case-handling robots (ACR) | Totes on shelving | Robots collecting batches of totes | Totes per trip, aisle traffic |
+
+The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
+by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt` and `acr.txt` describe the five
+systems.
+
+## Run
+
+The live version runs at **https://clayhill.github.io/darkstore/** (GitHub Pages, updated on every
+push to `main`).
+
+To run it locally, open `index.html` in Safari (or any modern browser). It has no build step, no
+dependencies and no network calls, so double-clicking the file works. `index.html` is the landing
+page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
+`skystack.html` and `stackpilot.html`.
+
+**In a simulation**
+
+- Drag to pan, scroll or pinch to zoom, **space** to pause, **Esc** to close panels.
+- Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
+- Click robots, machines, storage, stations, pack stations or the dock to inspect them.
+- The scan box at the top takes GTINs, SSCCs, GRAIs, storage unit IDs (`B00042`, `POD-0042`,
+  `ST00042`), order numbers (`SO-100001`), ASNs, robots (`R03`) and stations (`P01`).
+- The **Settings** tab changes policies live, or the scenario (size, fleet, speeds) with a restart.
+
+Optional URL parameters for every simulation page, handy for demos:
+
+| Parameter | Effect |
+|---|---|
+| `?warm=1800` | Pre-run 1800 simulated seconds before showing the page |
+| `&view=floor\|split\|control` | Start in a given view |
+| `&xray=1`, `&heat=1` | Turn on X-ray stacks (CubeFlow only) / ABC & heat overlay |
+
+## The shared warehouse in detail
+
+**Order flow.**
+1. Orders stream in without waves, either from Poisson auto-intake or entered by hand.
+2. Each order is released to the least-loaded pick station that has a free put-wall slot and an empty order tote.
+3. Stock is reserved, preferring storage units that are already heading to that station.
+4. The operator picks to light. A completed tote rides the takeaway conveyor to a pack station.
+5. At the pack station the order is packed and labelled with an SSCC, then conveyed to the dock.
+6. The truck leaves when it is full or at the cut-off.
+
+A storage unit that several stations need goes straight from one station to the next.
+
+**Inbound.** Receipts work like an ASN: the inventory system reserves compartment space, topping up
+same-SKU compartments first. Those units come to the goods-in station, the operator decants into
+them, and they are then stored. Optional min/max auto-replenishment creates receipts automatically.
+
+**Inventory (IMS).** Tracks the item master, storage units with compartments, stock reservations,
+decaying pick velocity, and ABC classes (top 20 % / next 30 % / rest). Each system has its own
+storage policy, but all of them put fast movers in their fastest positions by default; *nearest* and
+*random* policies are there to compare.
+
+**Robot traffic** (CubeFlow, PodSwarm, StackPilot). Routing is direction-aware A* (turns cost time).
+Traffic control uses moving-block cell reservations: a robot may only enter cells it has claimed, and
+it always claims its braking distance ahead, so only one robot can occupy a cell at a time. To resolve
+conflicts and deadlocks, a robot that waits too long re-routes around stopped robots, idle robots are
+asked to yield, and a randomised evasive step breaks symmetric stand-offs. Robots run on batteries and
+drive to a charger when low.
+
+**Barcodes (GS1).** Items carry a GTIN-13 / EAN-13. Storage units and order totes carry a GRAI
+(AI 8003) as a GS1-128 barcode. Shipping labels carry an SSCC (AI 00) in GS1-128, plus a (420) ship-to
+postcode and (400) order reference. Check digits use the GS1 mod-10 algorithm. All codes use the
+company prefix `9521234`, from the 952 range that GS1 reserves for demonstrations and examples, so
+they can never match a real product, asset or shipment.
+
+**Control room.** Every system reports units presented per hour (throughput), order lines per hour,
+orders shipped, fleet utilization split into working, waiting, idle and charging, the order cycle
+time and the orders in process, plus its own KPIs (see below). Bottleneck alerts flag traffic
+hotspots, starved or blocked stations, backorders, tote shortage and low battery.
+
+**Time model.** The simulation advances in fixed 100 ms ticks and also has a small discrete-event
+queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
+millisecond.
+
+## The five systems in detail
+
+### CubeFlow — cube storage
 
 ![Floor view: robots on the grid, pick ports, pack stations and the outbound dock](docs/screenshots/floor.png)
 
@@ -25,69 +124,6 @@ implemented here.
 | **Control room:** KPIs, live grid map, port status and trends | **X-ray + ABC:** every bin in the grid, coloured by velocity class |
 | ![Close-up of robots digging and delivering bins to the pick ports](docs/screenshots/closeup.png) | ![GS1 logistics label with SSCC barcode](docs/screenshots/shipping-label.png) |
 | **Close-up:** robots digging (winch depth shown) and pick ports | **Shipping label:** GS1 logistics label with SSCC |
-
-### PodSwarm
-
-![PodSwarm floor view: shelving pods in blocks, robots carrying pods to the pick stations](docs/screenshots/pod-floor.png)
-
-| | |
-|---|---|
-| ![Close-up of pick stations: pods presented to operators, the pocket to pick from lit green](docs/screenshots/pod-closeup.png) | ![PodSwarm control room: hit rate, pod returns, floor map with queue lanes](docs/screenshots/pod-control.png) |
-| **Close-up:** pods queue in a lane and are turned to show the operator the right face | **Control room:** hit rate, pod returns and the live floor map |
-
-### RailRunner
-
-![RailRunner: see-through racking with a shuttle on every level, lifts at the aisle fronts and stations in front](docs/screenshots/rail-floor.png)
-
-| | |
-|---|---|
-| ![Close-up of the aisle fronts: shuttles carrying totes, lifts and the pick stations](docs/screenshots/rail-closeup.png) | ![RailRunner control room: lift utilization, shuttle cycles and a levels-by-aisles map](docs/screenshots/rail-control.png) |
-| **Close-up:** shuttles bring totes to the aisle front, lifts take them down to the stations | **Control room:** lift utilization, shuttle cycles and a map of every level of every aisle |
-
-### SkyStack
-
-![SkyStack: high see-through racking with a stacker crane in each aisle and the stations in front](docs/screenshots/sky-floor.png)
-
-| | |
-|---|---|
-| ![Close-up of the cranes: masts on floor rails, carriages carrying totes](docs/screenshots/sky-closeup.png) | ![SkyStack control room: crane cycles, cycle time against the FEM 9.851 reference, I/O queues](docs/screenshots/sky-control.png) |
-| **Close-up:** each crane moves along the aisle and up the mast at the same time | **Control room:** crane cycles, cycle time next to the FEM 9.851 reference and I/O queues |
-
-### StackPilot
-
-![StackPilot: shelving aisles with case-handling robots, queue lanes and stations in front](docs/screenshots/acr-floor.png)
-
-| | |
-|---|---|
-| ![Close-up of the robots: masts with back shelves carrying totes, handlers reaching into the racking](docs/screenshots/acr-closeup.png) | ![StackPilot control room: totes per trip, trip time split, aisle waits and the floor map](docs/screenshots/acr-control.png) |
-| **Close-up:** robots carry several totes on their back shelves; the handler runs up the mast at each stop | **Control room:** totes per trip, the fleet's time split, aisle waits and the live floor map |
-
-## Run
-
-The live version runs at **https://clayhill.github.io/darkstore/** (GitHub Pages, updated on every
-push to `main`). To run it locally, open `index.html` in Safari (or any modern browser). It has no build step, no
-dependencies and no network calls, so double-clicking the file works.
-
-`index.html` is the landing page, where you choose a simulation. Each warehouse type has its own
-name and page: **CubeFlow** at `cubeflow.html`, **PodSwarm** at `podswarm.html`, **RailRunner** at
-`railrunner.html`, **SkyStack** at `skystack.html` and **StackPilot** at `stackpilot.html`.
-
-![Landing page with the simulation cards](docs/screenshots/landing.png)
-
-Optional URL parameters for every simulation page (handy for demos):
-
-| Parameter | Effect |
-|---|---|
-| `?warm=1800` | Pre-run 1800 simulated seconds before showing the page |
-| `&view=floor\|split\|control` | Start in a given view |
-| `&xray=1`, `&heat=1` | Turn on X-ray stacks (CubeFlow only) / ABC & heat overlay |
-
-Controls: drag to pan, scroll or pinch to zoom, **space** to pause, **Esc** to
-close panels. Click robots, grid cells, pods, ports, pack stations or the dock to inspect them.
-The scan box at the top takes GTINs, SSCCs, bin/pod/tote GRAIs, bin and pod IDs (`B00042`, `POD-0042`),
-order numbers (`SO-100001`), ASNs, robots (`R03`) and ports (`P01`).
-
-## What is modelled: CubeFlow
 
 **Grid & robots.** A `[X][Y][Z]` matrix of bin stacks with chargers on the back edge,
 conveyor pick ports on the front face and a goods-in (decant) port on the right face.
@@ -101,51 +137,20 @@ obstacle for the rest of the fleet. Under the default *consolidate* policy, a lo
 restack task later returns the blockers to the origin column in their original order. The
 *leave* policy skips that step and lets the grid self-sort.
 
-**Fleet manager.** Routing is direction-aware A* (turns cost time). Traffic control uses moving-block
-cell reservations: a robot may only enter cells it has claimed, and it always claims its braking
-distance ahead, so only one robot can occupy a cell at a time. To resolve conflicts and deadlocks, a robot
-that waits too long re-routes around stopped robots, idle robots are asked to yield,
-and a randomised evasive step breaks symmetric stand-offs.
+**Storage policy.** Bins going back into the grid are slotted by velocity: fast movers go near the
+ports, and the slotting avoids burying popular bins. Digging a fast mover out from depth ≥ 4 logs a
+*burial penalty*.
 
-**Inventory (IMS).** Tracks the item master, bins with 1/2/4 compartments, stock
-reservations, decaying pick velocity, and ABC classes (top 20 % / next 30 % / rest). Bins
-going back into the grid are slotted by velocity: fast movers go near the ports, and the slotting avoids
-burying popular bins. Digging a fast mover out from depth ≥ 4 logs a *burial penalty*.
+**KPIs.** The dig ratio (shuffle moves ÷ productive moves) and burial penalties.
 
-**Order flow.**
-1. Orders stream in without waves, either from Poisson auto-intake or entered by hand.
-2. Each order is released to the least-loaded pick port that has a free put-wall slot and an empty order tote.
-3. Stock is reserved, preferring bins that are already heading to that port.
-4. The operator picks to light. A completed tote rides the takeaway conveyor to a pack station.
-5. At the pack station the order is packed and labelled with an SSCC, then conveyed to the dock.
-6. The truck leaves when it is full or at the cut-off.
+### PodSwarm — pod robots
 
-Bins that several ports need are routed straight from one port to the next.
+![PodSwarm floor view: shelving pods in blocks, robots carrying pods to the pick stations](docs/screenshots/pod-floor.png)
 
-**Inbound.** Receipts work like an ASN: the IMS reserves compartment space, topping up same-SKU
-compartments first. Those bins come to the goods-in port, the operator decants into them, and they are then stored.
-Optional min/max auto-replenishment creates receipts automatically.
-
-**Barcodes (GS1).** Items carry a GTIN-13 / EAN-13. Storage bins and order totes carry a GRAI
-(AI 8003) as a GS1-128 barcode. Shipping labels carry an SSCC (AI 00) in GS1-128, plus a (420) ship-to
-postcode and (400) order reference. Check digits use the GS1 mod-10 algorithm. All codes use the
-company prefix `9521234`, from the 952 range that GS1 reserves for demonstrations and examples, so
-they can never match a real product, asset or shipment.
-
-**KPIs.** The control room reports these:
-- bins presented per hour (throughput) and order lines per hour
-- robot utilization, split into working, waiting, idle and charging
-- dig ratio (shuffle moves ÷ productive moves)
-- burial penalties
-- order cycle time
-
-It also raises bottleneck alerts: traffic hotspots, starved or blocked ports, backorders, tote
-shortage and low battery.
-
-## What is modelled: PodSwarm
-
-PodSwarm shares the order flow, inbound, inventory, put wall, packing, dock, barcodes and control
-room with CubeFlow. What differs:
+| | |
+|---|---|
+| ![Close-up of pick stations: pods presented to operators, the pocket to pick from lit green](docs/screenshots/pod-closeup.png) | ![PodSwarm control room: hit rate, pod returns, floor map with queue lanes](docs/screenshots/pod-control.png) |
+| **Close-up:** pods queue in a lane and are turned to show the operator the right face | **Control room:** hit rate, pod returns and the live floor map |
 
 **Floor & pods.** A floor of 1.2 m cells: storage blocks two cells deep, highways between them, a
 queue lane in front of each station and chargers on the back wall. Each pod has four faces of
@@ -153,8 +158,7 @@ shelves with fabric bins; one SKU is spread over many pods.
 
 **Robots.** Drive units turn on the spot to change direction (90° in 1.5 s) and lift a pod in 1.5 s.
 An empty robot may drive under stored pods (*tunnelling*, can be switched off); a robot carrying a pod
-keeps to highways and empty cells. Traffic control is the same moving-block reservation and A* as in
-CubeFlow.
+keeps to highways and empty cells.
 
 **Stations.** A pod joins its station's queue lane and moves up in order. At the station the robot
 turns the pod so the face with the next pick points at the operator; the lines are sorted by face so the
@@ -162,15 +166,18 @@ pod turns as little as possible. Lines that arrive for the same station while a 
 without it leaving.
 
 **Storage policy.** A pod goes back to a free cell, not necessarily its old one. With the default
-velocity policy, busy pods end up near the stations; *nearest* and *random* are there to compare.
+velocity policy, busy pods end up near the stations.
 
-**KPIs.** Instead of dig ratio and burial penalties, PodSwarm reports the hit rate (order lines picked
-per pod presentation) and pod returns.
+**KPIs.** The hit rate (order lines picked per pod presentation) and pod returns.
 
-## What is modelled: RailRunner
+### RailRunner — shuttle AS/RS
 
-RailRunner shares the order flow, inbound, inventory, stations, packing, dock, barcodes and control
-room with the other two. Instead of robots it has fixed machines on rails.
+![RailRunner: see-through racking with a shuttle on every level, lifts at the aisle fronts and stations in front](docs/screenshots/rail-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the aisle fronts: shuttles carrying totes, lifts and the pick stations](docs/screenshots/rail-closeup.png) | ![RailRunner control room: lift utilization, shuttle cycles and a levels-by-aisles map](docs/screenshots/rail-control.png) |
+| **Close-up:** shuttles bring totes to the aisle front, lifts take them down to the stations | **Control room:** lift utilization, shuttle cycles and a map of every level of every aisle |
 
 **Racking.** Aisles of racking with totes single deep on both sides, several levels high. The two
 front bays of each level are buffers: outbound on the left, inbound on the right.
@@ -186,14 +193,21 @@ both.
 A returning tote goes to the aisle and level with the least work queued; with the velocity policy,
 fast movers are stored near the aisle front.
 
-**KPIs.** RailRunner reports lift utilization (the lift is usually the bottleneck of a shuttle aisle)
-and shuttle cycles per hour. Not modelled yet: roaming shuttles, double-deep storage and putting totes
-in sequence on the conveyor.
+**KPIs.** Lift utilization (the lift is usually the bottleneck of a shuttle aisle) and shuttle cycles
+per hour. Not modelled yet: roaming shuttles, double-deep storage and putting totes in sequence on the
+conveyor.
 
-## What is modelled: SkyStack
+### SkyStack — stacker crane AS/RS
 
-SkyStack uses the same racking, storage policy and conveyor as RailRunner (`js/sim/prezone.js`), with one
-stacker crane per aisle instead of shuttles and lifts.
+![SkyStack: high see-through racking with a stacker crane in each aisle and the stations in front](docs/screenshots/sky-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the cranes: masts on floor rails, carriages carrying totes](docs/screenshots/sky-closeup.png) | ![SkyStack control room: crane cycles, cycle time against the FEM 9.851 reference, I/O queues](docs/screenshots/sky-control.png) |
+| **Close-up:** each crane moves along the aisle and up the mast at the same time | **Control room:** crane cycles, cycle time next to the FEM 9.851 reference and I/O queues |
+
+SkyStack uses the same racking, storage policy and conveyor as RailRunner, with one stacker crane per
+aisle instead of shuttles and lifts.
 
 **Crane.** The crane drives along a floor rail while its carriage moves up or down the mast, each with
 its own speed and acceleration, so a trip takes the longer of the two. After arriving it settles,
@@ -209,16 +223,23 @@ where the last store left the crane, with a head start for totes that have waite
 form a rectangle low and close to the front. With the velocity policy, A items go to the fastest
 positions, then B, then C, in the aisle with the least work.
 
-**KPIs.** SkyStack reports crane cycles per hour and the share of dual commands, the mean single and
-dual cycle time next to the FEM 9.851 reference cycles for the rack, and the I/O queues. Set the load
-handler to one tote for a like-for-like comparison with FEM; with the velocity policy the measured
-cycles come out shorter than the reference, which assumes random locations. Not modelled yet:
-double-deep storage, aisle-changing cranes and a limit on the I/O conveyor.
+**KPIs.** Crane cycles per hour and the share of dual commands, the mean single and dual cycle time
+next to the FEM 9.851 reference cycles for the rack, and the I/O queues. Set the load handler to one
+tote for a like-for-like comparison with FEM; with the velocity policy the measured cycles come out
+shorter than the reference, which assumes random locations. Not modelled yet: double-deep storage,
+aisle-changing cranes and a limit on the I/O conveyor.
 
-## What is modelled: StackPilot
+### StackPilot — case-handling robots
 
-StackPilot keeps its totes in the shared racking bookkeeping (`js/sim/rack.js`), but the machines are
-battery robots on a floor grid, with the same router, cell reservations and charging as PodSwarm.
+![StackPilot: shelving aisles with case-handling robots, queue lanes and stations in front](docs/screenshots/acr-floor.png)
+
+| | |
+|---|---|
+| ![Close-up of the robots: masts with back shelves carrying totes, handlers reaching into the racking](docs/screenshots/acr-closeup.png) | ![StackPilot control room: totes per trip, trip time split, aisle waits and the floor map](docs/screenshots/acr-control.png) |
+| **Close-up:** robots carry several totes on their back shelves; the handler runs up the mast at each stop | **Control room:** totes per trip, the fleet's time split, aisle waits and the live floor map |
+
+StackPilot stores totes in racking like RailRunner and SkyStack, but its machines are battery robots
+on a floor grid, with the same routing and charging as PodSwarm.
 
 **Floor.** Aisles one robot wide between single-deep shelving, a cross aisle two cells wide behind and
 in front of the racking, a corridor and a column of parking spots and chargers on the right. Each
@@ -250,13 +271,7 @@ how the fleet's working time splits into driving, mast travel, handling, handove
 aisle waits. A robot needs minutes to bring a batch, so each station keeps 12 orders open on a wide
 put wall. Not modelled yet: double-deep storage and robots that climb the racking.
 
-## Time model
-
-The simulation advances in fixed 100 ms ticks and also has a small discrete-event queue. Rendering
-interpolates between ticks. Speed runs from 1× to 120×. A tick costs about 0.07 ms
-with the default 16 robots.
-
-## Files
+## Development
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
@@ -266,7 +281,8 @@ cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
 js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet member base),
             robot (battery robot state machine, shared tasks such as driving through a
-            station's queue lane), floor (cells, traffic heat and queue lanes of every robot floor), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
+            station's queue lane), floor (cells, traffic heat and queue lanes of every robot
+            floor), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout), rack (tote slots, seeding and conveyors of every racking
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
             paths and putaway: RailRunner and SkyStack)
@@ -293,9 +309,10 @@ golden files with `node test/golden.js --update`, and the diff of those files go
 ## Disclaimer
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
-systems, and it must not be used as such. It is inspired by cube-storage AS/RS, pod-robot and shuttle
-systems in general and is not affiliated with, endorsed by or derived from any vendor of such systems. All
-company names, addresses, products and barcodes in the simulation are fictional.
+systems, and it must not be used as such. It is inspired by cube-storage, pod-robot, shuttle, stacker
+crane and case-handling robot systems in general and is not affiliated with, endorsed by or derived
+from any vendor of such systems. All company names, addresses, products and barcodes in the
+simulation are fictional.
 
 ## License
 
