@@ -43,8 +43,10 @@
       }
       // totes on the handler; one taken or put slides sideways between its
       // handler position and the rack or a conveyor, growing to its rack size
+      // once it is clear of the handler (the handler positions are closer
+      // together than rack totes are deep)
       const tote = (id, k, u) => {
-        const ty = y + sim.slotY(k), hd = xf && xf.io ? T.d : T.d + (0.38 - T.d) * u, tx = cx + (u ? (this.sideX(cr.a, xf.side) - cx) * u : 0);
+        const ty = y + sim.slotY(k), hd = xf && xf.io ? T.d : T.d + (0.38 - T.d) * Math.max(0, 2 * u - 1), tx = cx + (u ? (this.sideX(cr.a, xf.side) - cx) * u : 0);
         this.box3(D.box, tx - T.w, ty - hd, tx + T.w, ty + hd, z + 0.06 * u, this.binColor(id));
       };
       cr.load.forEach((id) => tote(id, cr.slotOf[id], xf && !xf.take && xf.id === id ? xf.u : 0));

@@ -8,12 +8,24 @@
   const EXTRA = { DIGGING_BIN: { label: 'Digging', color: '#f59e0b' }, RESTACKING: { label: 'Restacking', color: '#fb923c' } };
   const LEGEND = ['IDLE', 'MOVING_TO_TARGET', 'DIGGING_BIN', 'HANDLING', 'TRANSPORTING_TO_PORT', 'AT_PORT', 'STORING', 'RESTACKING', 'WAITING_IN_TRAFFIC', 'WAITING_PORT', 'TO_CHARGER', 'CHARGING'];
 
+  // The robot lowers a bin down the drop cell's shaft and lifts it out of
+  // the lift cell's: the station conveyor starts and ends inside those shafts,
+  // half a cell in from the grid's edge, so a bin lands where it comes down.
+  class CubeLayout extends WS.Layout {
+    portPath(port) {
+      const pp = super.portPath(port), k = port.face === 'front' ? 'y' : 'x';
+      pp.entry[0][k] -= 0.5; pp.exit[1][k] -= 0.5;
+      return pp;
+    }
+  }
+
   class CubeSim extends WS.Sim {
     get kind() { return 'cube'; }
     get terms() { return TERMS; }
     get taskTypes() { return WS.CubeTasks; }
     get extraStates() { return EXTRA; }
     get legendStates() { return LEGEND; }
+    createLayout() { return new CubeLayout(this); }
     defaults() { return WS.CUBE_CONFIG; }
     createGrid() { return new WS.Grid(this.cfg); }
     describe() { return `Grid ${this.cfg.gridW}×${this.cfg.gridD}×${this.cfg.gridZ} online · ${this.fleet.length} robots · ${this.inv.bins.length} bins · ${this.ports.length} ports`; }

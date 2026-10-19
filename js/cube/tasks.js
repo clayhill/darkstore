@@ -3,7 +3,9 @@
 (function (WS) {
   'use strict';
   const T = Object.assign({}, WS.Tasks);
-  const portDepth = (sim) => (sim.grid.Z - 0.6) * sim.cfg.binHeight;
+  // winch depth at a port: the bin comes to rest on the station conveyor, 2.2
+  // render levels up (WS.IsoView's CZ), the gripper 0.08 below the grid top
+  const PORT_Z = 2.2, portDepth = (sim) => (sim.grid.Z + 0.08 - PORT_Z) * sim.cfg.binHeight;
 
   // Robot over column i lifts the top bin into its cavity.
   function* liftTop(sim, r, i, bin) {
@@ -32,7 +34,9 @@
     r.state = 'TRANSPORTING_TO_PORT';
     yield { op: 'move', x: port.drop.x, y: port.drop.y };
     r.state = 'AT_PORT';
-    yield { op: 'until', fn: () => port.canAccept(), waitState: 'WAITING_PORT' };
+    // lower only once the bin before has rolled out of the shaft
+    const shaftClear = () => port.inQ.every((q, k) => k === 0 && q.t >= sim.cfg.conveyorStep);
+    yield { op: 'until', fn: () => port.canAccept() && shaftClear(), waitState: 'WAITING_PORT' };
     port.entryReserved = true;
     r.busy = true;
     yield { op: 'winch', to: portDepth(sim) };
@@ -79,7 +83,7 @@
     r.state = 'MOVING_TO_TARGET';
     yield { op: 'move', x: port.lift.x, y: port.lift.y };
     r.state = 'AT_PORT';
-    yield { op: 'until', fn: () => port.outQ.length > 0, waitState: 'WAITING_PORT' };
+    yield { op: 'until', fn: () => port.outReady(), waitState: 'WAITING_PORT' };
     r.busy = true;
     yield { op: 'winch', to: portDepth(sim) };
     yield { op: 'grip' };

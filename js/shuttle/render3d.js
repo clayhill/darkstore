@@ -50,7 +50,7 @@
       D.box.box(x0 + 0.04, y0 + 0.14, z + 0.02, x1 - 0.04, y1 - 0.14, z + 0.12, '#1f2937', pick);
       const id = xf && xf.u != null ? xf.id : sh.bin;
       if (id) {
-        const T = sim.convTote(), u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u, hd = xf && xf.io ? T.d : T.d + (0.38 - T.d) * u;
+        const T = sim.convTote(), u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u, hd = xf && xf.io ? T.d : T.d + (0.38 - T.d) * Math.max(0, 2 * u - 1);
         this.box3(D.box, tx - T.w, y - hd, tx + T.w, y + hd, z + 0.12 - 0.06 * u, this.binColor(id));
       }
       for (const [ya, yb] of [[y0, y0 + 0.14], [y1 - 0.14, y1]]) {

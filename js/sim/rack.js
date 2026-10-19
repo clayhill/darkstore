@@ -118,8 +118,8 @@
     convObstacles() {
       const out = [], step = this.cfg.conveyorStep;
       for (const p of this.ports) {
-        const e = this.layout.portPath(p).entry;
-        p.inQ.forEach((q, k) => { const f = k ? 0 : Math.min(1, q.t / step); out.push({ x: e[0].x + (e[1].x - e[0].x) * f, y: e[0].y + (e[1].y - e[0].y) * f }); });
+        const pp = this.layout.portPath(p), a = pp.entry[0], b = pp.head;
+        p.inQ.forEach((q, k) => { const f = k ? 0 : Math.min(1, q.t / step); out.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }); });
       }
       return out;
     }

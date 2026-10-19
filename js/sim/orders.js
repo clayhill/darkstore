@@ -192,20 +192,88 @@
     }
 
     // ---------------------------------------------------------------- outbound
+    // Totes and parcels on the takeaway and parcel conveyors follow a path
+    // of straight segments; a point may give a height z (a tote dropping off
+    // the put wall onto the lane behind it), otherwise the conveyor's.
     toConveyor(item) {
       const pts = item.path; let len = 0;
       for (let k = 1; k < pts.length; k++) len += Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y);
       item.len = len; item.s = 0;
       this.conveyor.push(item);
     }
+    // where an item is: { x, y, z (when its path gives heights), dx, dy } with (dx, dy) its direction of travel
     posOnPath(item) {
       let s = item.s; const p = item.path;
       for (let k = 1; k < p.length; k++) {
-        const seg = Math.hypot(p[k].x - p[k - 1].x, p[k].y - p[k - 1].y);
-        if (s <= seg) { const f = seg ? s / seg : 0; return { x: p[k - 1].x + (p[k].x - p[k - 1].x) * f, y: p[k - 1].y + (p[k].y - p[k - 1].y) * f }; }
+        const a = p[k - 1], b = p[k], seg = Math.hypot(b.x - a.x, b.y - a.y);
+        if (s <= seg || k === p.length - 1) {
+          const f = seg ? Math.min(1, s / seg) : 0, z = a.z != null && b.z != null ? a.z + (b.z - a.z) * f : b.z ?? a.z;
+          return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z, dx: seg ? (b.x - a.x) / seg : 0, dy: seg ? (b.y - a.y) / seg : 0 };
+        }
         s -= seg;
       }
       return p[p.length - 1];
+    }
+    // The conveyors accumulate: an item stops a gap behind whatever is ahead
+    // of it in its direction of travel; at a merge the older one goes first.
+    // A tote that has reached its pack station stays at the end of the spur
+    // (it.queued) until the packer takes it, so the next ones queue behind.
+    moveConveyors(dt) {
+      // how far before a corner an item waits to join a line: clear of a tote passing on it
+      const v = (this.sim.cfg.conveyorSpeed / this.sim.cfg.cellSize) * dt, items = this.conveyor, at = items.map((it) => this.posOnPath(it));
+      // half sizes in x and y (as drawn: an order tote at 0.85 scale, a parcel), and the gap kept
+      const HALF = { tote: [0.19, 0.24], parcel: [0.18, 0.16] }, GAP = 0.06;
+      const half = (it, alongX) => HALF[it.kind][alongX ? 0 : 1];
+      const room = (i, j) => {
+        const a = at[i], q = at[j], rx = q.x - a.x, ry = q.y - a.y, along = rx * a.dx + ry * a.dy, lat = Math.abs(rx * a.dy - ry * a.dx), ax = Math.abs(a.dx) > 0.5;
+        if (along <= 1e-6 || lat >= half(items[i], !ax) + half(items[j], !ax) - 1e-6) return Infinity;
+        return along - half(items[i], ax) - half(items[j], ax) - GAP;
+      };
+      // distance to the end of the item's segment and the corner there, when another segment follows
+      const corner = (it) => {
+        const p = it.path; let s = it.s;
+        for (let k = 1; k < p.length - 1; k++) {
+          const l = Math.hypot(p[k].x - p[k - 1].x, p[k].y - p[k - 1].y), n = Math.hypot(p[k + 1].x - p[k].x, p[k + 1].y - p[k].y);
+          if (s < l) return { d: l - s, c: p[k], nx: (p[k + 1].x - p[k].x) / n, ny: (p[k + 1].y - p[k].y) / n };
+          s -= l;
+        }
+        return null;
+      };
+      // item j is on the line a corner leads onto, coming up to the corner (or just past it, unless behind)
+      const onLine = (j, cn, behind) => { const rx = at[j].x - cn.c.x, ry = at[j].y - cn.c.y, along = rx * cn.nx + ry * cn.ny; return Math.abs(rx * cn.ny - ry * cn.nx) < 0.3 && along > -1.0 && along < (behind ? 1e-6 : 0.5); };
+      const cns = items.map(corner);
+      const clears = items.map((it, i) => half(it, Math.abs(at[i].dx) > 0.5) + 0.24 + GAP);
+      items.forEach((it, i) => {
+        if (it.queued) return;
+        let m = Math.min(v, it.len - it.s);
+        // at a merge: hold back clear of the line while anything is passing the corner or about to
+        const cn = cns[i];
+        if (cn && cn.d >= clears[i] && cn.d < clears[i] + 0.6 && items.some((o, j) => j !== i && onLine(j, cn))) m = Math.min(m, cn.d - clears[i]);
+        for (let j = 0; j < items.length; j++) {
+          if (j === i) continue;
+          const r = room(i, j);
+          if (r === Infinity) continue;
+          // both in each other's way: the older one goes, unless the younger is already joining at a
+          // corner: then items coming along the line it joins wait for it, and it ignores them
+          const joining = (a, b) => cns[a] && cns[a].d < clears[a] && onLine(b, cns[a], true);
+          if (joining(i, j)) continue;
+          if (j > i && !items[j].queued && room(j, i) !== Infinity && !joining(j, i)) continue;
+          m = Math.min(m, r);
+        }
+        if (m > 0) {
+          // where lines meet at a corner an item can come alongside one that has just turned:
+          // it does not move into an older item's footprint
+          const s0 = it.s; it.s = Math.min(it.len, it.s + m);
+          const q = this.posOnPath(it), hit = items.some((o, j) => j < i && Math.abs(at[j].x - q.x) < 0.4 && Math.abs(at[j].y - q.y) < 0.4 && !(Math.abs(at[j].x - at[i].x) < 0.4 && Math.abs(at[j].y - at[i].y) < 0.4));
+          if (hit) it.s = s0; else at[i] = q;
+        }
+      });
+      for (let k = items.length - 1; k >= 0; k--) {
+        const it = items[k];
+        if (it.queued || it.s < it.len - 1e-9) continue;
+        if (it.kind === 'tote') it.queued = true; else items.splice(k, 1);
+        this.arrive(it);
+      }
     }
     update(dt) {
       const sim = this.sim, cfg = sim.cfg;
@@ -225,18 +293,13 @@
       this.replenTimer += dt;
       if (cfg.autoReplenish && this.replenTimer >= 45) { this.replenTimer = 0; this.autoReplenish(); }
 
-      // conveyors (speed in cells/s)
-      const v = cfg.conveyorSpeed / cfg.cellSize;
-      for (let k = this.conveyor.length - 1; k >= 0; k--) {
-        const it = this.conveyor[k];
-        // accumulate: stop behind the item ahead on the same route end
-        it.s = Math.min(it.len, it.s + v * dt);
-        if (it.s >= it.len) { this.conveyor.splice(k, 1); this.arrive(it); }
-      }
-      // pack stations
+      this.moveConveyors(dt);
+      // pack stations: the operator takes the tote at the end of the spur
       for (const pk of this.packers) {
         if (!pk.cur && pk.queue.length) {
           pk.cur = pk.queue.shift(); pk.t = 0;
+          const k = this.conveyor.findIndex((it) => it.queued && it.order === pk.cur);
+          if (k >= 0) this.conveyor.splice(k, 1);
           pk.dur = this.packTime(pk, pk.cur);
           pk.cur.status = 'PACKING';
         }

@@ -24,6 +24,10 @@
   class AmrLayout extends WS.Layout {
     slotPos(port, k) { return { x: port.drop.x + 1.35 + k * 0.46, y: this.D + 0.75 }; }
     spurX(port) { return this.slotPos(port, this.sim.cfg.toteSlots - 1).x + 0.6; }
+    // the operator lifts a full tote off the robot onto the lane behind the rack, beside the robot
+    backLaneX(port) { return port.drop.x + 0.75; }
+    backLaneY(port) { return this.slotPos(port, 0).y - 0.53; } // clear of the robots at the floor's edge
+    dropRoute(port, pk) { const y = this.backLaneY(port), sx = this.spurX(port); return [{ x: port.drop.x + 1.0, y, z: 1.6 }, { x: sx, y, z: 1.6 }, ...this.toPacker(sx, pk)]; }
     pickPos(port) { return { x: port.drop.x + 0.5, y: port.drop.y + 0.5 }; }
     operatorPos(port) { return port.face === 'front' ? { x: port.drop.x + 0.5, y: this.D + 0.85 } : { x: this.W + 0.85, y: port.drop.y + 0.5 }; }
   }
@@ -287,7 +291,7 @@
     dropTote(port, o) {
       if (!o.times.picked) o.times.picked = this.time; // short-picked: packed with what is in it
       port.swaps++;
-      this.oms.toPacking(o, (pk) => this.layout.toteRoute(port, this.cfg.toteSlots - 1, pk));
+      this.oms.toPacking(o, (pk) => this.layout.dropRoute(port, pk));
       this.log('pick', `${o.id} dropped at ${port.name} — tote ${o.tote.id} to packing`);
     }
     onOrderPicked(o) { this.log('pick', `${o.id} complete on ${this.fleet[o.amr].name}`); }

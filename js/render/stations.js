@@ -89,10 +89,18 @@
       const front = p.face === 'front';
       return { q: { w: front ? 0.3 : 0.26, d: front ? 0.26 : 0.3 }, pick: { w: front ? 0.42 : 0.3, d: front ? 0.3 : 0.42 } };
     }
+    // Where finished bin k is on the outfeed: rolling from the pick position
+    // (or the second place) to its place (WS.Port.outMoves).
+    outPos(p, k) {
+      const pp = this.sim.layout.portPath(p), b = p.outQ[k], to = k === 0 ? pp.exit[1] : pp.out2, m = b && p.outMoves.get(b.id);
+      if (!m) return to;
+      const from = m.from === 'pick' ? pp.pick : pp.out2, u = Math.min(1, Math.max(0, (this.sim.time - m.t) / WS.PORT_OUT_ROLL)), f = u * u * (3 - 2 * u);
+      return { x: from.x + (to.x - from.x) * f, y: from.y + (to.y - from.y) * f };
+    }
     // Where the presented bin is: it slides from the end of the infeed to the
     // pick position in the first moments of its job.
     pickPos(p) {
-      const pp = this.sim.layout.portPath(p), a = pp.entry[1], b = pp.pick, u = Math.min(1, Math.max(0, (this.sim.time - (p.pickAt || 0)) / 0.4));
+      const pp = this.sim.layout.portPath(p), a = pp.head, b = pp.pick, u = Math.min(1, Math.max(0, (this.sim.time - (p.pickAt || 0)) / 0.4));
       const f = u * u * (3 - 2 * u);
       return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
     }
@@ -117,7 +125,7 @@
         // bins on the port conveyor; the one presented slides in from the infeed
         const sz = this.portBinSize(p);
         p.inQ.forEach((q, k) => {
-          const f = Math.min(1, q.t / sim.cfg.conveyorStep), a = pp.entry[0], b = pp.entry[1];
+          const f = Math.min(1, q.t / sim.cfg.conveyorStep), a = pp.entry[0], b = pp.head;
           const t = k === 0 ? f : 0;
           this.drawBin(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, CZ, q.bin.id, sz.q);
         });
@@ -126,7 +134,7 @@
           this.drawBin(q.x, q.y, CZ, p.pick.id, Object.assign({ open: true, hl: ln ? ln.comp : -1 }, sz.pick));
           if (ln) this.glow(pp.pick.x, pp.pick.y, CZ + 1, 30, '#4ade80', 0.25);
         }
-        p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; this.drawBin(e.x, e.y, CZ, b.id, sz.q); });
+        p.outQ.forEach((b, k) => { const e = this.outPos(p, k); this.drawBin(e.x, e.y, CZ, b.id, sz.q); });
         // operator HMI screen on a post, showing the pick instruction when a job is open
         const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
         this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
@@ -282,7 +290,7 @@
       const lastPk = L.packerPos(oms.packers.length - 1);
       add(g.D + 2, () => {
         this.conveyor([{ x: 1.2, y: L.takeawayY }, { x: lastPk.x, y: L.takeawayY }], 0.5, 1.6);
-        for (const p of picks) this.conveyor([{ x: L.spurX(p), y: L.slotPos(p, 0).y }, { x: L.spurX(p), y: L.takeawayY - 0.25 }], 0.45, 1.6);
+        for (const p of picks) { const y = L.backLaneY(p); this.conveyor([{ x: L.backLaneX(p), y }, { x: L.spurX(p), y }, { x: L.spurX(p), y: L.takeawayY - 0.25 }], 0.45, 1.6); }
         for (const pk of oms.packers) { const q = L.packerPos(pk.idx); this.conveyor([{ x: q.x, y: L.takeawayY + 0.25 }, { x: q.x, y: q.y - 0.75 }], 0.45, 1.6); }
       });
       // parcel line to the dock
@@ -349,7 +357,6 @@
       for (const pk of oms.packers) {
         const q = L.packerPos(pk.idx);
         add(q.x + q.y, () => {
-          for (let k = Math.min(pk.queue.length, 3) - 1; k >= 0; k--) this.orderTote(q.x, q.y - 1.05 - k * 0.0, 1.6 + k * 0.85, 0.8, 0.9);
           if (pk.kind === 'bagger') this.drawBagger(pk, q); else if (pk.kind === 'boxer') this.drawBoxMaker(pk, q); else this.drawPackBench(pk, q);
         });
         const opq = L.packerOperator(pk);
@@ -381,7 +388,7 @@
       for (const it of oms.conveyor) {
         const q = oms.posOnPath(it);
         add(q.x + q.y + 0.3, () => {
-          if (it.kind === 'tote') this.orderTote(q.x, q.y, 1.6, 1, 0.85);
+          if (it.kind === 'tote') this.orderTote(q.x, q.y, q.z ?? 1.6, 1, 0.85);
           else if (it.order.pack === 'bagger') this.bag(q.x, q.y, 1.4, true);
           else this.parcel(q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, { label: true });
         });

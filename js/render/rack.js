@@ -131,7 +131,7 @@
       if (!x || !op || (op.op !== 'wait' && op.op !== 'timer')) return null;
       const f = Math.min(1, op.t / op.dur), reach = f < 0.4 ? f / 0.4 : f < 0.6 ? 1 : (1 - f) / 0.4;
       const u = x.take ? (f < 0.6 ? null : reach) : f < 0.4 ? reach : 1;
-      return { id: x.id, take: x.take, side: x.side, reach: ease(reach), u: u == null ? null : ease(u) };
+      return { id: x.id, take: x.take, side: x.side, slot: x.slot, at: x.at, io: x.io, reach: ease(reach), u: u == null ? null : ease(u) };
     }
     // totes lifted off a rack position, buffer or infeed: those draw them no longer
     movingTotes() {

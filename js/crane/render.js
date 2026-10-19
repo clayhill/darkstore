@@ -60,7 +60,7 @@
       // totes on the handler; one taken or put slides sideways between its
       // handler position and the rack or a conveyor, growing to its rack size
       const tote = (id, k, u) => {
-        const ty = y + sim.slotY(k), hd = xf && xf.io ? T.d : T.d + (0.4 - T.d) * u, tx = cx + (u ? (this.sideX(cr.a, xf.side) - cx) * u : 0);
+        const ty = y + sim.slotY(k), hd = xf && xf.io ? T.d : T.d + (0.4 - T.d) * Math.max(0, 2 * u - 1), tx = cx + (u ? (this.sideX(cr.a, xf.side) - cx) * u : 0);
         this.toteBox(tx - T.w, ty - hd, tx + T.w, ty + hd, z + 0.06 * u, this.toteColor(sim.inv.binById.get(id)));
       };
       cr.load.forEach((id) => tote(id, cr.slotOf[id], xf && !xf.take && xf.id === id ? xf.u : 0));

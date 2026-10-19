@@ -19,22 +19,36 @@
     pickPos(port) {
       return port.face === 'front' ? { x: port.drop.x + 1.0, y: this.D + 1.3 } : { x: this.W + 1.3, y: port.drop.y + 1.0 };
     }
-    // conveyor positions inside a port: entry (from drop), pick, exit (to lift)
+    // Conveyor positions inside a port: entry (from drop), pick, exit (to
+    // lift). The pick position sits between the two lanes, half a cell from
+    // each, so a bin can only stand at the lanes' inner ends while the pick
+    // position is empty: the next bin waits at `head`, a bin's length back,
+    // and a second bin leaving waits at `out2`, a bin's length on.
     portPath(port) {
-      const D = this.D, W = this.W;
+      const D = this.D, W = this.W, BACK = 0.66;
+      let pp;
       if (port.face === 'front') {
         const x = port.drop.x;
-        return { entry: [{ x: x + 0.5, y: D }, { x: x + 0.5, y: D + 1.3 }], pick: { x: x + 1, y: D + 1.3 }, exit: [{ x: x + 1.5, y: D + 1.3 }, { x: x + 1.5, y: D }] };
+        pp = { entry: [{ x: x + 0.5, y: D }, { x: x + 0.5, y: D + 1.3 }], pick: { x: x + 1, y: D + 1.3 }, exit: [{ x: x + 1.5, y: D + 1.3 }, { x: x + 1.5, y: D }] };
+      } else {
+        const y = port.drop.y;
+        pp = { entry: [{ x: W, y: y + 0.5 }, { x: W + 1.3, y: y + 0.5 }], pick: { x: W + 1.3, y: y + 1 }, exit: [{ x: W + 1.3, y: y + 1.5 }, { x: W, y: y + 1.5 }] };
       }
-      const y = port.drop.y;
-      return { entry: [{ x: W, y: y + 0.5 }, { x: W + 1.3, y: y + 0.5 }], pick: { x: W + 1.3, y: y + 1 }, exit: [{ x: W + 1.3, y: y + 1.5 }, { x: W, y: y + 1.5 }] };
+      const along = (a, b, d) => { const l = Math.hypot(b.x - a.x, b.y - a.y); return { x: a.x + ((b.x - a.x) * d) / l, y: a.y + ((b.y - a.y) * d) / l }; };
+      pp.head = along(pp.entry[1], pp.entry[0], BACK); pp.out2 = along(pp.exit[0], pp.exit[1], BACK);
+      return pp;
     }
     operatorPos(port) { return port.face === 'front' ? { x: port.drop.x + 1.0, y: this.D + 2.35 } : { x: this.W + 2.35, y: port.drop.y + 1.0 }; }
+    // A finished order tote is pushed off the back of the put wall onto a
+    // lane behind it, which runs to the spur down to the takeaway conveyor.
+    backLaneY(port) { return this.slotPos(port, 0).y - 0.7; }
+    backLaneX(port) { return this.slotPos(port, 0).x - 0.3; } // where the lane behind the put wall starts
     toteRoute(port, slot, pk) {
-      const s = this.slotPos(port, slot), p = this.packerPos(pk);
-      const sx = this.spurX(port);
-      return [s, { x: sx, y: s.y }, { x: sx, y: this.takeawayY }, { x: p.x, y: this.takeawayY }, { x: p.x, y: p.y - 0.75 }];
+      const s = this.slotPos(port, slot), y = this.backLaneY(port), sx = this.spurX(port);
+      return [{ x: s.x, y: s.y, z: 2.2 }, { x: s.x, y, z: 1.6 }, { x: sx, y, z: 1.6 }, ...this.toPacker(sx, pk)];
     }
+    // from the spur at x down to the takeaway conveyor and along it to pack station pk
+    toPacker(sx, pk) { const p = this.packerPos(pk); return [{ x: sx, y: this.takeawayY, z: 1.6 }, { x: p.x, y: this.takeawayY, z: 1.6 }, { x: p.x, y: p.y - 0.75, z: 1.6 }]; }
     parcelRoute(pk) {
       const p = this.packerPos(pk), d = this.dock();
       return [{ x: p.x, y: p.y + 0.7 }, { x: p.x, y: this.D + 7.0 }, { x: d.x - 0.6, y: this.D + 7.0 }, { x: d.x - 0.6, y: d.y }, { x: d.x + 0.2, y: d.y }];

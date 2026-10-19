@@ -111,13 +111,36 @@
     }
 
     // ---------------------------------------------------------------- robots
+    // A robot's frame: the back shelves stand in a column behind the mast
+    // (shelfY), the handler runs up and down a column in front of it (handY).
+    robotFrame(r, x) {
+      const g = this.sim.grid, N = this.sim.cfg.robotSlots, H = g.Z + 0.5;
+      return { shelfY: -0.2, handY: 0.22, shelfZ: (k) => BODY + 0.5 + (k * (H - BODY - 1.6)) / Math.max(1, N - 1), H, a: Math.round((x - 1) / 3) };
+    }
+    // Where the tote being taken or put is, as { x, y, z, w, d }: from its
+    // shelf forward into the handler's column, up or down that column to the
+    // handler, then sideways into the rack (or forward onto a station's
+    // conveyor, taking on its tote size); a take runs the same way back.
+    // So it never passes through the totes on the other shelves, nor the rack
+    // tote beside its slot.
+    xferTote(r, x, y, xf) {
+      const f = this.robotFrame(r, x), cx = x + 0.5, cy = y + 0.5, T = this.sim.convTote(), s = xf.u; // 0 on its shelf, 1 at the far end
+      const k = xf.take ? r.load.length : r.load.indexOf(xf.id), z0 = f.shelfZ(k), z1 = r.mast + 0.06;
+      const at = xf.at || { x: this.sideX(f.a, xf.side), y: cy }, ease = (t) => t * t * (3 - 2 * t);
+      if (s < 0.2) return { x: cx, y: cy + f.shelfY + (f.handY - f.shelfY) * ease(s / 0.2), z: z0, w: 0.25, d: 0.18 };
+      if (s < 0.5) return { x: cx, y: cy + f.handY, z: z0 + (z1 - z0) * ease((s - 0.2) / 0.3), w: 0.25, d: 0.18 };
+      // out of the robot's footprint first, then lined up with the rack position or conveyor
+      const t = ease((s - 0.5) / 0.5), ty = ease(Math.max(0, ((s - 0.5) / 0.5 - 0.7) / 0.3)), w = xf.at ? 0.25 + (T.w - 0.25) * ty : 0.25, d = xf.at ? 0.18 + (T.d - 0.18) * ty : 0.18 + 0.05 * ty;
+      return { x: cx + (at.x - cx) * t, y: cy + f.handY + (at.y - cy - f.handY) * ty, z: z1, w, d };
+    }
     // A case-handling robot: a white drive unit with a dark bumper and a blue
-    // accent, a white mast frame with the back shelves (the totes it carries),
-    // a blue top beam with a status beacon, and the orange handler at its
-    // current height, its forks reaching into the rack while it takes or puts.
+    // accent, a white mast frame with the back shelves (the totes it carries)
+    // behind, a blue top beam with a status beacon, and in front the orange
+    // handler at its current height, its forks reaching into the rack while it
+    // takes or puts.
     drawRobot(r, x, y) {
       const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = WS.stateColor(sim, r.displayState);
-      const cx = x + 0.5, cy = y + 0.5, H = g.Z + 0.5, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.28, y1 = cy + 0.28;
+      const F = this.robotFrame(r, x), cx = x + 0.5, cy = y + 0.5, H = F.H, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.42, y1 = cy + 0.02;
       const edge = { stroke: 'rgba(15,23,42,0.5)', lw: 0.8 };
       this.quadTop(cx - 0.36, cy - 0.34, cx + 0.48, cy + 0.5, 0.005, 'rgba(0,0,0,0.35)');
       this.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, BODY, '#e2e8f0', Object.assign({ top: '#f8fafc' }, edge));
@@ -126,7 +149,7 @@
       this.faceY(cy + 0.423, cx - 0.14, cx + 0.14, 0.36, 0.44, col);
       // mast frame: back posts, shelves with totes, front post
       for (const [px, py] of [[x0, y0], [x1 - 0.07, y0], [x0, y1 - 0.07]]) this.box(px, py, BODY, px + 0.07, py + 0.07, H, '#e2e8f0', { top: '#f8fafc' });
-      const shelfZ = (k) => BODY + 0.5 + (k * (H - BODY - 1.6)) / Math.max(1, N - 1), xf = this.xfer(r);
+      const shelfZ = F.shelfZ, xf = this.xfer(r);
       for (let k = 0; k < N; k++) {
         this.quadTop(x0, y0, x1, y1, shelfZ(k), 'rgba(203,213,225,0.55)', '#94a3b8', 1);
         const id = r.load[k];
@@ -136,19 +159,12 @@
       this.box(x0, y0, H, x1, y1, H + 0.2, BLUE, Object.assign({ top: '#60a5fa' }, edge));
       this.box(cx - 0.06, cy - 0.06, H + 0.2, cx + 0.06, cy + 0.06, H + 0.45, col, { top: WS.shade(col, 0.35) });
       this.glow(cx, cy, H + 0.35, 12, col, 0.8);
-      // handler: a tray with forks reaching left or right into the rack
+      // handler in front of the shelves: a tray with forks reaching left or right into the rack
       const e = xf ? xf.reach * 0.75 : 0;
-      this.box(cx - 0.36, cy - 0.32, r.mast - 0.08, cx + 0.36, cy + 0.32, r.mast + 0.06, ORANGE, Object.assign({ top: '#fdba74' }, edge));
-      // a tote taken or put slides between its back shelf and the rack
-      // position or a station's conveyor (taking on the conveyor's tote size)
-      if (xf && xf.u != null) {
-        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), u = xf.u, T = sim.convTote();
-        const at = xf.at || { x: this.sideX(Math.round((x - 1) / 3), xf.side), y: cy }, w = xf.at ? 0.25 + (T.w - 0.25) * u : 0.25, d = xf.at ? 0.23 + (T.d - 0.23) * u : 0.23;
-        const tx = cx + (at.x - cx) * u, ty = cy + (at.y - cy) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
-        this.toteBox(tx - w, ty - d, tx + w, ty + d, tz, this.toteColor(sim.inv.binById.get(xf.id)));
-      }
-      if (xf && xf.side === 2) for (const fx of [cx - 0.24, cx + 0.18]) this.box(fx, cy - 0.3, r.mast + 0.06, fx + 0.06, cy + 0.36 + e, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
-      else for (const fy of [cy - 0.24, cy + 0.18]) {
+      this.box(cx - 0.36, cy + 0.02, r.mast - 0.08, cx + 0.36, cy + 0.42, r.mast + 0.06, ORANGE, Object.assign({ top: '#fdba74' }, edge));
+      if (xf && xf.u != null) { const q = this.xferTote(r, x, y, xf); this.toteBox(q.x - q.w, q.y - q.d, q.x + q.w, q.y + q.d, q.z, this.toteColor(sim.inv.binById.get(xf.id))); }
+      if (xf && xf.side === 2) for (const fx of [cx - 0.24, cx + 0.18]) this.box(fx, cy + 0.02, r.mast + 0.06, fx + 0.06, cy + 0.42 + e, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
+      else for (const fy of [cy + 0.06, cy + 0.32]) {
         const fx0 = xf && xf.side === 0 ? cx - 0.36 - e : cx - 0.3, fx1 = xf && xf.side === 1 ? cx + 0.36 + e : cx + 0.3;
         this.box(fx0, fy, r.mast + 0.06, fx1, fy + 0.06, r.mast + 0.11, '#cbd5e1', { top: '#f1f5f9' });
       }

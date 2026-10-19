@@ -18,6 +18,7 @@
     // With two presentation points the operator stands between them.
     slotPos(port, k) { return { x: port.drop.x + port.points + 0.75 + k * 0.52, y: this.D + 0.8 }; }
     spurX(port) { return this.slotPos(port, this.sim.cfg.toteSlots - 1).x + 0.6; }
+    backLaneY(port) { return this.slotPos(port, 0).y - 0.55; } // clear of the pods at the floor's edge
     pickPos(port) { return { x: port.drop.x + 0.5, y: port.drop.y + 0.5 }; }
     operatorPos(port) { const m = port.points / 2; return port.face === 'front' ? { x: port.drop.x + m, y: this.D + 0.85 } : { x: this.W + 0.85, y: port.drop.y + m }; }
   }

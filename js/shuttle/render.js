@@ -62,7 +62,7 @@
       // buffer (growing to its rack size on the way into the rack)
       const id = xf && xf.u != null ? xf.id : sh.bin;
       if (id) {
-        const T = sim.convTote(), u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u, hd = xf && xf.io ? T.d : T.d + (0.4 - T.d) * u;
+        const T = sim.convTote(), u = xf && xf.u != null ? xf.u : 0, tx = cx + (this.sideX(a, xf ? xf.side : 0) - cx) * u, hd = xf && xf.io ? T.d : T.d + (0.4 - T.d) * Math.max(0, 2 * u - 1);
         this.toteBox(tx - T.w, y - hd, tx + T.w, y + hd, z + 0.12 - 0.06 * u, this.toteColor(sim.inv.binById.get(id)));
       }
       for (const [ya, yb] of [[y0, y0 + 0.14], [y1 - 0.14, y1]]) {

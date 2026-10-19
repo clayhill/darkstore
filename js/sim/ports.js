@@ -6,6 +6,8 @@
 (function (WS) {
   'use strict';
 
+  const OUT_ROLL = 0.8, OUT_CLEAR = 0.6; // s for a finished bin to roll to its place on the outfeed; s for a lifted bin to clear it
+
   class Port {
     constructor(sim, idx, def) {
       this.sim = sim; this.idx = idx;
@@ -13,6 +15,7 @@
       this.name = (def.kind === 'PICK' ? 'Pick ' : 'Goods-in ') + (idx + 1);
       this.code = 'P' + String(idx + 1).padStart(2, '0');
       this.inbound = 0; this.inQ = []; this.pick = null; this.outQ = []; this.entryReserved = false;
+      this.outMoves = new Map(); // bin id → { from: 'pick' | 'out2', t }: a finished bin rolling to its place on the outfeed
       this.job = null; this.mode = 'auto';
       this.slots = def.kind === 'PICK' ? Array(sim.cfg.toteSlots).fill(null) : [];
       this.stats = { presented: 0, busy: 0, starved: 0, blocked: 0, lines: 0, units: 0, t: 0 };
@@ -69,7 +72,16 @@
       this.inQ.push({ bin, t: 0 });
       this.inbound = Math.max(0, this.inbound - 1);
     }
-    takeOut() { const b = this.outQ.shift(); return b; }
+    // The bin at the head of the outfeed leaves; the one behind rolls up to
+    // the head once the first has been lifted clear (OUT_CLEAR s).
+    takeOut() {
+      const b = this.outQ.shift();
+      if (b) this.outMoves.delete(b.id);
+      if (this.outQ[0]) this.outMoves.set(this.outQ[0].id, { from: 'out2', t: this.sim.time + OUT_CLEAR });
+      return b;
+    }
+    // the bin at the head of the outfeed has rolled into place
+    outReady() { const b = this.outQ[0], m = b && this.outMoves.get(b.id); return !!b && (!m || this.sim.time >= m.t + OUT_ROLL); }
 
     startJob(bin) {
       const sim = this.sim, cfg = sim.cfg, lines = [];
@@ -133,6 +145,7 @@
             while (j.next < j.lines.length && j.t >= j.lines[j.next].at) { this.applyLine(j.lines[j.next]); j.next++; }
           }
         } else if (this.outQ.length < 2 && this.sim.portOutOk(this)) {
+          this.outMoves.set(this.pick.id, { from: 'pick', t: this.sim.time });
           this.outQ.push(this.pick);
           this.sim.onPortOut(this, this.pick);
           this.pick = null; this.job = null;
@@ -144,4 +157,5 @@
   }
 
   WS.Port = Port;
+  WS.PORT_OUT_ROLL = OUT_ROLL;
 })((globalThis.WS = globalThis.WS || {}));

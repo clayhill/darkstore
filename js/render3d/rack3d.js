@@ -56,6 +56,17 @@
       }
       T.end();
     }
+    // stored totes for the audit (WS.View3D.probe)
+    probeStatic(out) {
+      const sim = this.sim, g = sim.grid, Y0 = this.Y0;
+      for (const aisle of sim.aisles) for (const s of [0, 1]) for (let l = 0; l < g.L; l++) {
+        const x0 = aisle.a * 3 + s * 2, z = g.levelZ(l) + 0.06;
+        for (let b = 0; b < g.SB; b++) {
+          const id = aisle.slot[sim.si(l, s, b)];
+          if (id && !this.moving.has(id)) out.push({ kind: 'stored', box: [x0 + 0.1, Y0 + b + 0.12, z, x0 + 0.9, Y0 + b + 0.88, z + TOTE_H], who: 'rack ' + id });
+        }
+      }
+    }
     drawLive(alpha) {
       const g = this.sim.grid, o = this.opts;
       this.moving = this.movingTotes();
