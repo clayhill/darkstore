@@ -180,13 +180,13 @@ A small top-down map in a corner showing where the camera is, helpful once you h
 
 ### 28. Procedural soundscape
 
-**Status:** Idea
+**Status:** Done
 
 Sound made live with the Web Audio API, no audio files: motor whine whose pitch follows speed, the click of a winch locking or forks extending, the thud of a pod set down, the clack of rollers and tilt-trays. Louder near the camera. At high sim speeds single events would come hundreds a second, so they thin out and blend into a steady hum of the whole fleet. Off by default behind a sound toggle (browsers only allow audio after a click).
 
 ### 29. Camera presets and a camera on a robot
 
-**Status:** Idea
+**Status:** Done
 
 One-click camera positions: a camera mounted on a robot (looking ahead from its front, riding along as it drives, lifts and digs), on a crane's carriage or a shuttle, beside a station or a sorter chute, and a slow orbit. An ambient mode cycles through them, as a screensaver. Builds on the follow camera and walk mode the 3D view already has.
 
@@ -208,4 +208,4 @@ Not overshoot: real drives are tuned not to overshoot their position. What real 
 
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. For impact against effort, the best visuals now are 28 (soundscape) first, then 29 (camera on a robot), then 30 and 31 together; 17 (climbing robots) is the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 and 29 are done too. For impact against effort, the best visuals now are 30 and 31 together; 17 (climbing robots) is the most interesting new type.

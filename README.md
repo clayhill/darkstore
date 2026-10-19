@@ -72,7 +72,16 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   racking systems the **Levels** slider works in 3D too; X-ray works in CubeFlow's 3D view. The
   warehouse stands in a hall with windows, columns and roof lamps. The walls on your side drop to a
   kerb so you can see in. **Lights out** switches the hall lights off: the robots keep working in the
-  dark, and only the stations, packing and the dock stay lit.
+  dark, and only the stations, packing and the dock stay lit. The **Camera** menu rides along: **Robot
+  cam** sits on the front of a robot and looks where it drives (across the grid top, under a pod, on a
+  crane's carriage), **Chase** follows just behind one, **Stations** visits the work places, **Orbit**
+  turns slowly round the warehouse, and **Ambient tour** cycles through them all like a screensaver.
+  **N** picks the next robot or station; any drag, scroll or key gives the camera back.
+- **Sound** (off by default) is made live from what the machines do, with no sound files: motors
+  humming with their speed, a chirp as a machine sets off, the clunk of forks and pod lifts, a
+  CubeFlow winch, rollers as a storage unit reaches a station, the scanner beep of every pick, tape at
+  the pack bench, parcels sliding into their chute. It is louder near where you look and panned left
+  or right; at high speed the single sounds give way to the hum of the whole fleet.
 - **ABC & heat** colours storage by velocity class and shows traffic heat. CubeFlow's **X-ray** shows
   every buried bin; in the three racking systems the **Levels** slider cuts the racking away above
   a level (or shows one level only), so you can check level by level where the fast movers sit.

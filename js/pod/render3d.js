@@ -27,6 +27,7 @@
       this.podIdx = new Map(sim.inv.bins.map((b, k) => [b.id, k]));
     }
     extraBatches() { return [this.podBatch]; }
+    rideHeight() { return 0.45; } // the robot cam stays under the pod it carries
 
     // The floor paint as one texture: storage cells, highways with their
     // fiducials, lanes with chevrons, stations, chargers, and the traffic heat.

@@ -18,6 +18,7 @@
       this.iso = new this.Kind.Renderer(document.getElementById('iso'), this);
       this.cr = new WS.ControlRoom(this, document.getElementById('crmap'), document.getElementById('chT'), document.getElementById('chU'));
       this.ui = new WS.UI(this);
+      this.sound = new WS.Sound(this);
       const ro = new ResizeObserver(() => { const fresh = !this.iso.w; this.iso.resize(); if (fresh) this.iso.fit(); if (this.gl) this.gl.resize(); });
       ro.observe(document.getElementById('iso-wrap'));
       this.iso.resize(); this.iso.fit();
@@ -80,6 +81,7 @@
         }
       }
       this.render(this.paused ? 1 : Math.min(1, this.acc / step));
+      this.sound.update(dtReal);
       this.uiClock = (this.uiClock || 0) + dtReal;
       if (this.uiClock > 0.25) { this.uiClock = 0; this.ui.refresh(); }
       requestAnimationFrame((tt) => this.frame(tt));

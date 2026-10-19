@@ -191,6 +191,7 @@
       let drag = null, hoverAt = 0;
       c.addEventListener('contextmenu', (e) => e.preventDefault());
       c.addEventListener('pointerdown', (e) => {
+        this.leavePreset();
         c.setPointerCapture(e.pointerId);
         drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, pan: e.button === 2 || e.shiftKey };
       });
@@ -223,6 +224,7 @@
       });
       c.addEventListener('wheel', (e) => {
         e.preventDefault();
+        this.leavePreset();
         const cam = this.cam, f = Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0015));
         if (cam.walk) { const s = (1 - f) * 12, h = this.heading(); cam.ex += h.x * s; cam.ey += h.y * s; return; }
         // zoom towards the floor point under the cursor
@@ -231,9 +233,16 @@
         cam.dist = d;
       }, { passive: false });
       const typing = (e) => e.target.matches && e.target.matches('input, select, textarea');
-      window.addEventListener('keydown', (e) => { if (this.app.view === '3d' && !typing(e)) { this.keys.add(e.code); if (e.code === 'Escape') this.cam.follow = null; } });
+      window.addEventListener('keydown', (e) => {
+        if (this.app.view !== '3d' || typing(e)) return;
+        if (e.code === 'KeyN' && this.cam.mode && this.cam.mode !== 'free') return this.nextSubject();
+        if (/^(Key[WASDQE]|Arrow|Escape)/.test(e.code)) this.leavePreset();
+        this.keys.add(e.code); if (e.code === 'Escape') this.cam.follow = null;
+      });
       window.addEventListener('keyup', (e) => this.keys.delete(e.code));
       window.addEventListener('blur', () => this.keys.clear());
+      const mode = document.getElementById('cam-mode');
+      if (mode) mode.addEventListener('change', () => this.setCamMode(mode.value));
       const walk = document.getElementById('btn-walk');
       if (walk) walk.addEventListener('click', () => this.setWalk(!this.cam.walk));
       const dark = document.getElementById('btn-dark');
@@ -252,6 +261,7 @@
     setWalk(on) {
       const cam = this.cam;
       if (on === cam.walk) return;
+      if (on) this.leavePreset();
       cam.walk = on; cam.follow = null;
       if (on) {
         const back = Math.min(cam.dist * 0.5, 8);
@@ -266,6 +276,7 @@
     // eye height in cells: 1.7 m
     get eye() { return 1.7 / (this.sim.cfg.cellSize || 1); }
     updateCamera(dt, alpha) {
+      if (this.cam.mode && this.cam.mode !== 'free' && this.presetCamera(dt, alpha)) return;
       const cam = this.cam, k = this.keys, h = this.heading(), side = { x: -h.y, y: h.x };
       let f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
       let s = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
@@ -292,6 +303,99 @@
       const cp = Math.cos(cam.pitch), tz = cam.tz * LZ;
       this.camera.position.set(cam.tx + cam.dist * cp * Math.sin(cam.yaw), tz + cam.dist * Math.sin(cam.pitch), cam.ty + cam.dist * cp * Math.cos(cam.yaw));
       this.camera.lookAt(cam.tx, tz, cam.ty);
+    }
+    // ---------------------------------------------------------------- camera presets
+    // 'free' (yours), 'robot' (mounted on a robot's front, looking where it
+    // drives), 'chase' (just behind and above it), 'station' (the work places
+    // in turn), 'orbit' (slowly round the warehouse) and 'tour' (all of them in
+    // turn, as a screensaver). N picks the next robot or station; any drag,
+    // scroll or key gives the camera back.
+    setCamMode(mode) {
+      const cam = this.cam;
+      if (cam.walk) { cam.walk = false; this.syncWalkButton(); }
+      cam.mode = mode; cam.follow = null;
+      if (mode === 'tour') { this.tourK = -1; this.nextShot(); } else if (mode !== 'free') this.startShot(mode);
+      this.syncCamMode();
+    }
+    syncCamMode() { const s = document.getElementById('cam-mode'); if (s) s.value = this.cam.mode || 'free'; }
+    leavePreset() {
+      const cam = this.cam;
+      if (!cam.mode || cam.mode === 'free') return;
+      // hand over where the preset was: following the robot it rode, or looking where it looked
+      if ((this.shot === 'robot' || this.shot === 'chase') && this.ride) Object.assign(cam, { follow: this.ride.id, dist: 7, pitch: 0.5 });
+      cam.mode = 'free'; this.fade(1); this.syncCamMode();
+    }
+    nextSubject() { if (this.shot === 'station') this.startShot('station'); else if (this.ride) this.ride = { id: this.pickRider(this.ride.id) }; }
+    startShot(shot) {
+      const cam = this.cam;
+      this.shot = shot; this.shotT = 0;
+      if (shot === 'robot' || shot === 'chase') {
+        const sel = this.selected, keep = this.ride && this.cam.mode === 'tour' ? null : this.ride && this.ride.id;
+        this.ride = { id: sel && sel.kind === 'robot' && this.sim.fleet[sel.id] ? sel.id : keep ?? this.pickRider() };
+      } else if (shot === 'station') {
+        const ls = this.workLights();
+        this.stationK = ((this.stationK ?? -1) + 1) % ls.length;
+        const p = ls[this.stationK];
+        Object.assign(cam, { tx: p.x, ty: p.y - 0.6, tz: 2.0, dist: 5.5, pitch: 0.38, yaw: 0.55 });
+      } else if (shot === 'orbit') {
+        const keepYaw = cam.yaw;
+        this.fit(); cam.yaw = keepYaw; cam.dist *= 0.85; cam.pitch = 0.55;
+      }
+    }
+    // the tour: robot cam, orbit, chase, a station, … with a short fade between shots
+    nextShot() {
+      const order = ['robot', 'orbit', 'chase', 'station'];
+      this.tourK = (this.tourK + 1) % order.length;
+      this.fade(0);
+      setTimeout(() => { if (this.cam.mode !== 'tour') return; this.startShot(order[this.tourK]); this.fade(1); }, 380);
+    }
+    fade(v) { for (const el of [this.canvas, this.labels]) { el.style.transition = 'opacity .38s'; el.style.opacity = v; } }
+    // a robot worth riding: the one asked for, else a busy one, else any
+    pickRider(not) {
+      const fleet = this.sim.fleet, busy = [];
+      fleet.forEach((r, k) => { if (k !== not && this.followPos(k, 1) && /MOVING|TRANSPORT|STORING|DIGGING|HANDLING/.test(r.displayState || '')) busy.push(k); });
+      if (busy.length) return busy[Math.floor(Math.random() * busy.length)];
+      const any = fleet.map((r, k) => k).filter((k) => k !== not && this.followPos(k, 1));
+      return any.length ? any[Math.floor(Math.random() * any.length)] : 0;
+    }
+    // where a robot cam sits: this far in front of the robot's centre (cells) and this high above its level (levels)
+    rideFront() { return 0.48; }
+    rideHeight() { return this.lv(0.45); }
+    // returns true when it placed the camera; false lets the orbit camera run with the preset's settings
+    presetCamera(dt, alpha) {
+      const cam = this.cam, shot = this.shot;
+      this.shotT = (this.shotT || 0) + dt;
+      if (cam.mode === 'tour' && this.shotT > { robot: 24, chase: 20, orbit: 18, station: 12 }[shot] && !this.fading) { this.fading = true; this.nextShot(); setTimeout(() => (this.fading = false), 400); }
+      if (shot === 'orbit') { cam.yaw += dt * 0.06; return false; }
+      if (shot === 'station') { cam.yaw += dt * 0.025; return false; }
+      const R = this.ride, p = R && this.followPos(R.id, alpha);
+      if (!p) { this.ride = { id: this.pickRider() }; return false; }
+      // heading from how it moves, turned smoothly; a robot standing still keeps its heading
+      if (R.last) {
+        const dx = p.x - R.last.x, dy = p.y - R.last.y;
+        if (Math.hypot(dx, dy) > 1e-4) {
+          const want = Math.atan2(dy, dx);
+          if (R.h == null) R.h = want;
+          else { let d = want - R.h; d = Math.atan2(Math.sin(d), Math.cos(d)); R.h += d * Math.min(1, dt * 5); }
+          R.still = 0;
+        } else R.still = (R.still || 0) + dt;
+      }
+      R.last = { x: p.x, y: p.y };
+      if (R.h == null) R.h = -Math.PI / 2;
+      // in the tour, a robot that stands still for long hands over to another
+      if (cam.mode === 'tour' && R.still > 10) this.ride = Object.assign({ id: this.pickRider(R.id) }, { h: null });
+      const hx = Math.cos(R.h), hy = Math.sin(R.h), z = (p.z ?? this.robotZ) * LZ, C = this.camera;
+      if (shot === 'robot') {
+        const f = this.rideFront(), e = z + this.rideHeight() * LZ;
+        C.position.set(p.x + hx * f, e, p.y + hy * f);
+        C.lookAt(p.x + hx * (f + 5), e - 0.25, p.y + hy * (f + 5));
+      } else {
+        const to = V.set(p.x - hx * 2.6, z + 1.7, p.y - hy * 2.6);
+        if (!R.cam) R.cam = to.clone(); else R.cam.lerp(to, Math.min(1, dt * 3));
+        C.position.copy(R.cam);
+        C.lookAt(p.x + hx * 1.2, z + 0.4, p.y + hy * 1.2);
+      }
+      return true;
     }
     // where a followed robot is drawn now (cell centre); a type may override
     followPos(id, alpha) {
