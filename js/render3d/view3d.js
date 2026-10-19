@@ -139,9 +139,12 @@
       const lit = new THREE.MeshBasicMaterial({ toneMapped: false }); // lamps, screens, state lights
       const clear = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.32, depthWrite: false });
       const glass = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false, roughness: 0.15, metalness: 0.1 }); // lit like the rest
-      this.geos = { box, cyl, oct, rnd }; this.mats = { std, lit, clear, glass };
+      // dome (a hard hat's shell): a half sphere filling the unit box from its base up
+      const dome = new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+      dome.scale(1, 2, 1); dome.translate(0, -0.5, 0);
+      this.geos = { box, cyl, oct, rnd, dome }; this.mats = { std, lit, clear, glass };
       const mk = () => ({
-        box: this.newBatch('box'), cyl: this.newBatch('cyl'), oct: this.newBatch('oct'), rnd: this.newBatch('rnd'),
+        box: this.newBatch('box'), cyl: this.newBatch('cyl'), oct: this.newBatch('oct'), rnd: this.newBatch('rnd'), dome: this.newBatch('dome'),
         lit: this.newBatch('box', 'lit'), litCyl: this.newBatch('cyl', 'lit'), litOct: this.newBatch('oct', 'lit'), litRnd: this.newBatch('rnd', 'lit'), clear: this.newBatch('box', 'clear'), glass: this.newBatch('box', 'glass'),
       });
       this.st = mk(); this.dy = mk();
@@ -310,7 +313,7 @@
       if (!this.w) return null;
       this.ray.setFromCamera({ x: (sx / this.w) * 2 - 1, y: -(sy / this.h) * 2 + 1 }, this.camera);
       const meshes = [];
-      for (const set of [this.dy, this.st]) for (const k of ['box', 'cyl', 'oct', 'rnd']) if (set[k].mesh.count) meshes.push(set[k].mesh);
+      for (const set of [this.dy, this.st]) for (const k of ['box', 'cyl', 'oct', 'rnd', 'dome']) if (set[k].mesh.count) meshes.push(set[k].mesh);
       for (const b of this.extraBatches()) if (b.mesh.count) meshes.push(b.mesh);
       // robots win, as in the isometric view: one under a pod is picked through it
       let first = null;
@@ -576,28 +579,54 @@
       B.box(x0 - 0.005, my - tw, z0 + h * 0.6, x1 + 0.005, my + tw, z0 + h + 0.01, '#e6c79c');
       if (label) B.box(x0 + (x1 - x0) * 0.45, y1, z0 + h * 0.2, x1 - (x1 - x0) * 0.1, y1 + 0.01, z0 + h * 0.75, '#f8fafc');
     }
-    // Operator in a hi-vis vest and hard hat, facing angle a (0 = towards -y), standing at level z0.
-    // When active the arms take turns reaching out to the pick and the put.
-    operator(x, y, a, active, vest, z0 = 0) {
-      const B = { rbox: (cx, cy, aa, u0, v0, z1, u1, v1, z2, c) => this.dy.box.rbox(cx, cy, aa, u0, v0, z1 + z0, u1, v1, z2 + z0, c) }, s = active ? Math.sin(this.t * 4.5) : 0;
-      const skin = '#e0ac7e', shirt = '#2b3a55', trousers = '#1c2638';
-      for (const u of [-0.09, 0.03]) { B.rbox(x, y, a, u, -0.05, 0, u + 0.07, 0.05, 1.7, trousers); B.rbox(x, y, a, u - 0.005, -0.09, 0, u + 0.075, 0.06, 0.18, '#0b0f17'); }
-      B.rbox(x, y, a, -0.15, -0.08, 1.7, 0.15, 0.08, 2.75, shirt);
-      B.rbox(x, y, a, -0.155, -0.085, 1.85, 0.155, 0.085, 2.7, vest);
-      for (const z of [2.0, 2.2]) B.rbox(x, y, a, -0.157, -0.087, z, 0.157, 0.087, z + 0.06, '#e2e8f0');
-      // arms: upper arm down the side, forearm reaching forward (left: pick, right: put)
-      for (const [side, reach] of [[-1, Math.max(0, s)], [1, Math.max(0, -s)]]) {
-        const u0 = side < 0 ? -0.22 : 0.15;
-        B.rbox(x, y, a, u0, -0.04, 2.0 - reach * 0.2, u0 + 0.07, 0.04, 2.7, shirt);
-        const len = 0.12 + reach * 0.32;
-        B.rbox(x, y, a, u0, -0.04 - len, 1.95 + reach * 0.35, u0 + 0.07, -0.0, 2.08 + reach * 0.35, shirt);
-        B.rbox(x, y, a, u0 + 0.005, -0.08 - len, 1.95 + reach * 0.35, u0 + 0.065, -0.03 - len, 2.08 + reach * 0.35, skin);
+    // Operator in a hi-vis vest, safety boots and a hard hat, facing angle a
+    // (0 = towards -y), standing at level z0, with their own look
+    // (WS.personLook(id); id defaults to where they stand). When active the
+    // arms take turns reaching out to the pick and the put.
+    operator(x, y, a, active, vest, z0 = 0, id) {
+      const L = WS.personLook(id ?? Math.round(x * 4) + ',' + Math.round(y * 4)), D = this.dy, s = active ? Math.sin(this.t * 4.5) : 0;
+      const part = (B) => (u0, v0, z1, u1, v1, z2, c) => B.rbox(x, y, a, u0, v0, z1 + z0, u1, v1, z2 + z0, c);
+      const box = part(D.box), rnd = part(D.rnd), dome = part(D.dome), f = L.female, skin = L.skin, shirt = L.shirt;
+      const sh = f ? 0.135 : 0.16, hip = f ? 0.13 : 0.12, hw = f ? 0.07 : 0.075;
+      // safety boots with a sole, legs, hips and belt
+      for (const u of [-0.102, 0.008]) {
+        rnd(u - 0.004, -0.12, 0.03, u + 0.098, 0.06, 0.24, '#111827');
+        box(u - 0.006, -0.125, 0, u + 0.1, 0.065, 0.04, '#4b5563');
+        rnd(u, -0.052, 0.2, u + 0.094, 0.052, 1.62, L.trousers);
       }
-      B.rbox(x, y, a, -0.035, -0.035, 2.75, 0.035, 0.035, 2.85, skin);
-      B.rbox(x, y, a, -0.08, -0.09, 2.85, 0.08, 0.08, 3.25, skin);
-      B.rbox(x, y, a, -0.085, 0.0, 3.0, 0.085, 0.085, 3.27, '#3b2a20');
-      this.dy.cyl.cyl(x, y, 3.2 + z0, 3.42 + z0, 0.105, '#facc15');
-      this.dy.cyl.cyl(x, y, 3.2 + z0, 3.24 + z0, 0.15, '#eab308');
+      rnd(-hip, -0.068, 1.48, hip, 0.068, 1.9, L.trousers);
+      box(-hip - 0.004, -0.068, 1.8, hip + 0.004, 0.068, 1.86, '#111827');
+      // torso narrowing to the waist, the vest over it with reflective tape
+      rnd(-hip + 0.005, -0.075, 1.85, hip - 0.005, 0.075, 2.35, shirt);
+      rnd(-sh, -0.085, 2.25, sh, 0.085, 2.78, shirt);
+      rnd(-hip - 0.002, -0.09, 1.88, hip + 0.002, 0.09, 2.36, vest);
+      rnd(-sh + 0.01, -0.092, 2.3, sh - 0.01, 0.092, 2.74, vest);
+      for (const z of [2.0, 2.2]) box(-hip - 0.006, -0.094, z, hip + 0.006, 0.094, z + 0.06, '#e2e8f0');
+      for (const u of [-0.085, 0.055]) box(u, -0.097, 2.3, u + 0.03, -0.09, 2.74, '#e2e8f0');
+      // arms: upper arm down the side, forearm reaching forward (left: pick, right: put), gloved hands
+      for (const [side, reach] of [[-1, Math.max(0, s)], [1, Math.max(0, -s)]]) {
+        const u0 = side < 0 ? -sh - 0.065 : sh - 0.005;
+        rnd(u0, -0.045, 2.0 - reach * 0.2, u0 + 0.07, 0.045, 2.76, shirt);
+        const len = 0.12 + reach * 0.32;
+        rnd(u0, -0.04 - len, 1.95 + reach * 0.35, u0 + 0.065, 0.0, 2.09 + reach * 0.35, shirt);
+        rnd(u0 + 0.004, -0.085 - len, 1.94 + reach * 0.35, u0 + 0.061, -0.03 - len, 2.1 + reach * 0.35, skin);
+      }
+      // neck and head, ears and face
+      box(-0.035, -0.035, 2.74, 0.035, 0.035, 2.9, skin);
+      if (L.style === 'long') rnd(-hw - 0.012, -0.02, 2.62, hw + 0.012, 0.095, 3.2, L.hair);
+      rnd(-hw, -0.085, 2.84, hw, 0.08, 3.25, skin);
+      for (const u of [-hw - 0.012, hw - 0.002]) rnd(u, -0.015, 2.97, u + 0.014, 0.03, 3.09, skin);
+      rnd(-hw - 0.006, -0.03, 3.0, hw + 0.006, 0.088, 3.27, L.hair);
+      if (L.style === 'ponytail') rnd(-0.028, 0.075, 2.78, 0.028, 0.125, 3.16, L.hair);
+      if (L.style === 'beard') rnd(-hw + 0.004, -0.092, 2.83, hw - 0.004, 0.0, 2.98, L.hair);
+      for (const u of [-0.045, 0.02]) { box(u, -0.09, 3.06, u + 0.025, -0.084, 3.095, '#111827'); box(u - 0.004, -0.09, 3.12, u + 0.029, -0.084, 3.14, WS.shade(L.hair, -0.2)); }
+      box(-0.011, -0.1, 2.99, 0.011, -0.084, 3.07, WS.shade(skin, -0.08));
+      if (L.style !== 'beard') box(-0.025, -0.089, 2.92, 0.025, -0.084, 2.94, WS.shade(skin, -0.35));
+      // hard hat: shell with a ridge, a narrow brim all round and a peak at the front
+      dome(-0.1, -0.11, 3.2, 0.1, 0.105, 3.46, L.hat);
+      box(-0.012, -0.07, 3.3, 0.012, 0.065, 3.462, WS.shade(L.hat, 0.12));
+      rnd(-0.106, -0.116, 3.18, 0.106, 0.111, 3.22, WS.shade(L.hat, -0.1));
+      rnd(-0.08, -0.17, 3.19, 0.08, -0.1, 3.215, WS.shade(L.hat, -0.1));
     }
     // facing angle for an operator who looks at the storage over a station of this face
     faceAngle(p) { return p.face === 'front' ? 0 : Math.PI / 2; }

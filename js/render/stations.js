@@ -7,6 +7,26 @@
   'use strict';
   const { shade, roundRect } = WS;
 
+  // A person's look, fixed by an id: woman or man, skin, hair and how it is
+  // worn, workwear. Shared by the isometric and the 3D view.
+  const SKIN = ['#f3cfb3', '#e0ac7e', '#c68c5e', '#a0693f', '#6f4a2e'];
+  const HAIR = ['#1c140f', '#3b2a20', '#5a3a22', '#8a5a2b', '#c9a15a', '#9a3f1c', '#2a2a2a', '#8d8a86'];
+  const SHIRT = ['#2b3a55', '#3f3f46', '#1e3a5f', '#4b5563', '#334155'], TROUSERS = ['#1c2638', '#2a2f3a', '#1f2937', '#3b3a32'];
+  const looks = new Map();
+  WS.personLook = (id) => {
+    const key = String(id);
+    let L = looks.get(key);
+    if (L) return L;
+    let h = 2166136261;
+    for (let k = 0; k < key.length; k++) { h ^= key.charCodeAt(k); h = Math.imul(h, 16777619); }
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15; h >>>= 0;
+    const female = (h & 1) === 1, pick = (a, sh) => a[(h >>> sh) % a.length];
+    L = { female, skin: pick(SKIN, 1), hair: pick(HAIR, 4), shirt: pick(SHIRT, 8), trousers: pick(TROUSERS, 11), hat: '#facc15',
+      style: female ? ((h >>> 14) & 1 ? 'ponytail' : 'long') : ((h >>> 14) % 3 === 0 ? 'beard' : 'short') };
+    looks.set(key, L);
+    return L;
+  };
+
   class IsoRenderer extends WS.IsoView {
     // ---------------------------------------------------------------- picking
     // Stations, packers and the dock, hit at floor level (f = world point at z 1.5).
@@ -50,39 +70,57 @@
     }
 
     // ---------------------------------------------------------------- stations
-    // Warehouse operator in a hi-vis vest and hard hat. When active the arms alternate between
-    // the work in front-left (pick) and front-right (put), with the head turning to follow.
-    drawOperator(x, y, active, vest, z = 0) {
-      const c = this.ctx, [px, py] = this.P(x, y, z);
-      const s = active ? Math.sin(this.t * 4.5) : 0, look = s * 2.2;
-      const skin = '#e0ac7e', shirt = '#2b3a55', trousers = '#1c2638';
+    // Warehouse operator in a hi-vis vest, safety boots and a hard hat, with
+    // their own look (WS.personLook(id); id defaults to where they stand).
+    // When active the arms alternate between the work in front-left (pick)
+    // and front-right (put), with the head turning to follow.
+    drawOperator(x, y, active, vest, z = 0, id) {
+      const c = this.ctx, [px, py] = this.P(x, y, z), L = WS.personLook(id ?? Math.round(x * 4) + ',' + Math.round(y * 4));
+      const s = active ? Math.sin(this.t * 4.5) : 0, look = s * 2.2, f = L.female, sw = f ? 7.6 : 9, hw = f ? 7 : 6.6;
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(px, py, 12, 5.5, 0, 0, Math.PI * 2); c.fill();
-      // legs and safety boots
-      c.fillStyle = trousers; roundRect(c, px - 6.2, py - 27, 5.6, 25, 2); c.fill(); roundRect(c, px + 0.6, py - 27, 5.6, 25, 2); c.fill();
-      c.fillStyle = '#0b0f17'; c.beginPath(); c.ellipse(px - 3.6, py - 1.6, 4.2, 2.3, 0, 0, Math.PI * 2); c.ellipse(px + 3.6, py - 1.6, 4.2, 2.3, 0, 0, Math.PI * 2); c.fill();
-      // torso: shirt, vest with reflective tape
-      c.fillStyle = shirt; roundRect(c, px - 9, py - 47, 18, 23, 6); c.fill();
-      c.fillStyle = vest; roundRect(c, px - 8.5, py - 45.5, 17, 20, 4); c.fill();
-      c.fillStyle = 'rgba(232,238,245,0.92)'; c.fillRect(px - 8.5, py - 36, 17, 2.2); c.fillRect(px - 8.5, py - 31, 17, 2.2);
-      c.fillRect(px - 5.5, py - 45.5, 2, 9.5); c.fillRect(px + 3.5, py - 45.5, 2, 9.5);
+      // legs and safety boots with a light sole
+      c.fillStyle = L.trousers; roundRect(c, px - 6.2, py - 27, 5.6, 25, 2); c.fill(); roundRect(c, px + 0.6, py - 27, 5.6, 25, 2); c.fill();
+      c.fillStyle = '#0b0f17'; c.beginPath(); c.ellipse(px - 3.6, py - 2.2, 4.2, 2.4, 0, 0, Math.PI * 2); c.ellipse(px + 3.6, py - 2.2, 4.2, 2.4, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#4b5563'; c.fillRect(px - 7.6, py - 1.2, 7, 1.2); c.fillRect(px + 0.6, py - 1.2, 7, 1.2);
+      // hips and belt, torso tapering from the shoulders, vest with reflective tape
+      c.fillStyle = L.trousers; roundRect(c, px - hw, py - 30, hw * 2, 7, 3); c.fill();
+      c.fillStyle = '#111827'; c.fillRect(px - hw, py - 28.5, hw * 2, 1.8);
+      c.fillStyle = L.shirt; c.beginPath(); c.moveTo(px - sw, py - 46); c.lineTo(px + sw, py - 46); c.lineTo(px + hw, py - 28); c.lineTo(px - hw, py - 28); c.closePath(); c.fill();
+      c.beginPath(); c.arc(px - sw + 2.5, py - 44, 3, 0, Math.PI * 2); c.arc(px + sw - 2.5, py - 44, 3, 0, Math.PI * 2); c.fill();
+      c.fillStyle = vest; c.beginPath(); c.moveTo(px - sw + 0.5, py - 45.5); c.lineTo(px + sw - 0.5, py - 45.5); c.lineTo(px + hw - 0.3, py - 29); c.lineTo(px - hw + 0.3, py - 29); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(232,238,245,0.92)'; c.fillRect(px - hw - 0.4, py - 36, hw * 2 + 0.8, 2.2); c.fillRect(px - hw, py - 32, hw * 2, 2.2);
+      c.fillRect(px - 5.2, py - 45.5, 2, 9.5); c.fillRect(px + 3.2, py - 45.5, 2, 9.5);
       // arms: rest at the sides, or reach out to the pick (left) and the put wall (right)
       const arm = (side, reach) => {
-        const sx = px + side * 8, sy = py - 43;
-        const hx = px + side * (10 + reach * 8), hy = py - 27 - reach * 16;
+        const sx = px + side * (sw - 1.5), sy = py - 43;
+        const hx = px + side * (sw + 1 + reach * 8), hy = py - 27 - reach * 16;
         const ex = (sx + hx) / 2 + side * 3, ey = (sy + hy) / 2 + 2;
-        c.strokeStyle = shirt; c.lineWidth = 4.6; c.lineCap = 'round'; c.lineJoin = 'round';
+        c.strokeStyle = L.shirt; c.lineWidth = f ? 4 : 4.6; c.lineCap = 'round'; c.lineJoin = 'round';
         c.beginPath(); c.moveTo(sx, sy); c.lineTo(ex, ey); c.lineTo(hx, hy); c.stroke();
-        c.fillStyle = skin; c.beginPath(); c.arc(hx, hy, 2.6, 0, Math.PI * 2); c.fill();
+        c.fillStyle = L.skin; c.beginPath(); c.arc(hx, hy, 2.5, 0, Math.PI * 2); c.fill();
       };
       arm(-1, Math.max(0, s)); arm(1, Math.max(0, -s));
       c.lineCap = 'butt'; c.lineJoin = 'miter';
-      // head: neck, face, ear, hard hat with brim
-      c.fillStyle = skin; c.fillRect(px - 2.2, py - 50, 4.4, 4);
-      c.beginPath(); c.arc(px + look * 0.4, py - 54, 6.2, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#3b2a20'; c.beginPath(); c.arc(px + look * 0.4, py - 54.5, 6.2, Math.PI * 0.05, Math.PI * 0.95, true); c.fill();
-      c.fillStyle = '#facc15'; c.beginPath(); c.arc(px + look * 0.4, py - 56, 6.9, Math.PI, 0); c.fill();
-      c.fillStyle = '#eab308'; c.beginPath(); c.ellipse(px + look * 0.4, py - 56, 9, 2.2, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(px + look * 0.4 - 0.8, py - 62.5, 1.6, 6);
+      const hx = px + look * 0.4, hy = py - 54;
+      // long hair falls behind the shoulders, a ponytail hangs to one side
+      c.fillStyle = L.hair;
+      if (L.style === 'long') { roundRect(c, hx - 6.8, hy - 4, 13.6, 14, 4); c.fill(); }
+      if (L.style === 'ponytail') { c.beginPath(); c.ellipse(hx + 6.2, hy + 3.5, 2.2, 5.5, -0.35, 0, Math.PI * 2); c.fill(); }
+      // neck, face with ears, eyes, brows and mouth
+      c.fillStyle = L.skin; c.fillRect(px - 2.2, py - 50, 4.4, 4);
+      c.beginPath(); c.ellipse(hx, hy, f ? 5.6 : 6.1, 6.6, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(hx - 6, hy + 0.5, 1.4, 0, Math.PI * 2); c.arc(hx + 6, hy + 0.5, 1.4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = L.hair; c.beginPath(); c.arc(hx, hy - 0.8, f ? 5.9 : 6.2, Math.PI * 1.02, Math.PI * 1.98); c.fill();
+      if (L.style === 'beard') { c.beginPath(); c.ellipse(hx, hy + 3.4, 5.2, 3.4, 0, 0, Math.PI); c.fill(); }
+      c.fillStyle = '#1f2937'; c.fillRect(hx - 2.9 + look * 0.3, hy - 0.4, 1.5, 1.6); c.fillRect(hx + 1.4 + look * 0.3, hy - 0.4, 1.5, 1.6);
+      c.fillStyle = shade(L.hair, -0.2); c.fillRect(hx - 3.2 + look * 0.3, hy - 2.1, 2.2, 0.7); c.fillRect(hx + 1.1 + look * 0.3, hy - 2.1, 2.2, 0.7);
+      if (L.style !== 'beard') { c.fillStyle = shade(L.skin, -0.3); c.fillRect(hx - 1.4 + look * 0.3, hy + 3.1, 2.8, 0.8); }
+      // hard hat: shell with a ridge, a narrow brim and a peak at the front
+      c.fillStyle = shade(L.hat, -0.12); c.beginPath(); c.ellipse(hx, hy - 4.6, 8.6, 2.4, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(hx + look * 0.3, hy - 3.6, 6, 2, 0, 0, Math.PI); c.fill();
+      c.fillStyle = L.hat; c.beginPath(); c.ellipse(hx, hy - 5.2, 7.1, 7.4, 0, Math.PI, 0); c.fill();
+      c.fillStyle = shade(L.hat, 0.25); c.fillRect(hx - 1, hy - 12.4, 2, 7.4);
+      c.fillStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.ellipse(hx - 3, hy - 9, 1.6, 2.6, -0.5, 0, Math.PI * 2); c.fill();
     }
     // Half sizes { w, d } of the bins on a port's conveyor (q) and at its pick position.
     portBinSize(p) {

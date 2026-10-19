@@ -26,10 +26,10 @@
       this.ctx.globalAlpha = 1;
       const items = [];
       if (this.sim.tray) this.trayScene(items, alpha); else this.deckScene(items, alpha);
-      for (const w of this.sim.workers) {
+      this.sim.workers.forEach((w, k) => {
         const x = w.px + (w.x - w.px) * alpha, y = w.py + (w.y - w.py) * alpha;
-        items.push({ d: x + y + 0.2, fn: () => this.drawOperator(x, y, w.state === 'SWAPPING', '#facc15') });
-      }
+        items.push({ d: x + y + 0.2, fn: () => this.drawOperator(x, y, w.state === 'SWAPPING', '#facc15', 0, 'bag worker ' + k) });
+      });
       this.dropItems(items);
       items.sort((a, b) => a.d - b.d);
       for (const it of items) it.fn();

@@ -103,7 +103,7 @@
       for (const r of sim.fleet) this.drawRobot(r, r.prx + (r.rx - r.prx) * alpha + 0.5, r.pry + (r.ry - r.pry) * alpha + 0.5, { kind: 'robot', id: r.id });
       for (const pk of sim.pickers) {
         const x = pk.px + (pk.x - pk.px) * alpha, y = pk.py + (pk.y - pk.py) * alpha, h = pk.heading;
-        this.operator(x, y, Math.atan2(-Math.cos(h), -Math.sin(h)), pk.state === 'PICKING', '#a3e635');
+        this.operator(x, y, Math.atan2(-Math.cos(h), -Math.sin(h)), pk.state === 'PICKING', '#a3e635', 0, 'picker ' + pk.name);
       }
       // pick-to-light: the location being worked lights up along its beam
       if (Math.sin(this.t * 8) > -0.4) for (const st of sim.stops) {

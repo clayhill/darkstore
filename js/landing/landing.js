@@ -24,6 +24,28 @@
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // A small worker in a hi-vis vest and hard hat, at screen point (px, py),
+  // u pixels per unit, an arm reaching out by reach. Person k gets their own
+  // look: woman or man, skin and hair (long hair or a ponytail, a beard).
+  const SKIN = ['#f3cfb3', '#e0ac7e', '#c68c5e', '#a0693f', '#6f4a2e'], HAIR = ['#1c140f', '#3b2a20', '#5a3a22', '#8a5a2b', '#c9a15a', '#9a3f1c'];
+  function person(ctx, px, py, u, vest, reach, k) {
+    const h = Math.imul(k + 7, 2654435761) >>> 0, female = (h >>> 3) & 1, skin = SKIN[(h >>> 5) % 5], hair = HAIR[(h >>> 9) % 6], sw = female ? 4.3 : 5;
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(px, py, 7 * u, 3 * u, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1c2638'; ctx.fillRect(px - 3.4 * u, py - 16 * u, 3.1 * u, 15 * u); ctx.fillRect(px + 0.3 * u, py - 16 * u, 3.1 * u, 15 * u);
+    ctx.fillStyle = '#0b0f17'; ctx.fillRect(px - 3.8 * u, py - 1.6 * u, 3.6 * u, 1.6 * u); ctx.fillRect(px + 0.2 * u, py - 1.6 * u, 3.6 * u, 1.6 * u);
+    ctx.fillStyle = vest; ctx.beginPath(); ctx.moveTo(px - sw * u, py - 28 * u); ctx.lineTo(px + sw * u, py - 28 * u); ctx.lineTo(px + 4 * u, py - 15 * u); ctx.lineTo(px - 4 * u, py - 15 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(232,238,245,.9)'; ctx.fillRect(px - 4.2 * u, py - 21 * u, 8.4 * u, 1.3 * u);
+    ctx.strokeStyle = vest; ctx.lineWidth = 2.4 * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(px - (sw - 1) * u, py - 25 * u); ctx.lineTo(px - (sw + 2) * u - reach, py - 18 * u - reach); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + (sw - 1) * u, py - 25 * u); ctx.lineTo(px + (sw + 1) * u, py - 17 * u); ctx.stroke();
+    ctx.fillStyle = hair;
+    if (female) { if ((h >>> 13) & 1) ctx.fillRect(px - 3.8 * u, py - 33 * u, 7.6 * u, 7.5 * u); else { ctx.beginPath(); ctx.ellipse(px + 3.6 * u, py - 30 * u, 1.3 * u, 3 * u, -0.3, 0, Math.PI * 2); ctx.fill(); } }
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(px, py - 31.5 * u, 3.3 * u, 3.7 * u, 0, 0, Math.PI * 2); ctx.fill();
+    if (!female && (h >>> 13) % 3 === 0) { ctx.fillStyle = hair; ctx.beginPath(); ctx.ellipse(px, py - 30 * u, 3 * u, 2 * u, 0, 0, Math.PI); ctx.fill(); }
+    ctx.fillStyle = '#eab308'; ctx.beginPath(); ctx.ellipse(px, py - 33.6 * u, 4.8 * u, 1.3 * u, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.ellipse(px, py - 34 * u, 3.9 * u, 4 * u, 0, Math.PI, 0); ctx.fill();
+  }
+
   // Small seeded RNG so the preview looks the same on every visit.
   function rng(seed) {
     return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -302,13 +324,7 @@
     }
     function drawOperator(x, y, busy, t) {
       const [px, py] = P(x, y, 0), u = kit.s / 20, reach = busy ? Math.max(0, Math.sin(t * 5)) * 4 * u : 0;
-      ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(px, py, 7 * u, 3 * u, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#1c2638'; ctx.fillRect(px - 3.5 * u, py - 16 * u, 7 * u, 16 * u);
-      ctx.fillStyle = '#f97316'; ctx.fillRect(px - 5 * u, py - 28 * u, 10 * u, 13 * u);
-      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2.5 * u; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(px - 4 * u, py - 25 * u); ctx.lineTo(px - 7 * u - reach, py - 18 * u - reach); ctx.stroke();
-      ctx.fillStyle = '#e0ac7e'; ctx.beginPath(); ctx.arc(px, py - 32 * u, 3.6 * u, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(px, py - 33 * u, 4 * u, Math.PI, 0); ctx.fill();
+      person(ctx, px, py, u, '#f97316', reach, Math.round(x * 3));
     }
 
     animate(canvas, kit, (dt) => robots.forEach((r) => step(r, dt)), (t) => {
@@ -588,14 +604,8 @@
       ctx.restore();
     }
     function drawPicker(c, t) {
-      const [px, py] = P(c.px, c.py, 0), u = kit.s / 20, reach = c.pick > 0 ? Math.max(0, Math.sin(t * 6)) * 4 * u : 0;
-      ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(px, py, 6 * u, 2.6 * u, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#1c2638'; ctx.fillRect(px - 3 * u, py - 14 * u, 6 * u, 14 * u);
-      ctx.fillStyle = '#a3e635'; ctx.fillRect(px - 4.5 * u, py - 25 * u, 9 * u, 12 * u);
-      ctx.strokeStyle = '#a3e635'; ctx.lineWidth = 2.4 * u; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(px - 3.5 * u, py - 22 * u); ctx.lineTo(px - 6 * u - reach, py - 15 * u - reach); ctx.stroke();
-      ctx.fillStyle = '#e0ac7e'; ctx.beginPath(); ctx.arc(px, py - 28.5 * u, 3.3 * u, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(px, py - 29.5 * u, 3.7 * u, Math.PI, 0); ctx.fill();
+      const [px, py] = P(c.px, c.py, 0), u = kit.s / 22, reach = c.pick > 0 ? Math.max(0, Math.sin(t * 6)) * 4 * u : 0;
+      person(ctx, px, py, u, '#a3e635', reach, crews.indexOf(c) + 20);
     }
     animate(canvas, kit, step, (t) => {
       quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], '#0b1424', 'rgba(125,211,252,.5)', 1.2);

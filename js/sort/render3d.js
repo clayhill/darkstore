@@ -111,10 +111,10 @@
         }
         for (const ch of g.chargers) { const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING'; (on ? D.lit : D.box).box(ch.x + 0.35, 0.17, PZ + 1.2, ch.x + 0.65, 0.19, PZ + 1.5, on ? '#4ade80' : '#166534'); }
       }
-      for (const w of sim.workers) {
+      sim.workers.forEach((w, k) => {
         const x = w.px + (w.x - w.px) * alpha, y = w.py + (w.y - w.py) * alpha;
-        this.operator(x, y, 0, w.state === 'SWAPPING', '#facc15');
-      }
+        this.operator(x, y, 0, w.state === 'SWAPPING', '#facc15', 0, 'bag worker ' + k);
+      });
       // parcels falling into their chute
       const top = sim.tray ? TZ + 0.3 : PZ + 0.6;
       for (const d of sim.drops) {
