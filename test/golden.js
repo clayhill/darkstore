@@ -15,6 +15,7 @@ const RUNS = {
   shuttle: ['shuttle', {}], 'shuttle-decant': ['shuttle', { autoDecant: 1 }],
   crane: ['crane', {}], 'crane-single': ['crane', { handlerSlots: 1 }],
   acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],
+  sort: ['sort', {}], 'sort-tray': ['sort', { mechanism: 'tray' }],
   amr: ['amr', {}], 'amr-nozones': ['amr', { zonePicking: 'off' }],
 };
 

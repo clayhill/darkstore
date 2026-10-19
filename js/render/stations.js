@@ -52,8 +52,8 @@
     // ---------------------------------------------------------------- stations
     // Warehouse operator in a hi-vis vest and hard hat. When active the arms alternate between
     // the work in front-left (pick) and front-right (put), with the head turning to follow.
-    drawOperator(x, y, active, vest) {
-      const c = this.ctx, [px, py] = this.P(x, y, 0);
+    drawOperator(x, y, active, vest, z = 0) {
+      const c = this.ctx, [px, py] = this.P(x, y, z);
       const s = active ? Math.sin(this.t * 4.5) : 0, look = s * 2.2;
       const skin = '#e0ac7e', shirt = '#2b3a55', trousers = '#1c2638';
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(px, py, 12, 5.5, 0, 0, Math.PI * 2); c.fill();

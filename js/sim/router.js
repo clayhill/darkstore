@@ -139,6 +139,17 @@
         if (this.claimCell(r, ci)) L = j;
         else { blocker = g.claim[ci]; break; }
       }
+      // A floor may name cells a robot must not stop in (g.noStop: crossings,
+      // where it would block the crossing street): claim on through them
+      // along the straight, or stop before them.
+      if (g.noStop) {
+        const stop = (j) => j === path.length - 1 || !g.noStop(g.idx(path[j].x, path[j].y));
+        while (L > k && L < e && !stop(L)) {
+          const ci = g.idx(path[L + 1].x, path[L + 1].y);
+          if (this.claimCell(r, ci)) L++; else { blocker = g.claim[ci]; break; }
+        }
+        if (!stop(L) && L < e) { while (L > k && !stop(L)) { this.releaseCell(r, g.idx(path[L].x, path[L].y)); L--; } }
+      }
       const dist = L - k - r.prog;
       if (dist <= 1e-6) { r.v = 0; this.onBlocked(r, dt, path[k + 1], blocker); return false; }
       r.wait = 0;

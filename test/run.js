@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -66,6 +66,17 @@ function checkPods() {
     if (!r) throw new Error(`pod ${b.id} (${b.loc}) not carried by any robot`);
   }
   if (n !== 0) throw new Error('pod count mismatch');
+}
+// sorter: every parcel that arrived is in exactly one place (inbound dock,
+// a feed belt, an induct, a tray or robot, or sorted into a chute), and no
+// bag holds more than it can
+function checkSorter() {
+  const ind = sim.ports.reduce((n, p) => n + p.queue.length + (p.cur ? 1 : 0) + (p.ready ? 1 : 0), 0);
+  const moving = sim.trays.filter((t) => t.parcel).length + sim.fleet.filter((r) => r.parcel).length;
+  const n = sim.backlog.length + ind + moving + sim.stats.sorted;
+  if (n !== sim.stats.arrived) throw new Error(`t=${sim.time.toFixed(1)} parcels: ${n} accounted for, ${sim.stats.arrived} arrived`);
+  for (const ch of sim.chutes) if (ch.count > sim.cfg.bagCapacity) throw new Error(`${ch.name} holds ${ch.count}`);
+  for (const r of sim.fleet.filter((x) => x.claims)) if (g.claim[g.idx(r.x, r.y)] !== r.id) throw new Error(`${r.name} cell not claimed`);
 }
 // shelving: locations never move; every released order tote is staged at
 // exactly one station or rides on exactly one robot; no robot waits for ever

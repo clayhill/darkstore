@@ -1,10 +1,10 @@
-# DarkStore — a goods-to-person warehouse simulator
+# DarkStore — a warehouse automation simulator
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the six simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the seven simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of six
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of seven
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,8 +14,9 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Five of the six systems work this way. The sixth, AisleMate, is the common first step towards it:
-people still pick from ordinary shelving, and robots carry the order totes to them.
+Five of the seven systems work this way. AisleMate is the common first step towards it: people
+still pick from ordinary shelving, and robots carry the order totes to them. SortHub is not a store
+at all but a parcel sorter, the kind of hub parcels go through after the warehouse.
 
 **What every simulation shares**
 
@@ -31,7 +32,7 @@ people still pick from ordinary shelving, and robots carry the order totes to th
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The six systems**
+**The seven systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -41,10 +42,11 @@ people still pick from ordinary shelving, and robots carry the order totes to th
 | [**SkyStack**](https://clayhill.github.io/darkstore/skystack.html) | Stacker crane AS/RS | Totes in high racking | One crane per aisle | Cycle times against FEM 9.851 |
 | [**StackPilot**](https://clayhill.github.io/darkstore/stackpilot.html) | Case-handling robots (ACR) | Totes on shelving | Robots collecting batches of totes | Totes per trip, aisle traffic |
 | [**AisleMate**](https://clayhill.github.io/darkstore/aislemate.html) | Robots alongside pickers (collaborative AMRs) | Goods on ordinary shelving | Robots with order totes, pickers walking to them | Robot waits for pickers, picker utilization |
+| [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
-by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt` and `amr.txt` describe
-the six systems.
+by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `amr.txt` and
+`sort.txt` describe the seven systems.
 
 ## Run
 
@@ -55,7 +57,7 @@ To run it locally, open `index.html` in Safari (or any modern browser). It has n
 dependencies, so double-clicking the file works. Only the 3D view needs a network connection: it loads
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
-`skystack.html`, `stackpilot.html` and `aislemate.html`.
+`skystack.html`, `stackpilot.html`, `aislemate.html` and `sorthub.html`.
 
 **In a simulation**
 
@@ -63,7 +65,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   to nearly top-down, **space** to pause, **Esc** to close panels.
 - Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D**: a free 3D view of the whole warehouse, in all six systems. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all seven systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
@@ -147,7 +149,7 @@ decaying pick velocity, and ABC classes (top 20 % / next 30 % / rest). Each syst
 storage policy, but all of them put fast movers in their fastest positions by default; *nearest* and
 *random* policies are there to compare.
 
-**Robot traffic** (CubeFlow, PodSwarm, StackPilot, AisleMate). Routing is direction-aware A* (turns cost time).
+**Robot traffic** (CubeFlow, PodSwarm, StackPilot, AisleMate, SortHub's robot sorter). Routing is direction-aware A* (turns cost time).
 Traffic control uses moving-block cell reservations: a robot may only enter cells it has claimed, and
 it always claims its braking distance ahead, so only one robot can occupy a cell at a time. To resolve
 conflicts and deadlocks, a robot that waits too long re-routes around stopped robots, idle robots are
@@ -169,7 +171,7 @@ hotspots, starved or blocked stations, backorders, tote shortage and low battery
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The six systems in detail
+## The seven systems in detail
 
 ### CubeFlow — cube storage
 
@@ -414,11 +416,55 @@ per stop and the robots' time split. With the default 10 robots and 6 pickers th
 time waiting for pickers, which is normal for this kind of system. Not modelled yet: pickers
 following a robot through the aisle, pick carts, picker breaks.
 
+### SortHub — parcel sorter
+
+![SortHub: small robots on a raised deck carrying parcels from the inducts and tipping them through holes into the bags below](docs/screenshots/sort-robots.png)
+
+| | |
+|---|---|
+| ![The tilt-tray loop: inducts, trays carrying parcels and chutes with bags along both sides](docs/screenshots/sort-tray.png) | ![SortHub control room: sort rate, overflow, rejects, bags, robot utilization and the induct cards](docs/screenshots/sort-control.png) |
+| **Tilt-tray loop**, the other sorter: trays tip parcels into the chutes along both sides | **Control room:** sort and induct rates, overflow, rejects, bags and the inducts |
+| ![The robot sorter in 3D: the deck with its holes, the robots and the induct platforms](docs/screenshots/sort-robots-3d.png) | ![The tilt-tray loop in 3D](docs/screenshots/sort-tray-3d.png) |
+| **3D:** the robot deck, the bags hanging below it | **3D:** the tilt-tray loop, its chutes and bags |
+
+SortHub is a parcel hub rather than a store: there is no stock and no order flow, only a stream of
+parcels to sort. Its side panel has its own tabs: chutes with their bags, the parcel stream with its
+destinations, and the settings. The sorter is a setting (the robot sorter by default), so both
+kinds can be compared on the same stream.
+
+**Parcels.** 3600 parcels per hour arrive, each for one of 28 destinations; a few destinations take
+most of the volume. At each of 4 inducts an operator scans a parcel (2.4 s) and puts it on the
+sorter, scanning the next one meanwhile. 2 % of labels cannot be read and go to the reject chute.
+
+**Chutes and bags.** One chute per destination, a second (third …) for the busiest, and a reject
+chute. Every chute ends in a bag of 30 parcels; 2 bag workers walk to full bags and change them
+(25 s). While a bag is full or being changed, its chute takes nothing.
+
+**Tilt-tray loop.** Trays 1 m apart run round at 2 m/s. An induct puts its parcel on the next empty
+tray; at a chute of the parcel's destination with room the tray tilts and the parcel slides in.
+With its chutes full the parcel goes round again, and after 3 laps to the reject chute.
+
+**Robot sorter.** 45 small robots on a raised deck, a hole above each chute's bag. A robot queues at
+an induct, takes the parcel and drives to the nearest chute of its destination with room, where it
+tips the parcel in; with all of them full the parcel goes to the overflow (reject) chute. The deck
+has one-way streets between the holes, robots never stop inside a crossing, inducts are
+pass-throughs onto a northbound street, and robots with nothing to do park along the back, next to
+the chargers. Without those rules the fleet locked itself up within an hour or two; with them it
+runs at any load. Up to about 70 robots fit the default deck.
+
+**KPIs.** Sort and induct rates, parcels waiting to be inducted, recirculation (tray) or overflow
+(robots), rejects, bags changed and full chutes, induct utilization, and tray occupancy or the
+robots' time split. With the defaults both sorters keep up with 3600 parcels per hour; the
+tilt-tray recirculates about 2–3 % of parcels, and the robot sorter keeps up with 45 robots
+spending about a third of their time waiting at the inducts. Above that, two bag workers become the
+limit for both.
+
 ## Development
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, aislemate.html
+cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, aislemate.html,
+sorthub.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -440,11 +486,13 @@ js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
 js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
 js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), render, ui
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr]
+js/sort/    SortHub: config, sim (parcels, inducts, chutes, tray loop, robot deck, bag workers),
+            render, render3d, ui (its own tiles, tabs and settings)
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
-            one-way aisles, no picker zones), and compares a fingerprint of stock, fleet, orders and KPIs
+            one-way aisles, no picker zones, robot sorter), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 

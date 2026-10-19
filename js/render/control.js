@@ -151,7 +151,7 @@
       const { c, w, h } = setup(this.chartT), S = this.sim.kpi.series;
       c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
       const pad = { l: 40, r: 64, t: 12, b: 20 };
-      const tm = this.sim.terms, series = [{ k: 'bins', col: C.s1, label: `${tm.Units} at ${tm.ports} /h` }, { k: 'lines', col: C.s2, label: 'Order lines /h' }];
+      const tm = this.sim.terms, series = [{ k: 'bins', col: C.s1, label: tm.flow1 || `${tm.Units} at ${tm.ports} /h` }, { k: 'lines', col: C.s2, label: tm.flow2 || 'Order lines /h' }];
       if (S.length < 2) { c.fillStyle = C.muted; c.font = '500 12px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.textAlign = 'center'; c.fillText('Collecting samples (every 30 s sim-time)…', w / 2, h / 2); return; }
       let ymax = 10; for (const p of S) for (const s of series) ymax = Math.max(ymax, p[s.k]);
       ymax = Math.ceil((ymax * 1.15) / 50) * 50;

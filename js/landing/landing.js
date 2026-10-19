@@ -4,13 +4,14 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
     shuttle: [`${SC.aisles} aisles`, `${SC.levels} levels`, `${SC.aisles * SC.levels} shuttles`, `${SC.aisles} lifts`],
     crane: [`${KC.aisles} aisles`, `${KC.levels} levels`, `${KC.aisles} cranes`, `twin load handler`],
     acr: [`${AC.aisles} aisles`, `${AC.levels} levels`, `${AC.robots} robots`, `${AC.robotSlots} back shelves`],
+    sort: [`${XC.parcelRate} parcels/h`, `${XC.robots} robots`, `${XC.chutes} chutes`, `or a tilt-tray loop`],
     amr: [`${MC.aisles} aisles of shelving`, `${MC.robots} robots`, `${MC.pickers} pickers`, `${MC.robotTotes} totes per robot`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
@@ -608,6 +609,76 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview };
+  /* ---------- parcel sorter preview ---------- */
+  // A robot sorter: robots on a raised deck take a parcel at an induct along
+  // the front, drive to a chute hole, tip the parcel into the bag below and
+  // go back. Each robot has its own induct and rows, so they never meet.
+  function sortPreview(canvas) {
+    const GW = 10, GD = 7, DZ = 1.3;
+    const kit = isoKit(canvas, GW, GD + 1.5, 2.6, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(41), HUES = ['#b8875a', '#a8794f', '#c6956a', '#9c6f47', '#d0a070'];
+    // holes every third cell; a bag under each, filling up
+    const holes = [];
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 3; i++) holes.push({ x: 1 + 3 * i, y: 1 + 3 * j, fill: rand() * 0.7 });
+    const INDUCTS = [1.5, 4.5, 7.5];
+    const bots = INDUCTS.map((ix, k) => ({ ix, x: ix, y: GD - 0.5, path: [], parcel: null, tip: 0, wait: k * 0.7 }));
+    function plan(b) {
+      const h = holes[Math.floor(rand() * holes.length)], tx = h.x + 0.5, ty = h.y + 1.5; // stop just in front of the hole
+      b.target = h;
+      b.path = [{ x: b.ix, y: ty }, { x: tx, y: ty }, { tip: true }, { x: b.ix, y: ty }, { x: b.ix, y: GD - 0.5, load: true }];
+    }
+    function step(dt) {
+      for (const b of bots) {
+        if (b.wait > 0) { b.wait -= dt; continue; }
+        if (b.tip > 0) { b.tip -= dt; if (b.tip <= 0) { b.parcel = null; b.target.fill = b.target.fill > 0.9 ? 0.05 : b.target.fill + 0.12; } continue; }
+        if (!b.path.length) { b.parcel = HUES[Math.floor(rand() * HUES.length)]; b.wait = 0.4; plan(b); continue; }
+        const w = b.path[0];
+        if (w.tip) { b.tip = 0.5; b.path.shift(); continue; }
+        const dx = w.x - b.x, dy = w.y - b.y, m = 2.2 * dt;
+        if (Math.abs(dx) > 1e-3) b.x = Math.abs(dx) > m ? b.x + Math.sign(dx) * m : w.x;
+        else if (Math.abs(dy) > 1e-3) b.y = Math.abs(dy) > m ? b.y + Math.sign(dy) * m : w.y;
+        else { b.path.shift(); if (w.load) b.wait = 0.5; }
+      }
+    }
+    animate(canvas, kit, step, () => {
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD + 1.5, 0), P(0, GD + 1.5, 0)], '#0b1424', 'rgba(125,211,252,.35)', 1);
+      // legs holding the deck up
+      for (let x = 0; x <= GW; x += 2.5) for (let y = 0; y <= GD; y += 3.5) quad([P(x, y, 0), P(x, y, DZ)], null, 'rgba(125,211,252,.5)', 1.4);
+      // bags under the deck
+      for (const h of holes) { const x = h.x + 0.5, y = h.y + 0.5, top = DZ - 0.1, ht = 0.15 + h.fill * (DZ - 0.3); box(x - 0.36, y - 0.36, x + 0.36, y + 0.36, top - ht, top, '#e5e7ebdd', '#cbd5e1cc', '#94a3b8cc', h.fill > 0.9 ? '#ef4444' : null); }
+      // the deck: a grating with the holes cut out, inducts along the front
+      quad([P(0, 0, DZ), P(GW, 0, DZ), P(GW, GD, DZ), P(0, GD, DZ)], 'rgba(56,189,248,.07)', 'rgba(125,211,252,.55)', 1.2);
+      ctx.globalAlpha = 0.25;
+      for (let x = 1; x < GW; x++) quad([P(x, 0, DZ), P(x, GD, DZ)], null, '#38bdf8', 0.6);
+      for (let y = 1; y < GD; y++) quad([P(0, y, DZ), P(GW, y, DZ)], null, '#38bdf8', 0.6);
+      ctx.globalAlpha = 1;
+      for (const h of holes) quad([P(h.x + 0.1, h.y + 0.1, DZ), P(h.x + 0.9, h.y + 0.1, DZ), P(h.x + 0.9, h.y + 0.9, DZ), P(h.x + 0.1, h.y + 0.9, DZ)], '#020617', h.fill > 0.9 ? '#ef4444' : '#facc15', 1.4);
+      for (const ix of INDUCTS) quad([P(ix - 0.5, GD - 1, DZ), P(ix + 0.5, GD - 1, DZ), P(ix + 0.5, GD, DZ), P(ix - 0.5, GD, DZ)], 'rgba(250,204,21,.15)', 'rgba(250,204,21,.8)', 1.3);
+      const items = [];
+      // an operator at each induct, on the platform in front of the deck
+      for (const ix of INDUCTS) items.push({ d: ix + GD + 1, fn: () => {
+        box(ix - 0.6, GD, ix + 0.6, GD + 1.1, 0, DZ - 0.02, 'rgba(56,189,248,.12)', 'rgba(56,189,248,.08)', 'rgba(56,189,248,.06)', 'rgba(125,211,252,.45)');
+        const [px, py] = P(ix, GD + 0.6, DZ), u = kit.s / 20, busy = bots.some((b) => b.ix === ix && b.y > GD - 0.6 && b.wait > 0), reach = busy ? Math.max(0, Math.sin(performance.now() / 120)) * 3 * u : 0;
+        ctx.fillStyle = '#1c2638'; ctx.fillRect(px - 3 * u, py - 14 * u, 6 * u, 14 * u);
+        ctx.fillStyle = '#f97316'; ctx.fillRect(px - 4.5 * u, py - 25 * u, 9 * u, 12 * u);
+        ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2.4 * u; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(px - 3.5 * u, py - 22 * u); ctx.lineTo(px - 6 * u - reach, py - 16 * u - reach); ctx.stroke();
+        ctx.fillStyle = '#e0ac7e'; ctx.beginPath(); ctx.arc(px, py - 28.5 * u, 3.3 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(px, py - 29.5 * u, 3.7 * u, Math.PI, 0); ctx.fill();
+      } });
+      for (const b of bots) items.push({ d: b.x + b.y, fn: () => {
+        const { x, y } = b, t = b.tip > 0 ? 1 - b.tip / 0.5 : 0;
+        box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, DZ, DZ + 0.22, '#e2e8f0', '#cbd5e1', '#94a3b8', 'rgba(4,7,13,.4)');
+        ctx.save(); ctx.shadowColor = b.tip > 0 ? '#f59e0b' : '#38bdf8'; ctx.shadowBlur = 8;
+        quad([P(x - 0.3, y + 0.3, DZ + 0.1), P(x + 0.3, y + 0.3, DZ + 0.1), P(x + 0.3, y + 0.3, DZ + 0.15), P(x - 0.3, y + 0.3, DZ + 0.15)], b.tip > 0 ? '#f59e0b' : '#38bdf8');
+        ctx.restore();
+        box(x - 0.3, y - 0.3, x + 0.3, y + 0.3, DZ + 0.24, DZ + 0.3, '#0ea5e9', '#0369a1', '#075985');
+        if (b.parcel) { const py = y - t * 0.9, pz = DZ + 0.3 - t * 0.8; box(x - 0.2, py - 0.16, x + 0.2, py + 0.16, pz, pz + 0.3, b.parcel, '#8a623f', '#6b4a2e'); }
+      } });
+      items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

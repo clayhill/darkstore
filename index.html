@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DarkStore — Goods-to-Person Warehouse Simulator</title>
-  <meta name="description" content="DarkStore simulates automated goods-to-person warehouses in the browser. Pick a system and watch robots, operators and orders move through it.">
+  <title>DarkStore — Warehouse Automation Simulator</title>
+  <meta name="description" content="DarkStore simulates warehouse automation in the browser: goods-to-person storage, robots alongside pickers and parcel sorters. Pick a system and watch robots, operators and orders move through it.">
   <link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
@@ -20,7 +20,7 @@
 
   <main>
     <section class="hero">
-      <p class="eyebrow"><span class="pulse"></span>Goods-to-person warehouse simulator</p>
+      <p class="eyebrow"><span class="pulse"></span>Warehouse automation simulator</p>
       <h1>Dark<span>Store</span></h1>
       <p class="lede">Lights-out warehouses, simulated. Pick a system and watch robots, operators and orders move through it in real time.</p>
     </section>
@@ -106,6 +106,19 @@
             <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </a>
+        <a class="card" href="sorthub.html">
+          <div class="preview">
+            <canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Parcel sorter</p>
+            <h3>SortHub</h3>
+            <p class="desc">A parcel hub: operators induct a stream of parcels and small robots carry each one to the chute for its destination, tipping it into the bag below. Switch to a tilt-tray loop to compare.</p>
+            <ul class="specs" data-specs="sort"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
       </div>
     </section>
   </main>
@@ -114,7 +127,7 @@
 
   <script>
     // load fresh copies, so the cards always match the current simulations
-    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
+    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
   </script>
 </body>
 </html>

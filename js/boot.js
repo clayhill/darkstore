@@ -32,6 +32,12 @@
       map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
       sim: ['js/acr/config.js', 'js/acr/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js'],
     },
+    sort: {
+      name: 'SortHub', sub: 'Parcel sorter', scan: 'SSCC', click: 'chutes, inducts, robots', three: ['js/sort/render3d.js'],
+      map: 'Sorter', stations: 'Inducts', flow: 'Parcels inducted', flow2: 'Parcels sorted', fleet: 'Robot fleet',
+      tabs: [['chutes', 'Chutes'], ['parcels', 'Parcels'], ['settings', 'Settings']],
+      sim: ['js/sort/config.js', 'js/sort/sim.js'], view: ['js/sort/render.js', 'js/sort/ui.js'],
+    },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',
@@ -92,7 +98,7 @@ ${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through 
           <div class="panel map-panel"><h3>${k.map} — live <button class="mini" id="btn-mapheat">Heat on</button></h3><canvas id="crmap"></canvas></div>
           <div class="panel ports-panel"><h3>${k.stations}</h3><div id="portcards" class="portcards"></div></div>
           <div class="panel chart-panel"><h3>Throughput <span class="sub">rolling 1 h rate</span></h3>
-            <div class="clegend"><span><i style="background:#3987e5"></i>${k.flow} /h</span><span><i style="background:#d95926"></i>Order lines /h</span></div>
+            <div class="clegend"><span><i style="background:#3987e5"></i>${k.flow} /h</span><span><i style="background:#d95926"></i>${k.flow2 || 'Order lines'} /h</span></div>
             <canvas id="chT"></canvas></div>
           <div class="panel chart-panel"><h3>${k.fleet} time split <span class="sub">per 30 s sample</span></h3>
             <div class="clegend"><span><i style="background:#3987e5"></i>Working</span><span><i style="background:#d95926"></i>Waiting</span><span><i style="background:#199e70"></i>Idle</span><span><i style="background:#c98500"></i>Charging</span></div>
@@ -106,11 +112,7 @@ ${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through 
 
     <aside class="side" id="side">
       <nav class="tabs" id="tabs">
-        <button data-tab="inbound" class="on">Inbound</button>
-        <button data-tab="orders">Orders</button>
-        <button data-tab="inventory">Inventory</button>
-        <button data-tab="outbound">Outbound</button>
-        <button data-tab="settings">Settings</button>
+${(k.tabs || [['inbound', 'Inbound'], ['orders', 'Orders'], ['inventory', 'Inventory'], ['outbound', 'Outbound'], ['settings', 'Settings']]).map(([id, label], n) => `        <button data-tab="${id}"${n ? '' : ' class="on"'}>${label}</button>`).join('\n')}
       </nav>
       <div class="tab-body" id="tab-body"></div>
     </aside>

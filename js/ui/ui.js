@@ -59,9 +59,9 @@
         else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
       });
       const legend = this.sim.legendStates || [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
-      $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') +
-        `<span class="faint">· ABC: <i style="background:${WS.CLASS_COLORS.A}"></i> A <i style="background:${WS.CLASS_COLORS.B}"></i> B <i style="background:${WS.CLASS_COLORS.C}"></i> C</span>`;
-      this.setTab('inbound');
+      $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') + (this.type.legendExtra ? this.type.legendExtra(this) :
+        `<span class="faint">· ABC: <i style="background:${WS.CLASS_COLORS.A}"></i> A <i style="background:${WS.CLASS_COLORS.B}"></i> B <i style="background:${WS.CLASS_COLORS.C}"></i> C</span>`);
+      this.setTab($('#tabs').children[0].dataset.tab);
     }
     setSpeed(s) { this.app.speed = s; this.app.paused = false; $('#btn-play').textContent = '❚❚'; [...$('#speeds').children].forEach((b) => b.classList.toggle('on', +b.dataset.s === s)); }
     togglePause() { this.app.paused = !this.app.paused; $('#btn-play').textContent = this.app.paused ? '▶' : '❚❚'; }
@@ -96,6 +96,7 @@
     }
     kpiTile(k, v, unit, d) { return `<div class="kpi"><div class="k">${k}</div><div class="v">${v}<small>${unit || ''}</small></div><div class="d">${d || '&nbsp;'}</div></div>`; }
     renderKPIs() {
+      if (this.type.allKpiTiles) { $('#kpis').innerHTML = this.type.allKpiTiles(this).join(''); return; } // a type without orders brings all its tiles
       const sim = this.sim, k = sim.kpi, u = k.utilization(true), ur = k.utilization(false);
       const open = sim.oms.orders.filter((o) => o.status !== 'SHIPPED' && o.status !== 'LOADED');
       const onTruck = sim.oms.truck.parcels.length;
@@ -138,6 +139,7 @@
     }
     renderPorts() {
       const sim = this.sim, cfg = sim.cfg;
+      if (this.type.portCard) { $('#portcards').innerHTML = sim.ports.map((p) => this.type.portCard(this, p)).join('') + (this.type.portsNote ? `<div class="note">${this.type.portsNote}</div>` : ''); return; }
       $('#portcards').innerHTML = sim.ports.map((p) => {
         const busy = p.stats.t ? p.stats.busy / p.stats.t : 0, starve = p.stats.t ? p.stats.starved / p.stats.t : 0;
         const dots = [...p.inQ.map(() => '<i class="f"></i>'), p.pick ? '<i class="p"></i>' : '<i></i>', ...p.outQ.map(() => '<i class="f"></i>')].join('');
@@ -183,12 +185,15 @@
     setTab(t) {
       this.tab = t;
       [...$('#tabs').children].forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
-      const body = $('#tab-body');
-      body.innerHTML = this['tab_' + t]();
-      const bind = this['bind_' + t]; if (bind) bind.call(this, body);
+      const body = $('#tab-body'), T = this.type;
+      // a type may bring its own tabs (WS.TypeUI[kind].tab_<name>, bind_<name>, live_<name>)
+      body.innerHTML = T['tab_' + t] ? T['tab_' + t](this) : this['tab_' + t]();
+      const bind = T['bind_' + t] ? (b) => T['bind_' + t](this, b) : this['bind_' + t]; if (bind) bind.call(this, body);
       this.refreshTab(true);
     }
     refreshTab(force) {
+      const T = this.type;
+      if (T['live_' + this.tab]) return T['live_' + this.tab](this, force);
       const fn = this['live_' + this.tab];
       if (fn) fn.call(this, force);
     }
@@ -357,6 +362,7 @@
       const num = (k, label, step, min, max) => `<div class="field"><label>${label}</label><input type="number" data-cfg="${k}" value="${c[k]}" step="${step || 1}" min="${min ?? 0}" ${max ? `max="${max}"` : ''}></div>`;
       const sel = (k, label, opts) => `<div class="field"><label>${label}</label><select data-cfg="${k}">${opts.map(([v, t]) => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
       const t = this.type.settings(this, c, num, sel);
+      if (t.full) return t.full; // a type without orders brings its whole settings panel
       return `<div class="sect"><h3>Live policies</h3><div class="card">
         ${t.live}
         <div class="row2">${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>

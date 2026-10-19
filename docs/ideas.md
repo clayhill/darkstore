@@ -42,7 +42,7 @@ Locus / 6 River style: pickers walk through ordinary shelving and robots carry t
 
 ### 6. A sorting system
 
-**Status:** Idea
+**Status:** Built as SortHub (`sorthub.html`): tilt-tray loop and robot sorter, a setting.
 
 A tilt-tray loop or a floor of small sorting robots: a high-volume parcel or item sorter, often placed after storage. Key questions are recirculation and how many chutes. The recirculation logic of the SkyStack/RailRunner pre-zone loop can carry over.
 

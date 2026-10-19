@@ -91,6 +91,7 @@
     shuttle: () => ({ Sim: WS.ShuttleSim, Renderer: WS.ShuttleRenderer, Renderer3D: WS.ShuttleRenderer3D }),
     crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer, Renderer3D: WS.CraneRenderer3D }),
     acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer, Renderer3D: WS.AcrRenderer3D }),
+    sort: () => ({ Sim: WS.SortSim, Renderer: WS.SortRenderer, Renderer3D: WS.SortRenderer3D }),
     amr: () => ({ Sim: WS.AmrSim, Renderer: WS.AmrRenderer, Renderer3D: WS.AmrRenderer3D }),
   };
   WS.app = app;

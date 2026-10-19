@@ -408,10 +408,10 @@
       B.box(x0 - 0.005, my - tw, z0 + h * 0.6, x1 + 0.005, my + tw, z0 + h + 0.01, '#e6c79c');
       if (label) B.box(x0 + (x1 - x0) * 0.45, y1, z0 + h * 0.2, x1 - (x1 - x0) * 0.1, y1 + 0.01, z0 + h * 0.75, '#f8fafc');
     }
-    // Operator in a hi-vis vest and hard hat, facing angle a (0 = towards -y).
+    // Operator in a hi-vis vest and hard hat, facing angle a (0 = towards -y), standing at level z0.
     // When active the arms take turns reaching out to the pick and the put.
-    operator(x, y, a, active, vest) {
-      const B = this.dy.box, s = active ? Math.sin(this.t * 4.5) : 0;
+    operator(x, y, a, active, vest, z0 = 0) {
+      const B = { rbox: (cx, cy, aa, u0, v0, z1, u1, v1, z2, c) => this.dy.box.rbox(cx, cy, aa, u0, v0, z1 + z0, u1, v1, z2 + z0, c) }, s = active ? Math.sin(this.t * 4.5) : 0;
       const skin = '#e0ac7e', shirt = '#2b3a55', trousers = '#1c2638';
       for (const u of [-0.09, 0.03]) { B.rbox(x, y, a, u, -0.05, 0, u + 0.07, 0.05, 1.7, trousers); B.rbox(x, y, a, u - 0.005, -0.09, 0, u + 0.075, 0.06, 0.18, '#0b0f17'); }
       B.rbox(x, y, a, -0.15, -0.08, 1.7, 0.15, 0.08, 2.75, shirt);
@@ -428,8 +428,8 @@
       B.rbox(x, y, a, -0.035, -0.035, 2.75, 0.035, 0.035, 2.85, skin);
       B.rbox(x, y, a, -0.08, -0.09, 2.85, 0.08, 0.08, 3.25, skin);
       B.rbox(x, y, a, -0.085, 0.0, 3.0, 0.085, 0.085, 3.27, '#3b2a20');
-      this.dy.cyl.cyl(x, y, 3.2, 3.42, 0.105, '#facc15');
-      this.dy.cyl.cyl(x, y, 3.2, 3.24, 0.15, '#eab308');
+      this.dy.cyl.cyl(x, y, 3.2 + z0, 3.42 + z0, 0.105, '#facc15');
+      this.dy.cyl.cyl(x, y, 3.2 + z0, 3.24 + z0, 0.15, '#eab308');
     }
     // facing angle for an operator who looks at the storage over a station of this face
     faceAngle(p) { return p.face === 'front' ? 0 : Math.PI / 2; }
