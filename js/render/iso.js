@@ -358,6 +358,25 @@
   WS.STATE_COLORS = STATE_COLORS;
   // colour of a mover state, the shared ones or the type's own (sim.extraStates)
   WS.stateColor = (sim, s) => STATE_COLORS[s] || sim.extraStates[s].color;
+  // A machine's status light now: it fades over 0.4 s to the colour of a new
+  // state, and breathes slowly while the machine idles, waits or charges
+  // (each light at its own phase). Kept per view and machine; colours come
+  // back as #rrggbb, rounded so the 3D view's colour cache stays small.
+  const LED_FADE = 0.4, ledState = new WeakMap();
+  const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  WS.led = (view, m, sim) => {
+    const s = m.displayState || m.state, to = WS.stateColor(sim, s), t = performance.now() / 1000;
+    if (to[0] !== '#' || to.length !== 7) return to;
+    let all = ledState.get(view);
+    if (!all) ledState.set(view, (all = new WeakMap()));
+    let L = all.get(m);
+    if (!L) all.set(m, (L = { from: hexRgb(to), to, cur: hexRgb(to), at: -1, phase: Math.random() * 6.28 }));
+    if (L.to !== to) { L.from = L.cur; L.to = to; L.at = t; }
+    const u = Math.min(1, (t - L.at) / LED_FADE), e = u * u * (3 - 2 * u), b = hexRgb(to);
+    L.cur = L.from.map((c, i) => c + (b[i] - c) * e);
+    const slow = /IDLE|WAIT|CHARG|YIELD/.test(s), k = slow ? 0.62 + 0.38 * (0.5 + 0.5 * Math.sin((2 * Math.PI * t) / (/CHARG/.test(s) ? 2.2 : 3.4) + L.phase)) : 1;
+    return '#' + L.cur.map((c) => Math.min(255, Math.round((c * k) / 6) * 6).toString(16).padStart(2, '0')).join('');
+  };
   WS.CLASS_COLORS = CLASS_COLORS;
   WS.roundRect = roundRect;
   WS.shade = shade;

@@ -161,7 +161,7 @@
       }
     }
     drawSortRobot(r, x, y) {
-      const sim = this.sim, col = WS.stateColor(sim, r.displayState), h = 0.3, z = PZ;
+      const sim = this.sim, col = WS.led(this, r, sim), h = 0.3, z = PZ;
       this.box(x - h, y - h, z, x + h, y + h, z + 0.32, '#e2e8f0', { left: '#cbd5e1', right: '#94a3b8', top: '#f1f5f9' });
       this.faceY(y + h + 0.004, x - h, x + h, z + 0.16, z + 0.24, col); this.faceX(x + h + 0.004, y - h, y + h, z + 0.16, z + 0.24, col);
       // the tilt tray on top, tipped towards the hole while tipping

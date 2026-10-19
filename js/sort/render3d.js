@@ -129,7 +129,7 @@
     sortRobot(r, x, y) {
       const sim = this.sim, D = this.dy, pick = { kind: 'robot', id: r.id }, h = 0.3, z = PZ;
       D.rnd.box(x - h, y - h, z, x + h, y + h, z + 0.16, '#e2e8f0', pick);
-      D.litRnd.box(x - h - 0.005, y - h - 0.005, z + 0.16, x + h + 0.005, y + h + 0.005, z + 0.24, WS.stateColor(sim, r.displayState));
+      D.litRnd.box(x - h - 0.005, y - h - 0.005, z + 0.16, x + h + 0.005, y + h + 0.005, z + 0.24, WS.led(this, r, sim));
       D.rnd.box(x - h, y - h, z + 0.24, x + h, y + h, z + 0.34, '#e2e8f0', pick);
       const f = r.tip != null ? Math.min(1, (sim.time - r.tip) / 0.3) : 0;
       D.box.box(x - h, y - h, z + 0.36 - f * 0.1, x + h, y + h, z + 0.42 - f * 0.1, '#0ea5e9', pick);

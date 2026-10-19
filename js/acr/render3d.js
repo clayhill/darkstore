@@ -88,7 +88,7 @@
     // the orange handler at its height, forks reaching into a rack while it
     // works. The tote it moves follows WS.AcrRenderer.xferTote.
     drawRobot(r, x, y) {
-      const sim = this.sim, D = this.dy, N = sim.cfg.robotSlots, col = WS.stateColor(sim, r.displayState), pick = { kind: 'robot', id: r.id };
+      const sim = this.sim, D = this.dy, N = sim.cfg.robotSlots, col = WS.led(this, r, sim), pick = { kind: 'robot', id: r.id };
       const F = this.robotFrame(r, x), cx = x + 0.5, cy = y + 0.5, H = F.H, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.42, y1 = cy + 0.02;
       D.rnd.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, 0.14, '#1e293b', pick);
       for (const s of [-1, 1]) D.cyl.cylX(cx + s * 0.425 - 0.035, cx + s * 0.425 + 0.035, cy, 0.24, 0.1, '#0b0f17');

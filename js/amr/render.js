@@ -150,7 +150,7 @@
     // Robot: a low white base with a state-coloured light band, a two-deck
     // tote rack and a tablet on a mast showing the picker what to pick.
     drawRobot(r, x, y) {
-      const sim = this.sim, inv = sim.inv, oms = sim.oms, P = this.P.bind(this), col = WS.stateColor(sim, r.displayState), cx = x + 0.5, cy = y + 0.5, h = 0.36;
+      const sim = this.sim, inv = sim.inv, oms = sim.oms, P = this.P.bind(this), col = WS.led(this, r, sim), cx = x + 0.5, cy = y + 0.5, h = 0.36;
       this.poly([P(cx - h + 0.06, cy - h + 0.08, 0.005), P(cx + h + 0.06, cy - h + 0.08, 0.005), P(cx + h + 0.06, cy + h + 0.08, 0.005), P(cx - h + 0.06, cy + h + 0.08, 0.005)], 'rgba(0,0,0,0.35)');
       this.box(cx - h, cy - h, 0.05, cx + h, cy + h, BODY, '#e2e8f0', { left: '#cbd5e1', right: '#94a3b8' });
       this.box(cx - h - 0.01, cy - h - 0.01, 0.05, cx + h + 0.01, cy + h + 0.01, 0.2, '#1f2937');

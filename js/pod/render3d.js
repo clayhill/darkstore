@@ -116,6 +116,33 @@
         }
       }
     }
+    // A carried pod rocks a little when its robot starts or stops, turns it or
+    // finishes lifting it: the top shifts against the legs ({ x, y } cells at
+    // the top) and swings out, damped. Kicks are kept per robot, in sim time.
+    podRock(r, x, y, pod) {
+      const rocks = this.rocks || (this.rocks = new Map()), t = this.sim.time, A = 0.05, P = 0.9, TAU = 0.55;
+      let R = rocks.get(r.id);
+      if (!R || t < R.t) { R = { x, y, vx: 0, vy: 0, t, angle: pod.angle, state: r.state, kicks: [] }; rocks.set(r.id, R); }
+      const kick = (dx, dy, w) => R.kicks.push({ t0: t, dx: dx * A * w, dy: dy * A * w });
+      const dt = t - R.t;
+      if (dt > 0) {
+        const vx = (x - R.x) / dt, vy = (y - R.y) / dt, sp = Math.hypot(vx, vy), sp0 = Math.hypot(R.vx, R.vy);
+        if (sp0 > 0.3 && sp < 0.05) kick(R.vx / sp0, R.vy / sp0, 1); // braked: the top carries on
+        else if (sp0 < 0.05 && sp > 0.3) kick(-vx / sp, -vy / sp, 0.7); // set off: the top lags
+        if (pod.angle !== R.angle) kick(-Math.sin(pod.angle), Math.cos(pod.angle), 0.5); // turned on the spot
+        if (R.state === 'LIFTING_POD' && r.state !== 'LIFTING_POD') kick(0.6, 0.6, 0.5); // lifted clear of the floor
+        Object.assign(R, { vx, vy, x, y, t, angle: pod.angle, state: r.state });
+      }
+      let ox = 0, oy = 0;
+      R.kicks = R.kicks.filter((k) => t - k.t0 < 3);
+      for (const k of R.kicks) { const s = t - k.t0, f = Math.exp(-s / TAU) * Math.cos((2 * Math.PI * s) / P); ox += k.dx * f; oy += k.dy * f; }
+      return { x: ox, y: oy };
+    }
+    // a batch that draws a pod sheared by rk: parts move with their height above the deck
+    sheared(B, rk, z0) {
+      const span = TOP - LEG;
+      return { rbox: (cx, cy, a, u0, v0, z1, u1, v1, z2, c, p) => { const m = Math.max(0, ((z1 + z2) / 2 - z0 - LEG) / span); B.rbox(cx + rk.x * m, cy + rk.y * m, a, u0, v0, z1, u1, v1, z2, c, p); } };
+    }
     // a pod's footprint (turned by angle) for the audit (WS.View3D.probe)
     probePod(cx, cy, a, z0) { const h = HALF * (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))); this.probeAdd('pod', cx - h, cy - h, z0, cx + h, cy + h, z0 + TOP); }
     stockSig(pod) { let h = 0; for (let k = 0; k < pod.comps.length; k++) h = (h * 31 + pod.comps[k].qty * (k + 1)) | 0; return h; }
@@ -147,7 +174,8 @@
         if (r.state === 'LIFTING_POD' && r.op && r.op.op === 'timer') lift = 1 - r.op.t / r.op.dur;
         seen[k] = 1;
         if (this.probe) this.probePod(x, y, pod.angle, lift * 0.25);
-        if (P.open(k, `r${x}|${y}|${pod.angle}|${lift}|${heat}|${this.stockSig(pod)}`)) { this.writePod(P, pod, x, y, pod.angle, lift * 0.25, pick); P.close(k); }
+        const rk = this.podRock(r, x, y, pod), B = rk.x || rk.y ? this.sheared(P, rk, lift * 0.25) : P;
+        if (P.open(k, `r${x}|${y}|${pod.angle}|${lift}|${heat}|${this.stockSig(pod)}|${rk.x.toFixed(3)}|${rk.y.toFixed(3)}`)) { this.writePod(B, pod, x, y, pod.angle, lift * 0.25, pick); P.close(k); }
         // the pocket the operator picks from lights up
         const port = pod.loc === 'port' ? sim.ports[pod.port] : null, ln = port && port.job && port.job.bin === pod ? port.currentLine : null;
         if (ln) {
@@ -166,7 +194,7 @@
     // Drive unit: low orange octagonal body on a dark skirt, a state-coloured
     // light band and the round lift plate on top. It turns on the spot.
     drawRobot(r, x, y, pick) {
-      const sim = this.sim, D = this.dy, col = WS.stateColor(sim, r.displayState);
+      const sim = this.sim, D = this.dy, col = WS.led(this, r, sim);
       const f = r.shift > 0 ? 1 - r.shift / sim.cfg.wheelShift : 1, a = (r.axis === 'x' ? 0 : QUARTER) - (1 - f) * QUARTER;
       const d = 0.8 / Math.cos(Math.PI / 8);
       D.oct.cyl(x, y, 0.02, 0.16, d / 2, '#1f2937', pick, a);

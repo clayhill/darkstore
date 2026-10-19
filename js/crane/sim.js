@@ -32,6 +32,21 @@
       this.ry = Math.max(-0.2, Math.min(L, L - 1 - (this.z - g.Z0) / g.LH));
       this.x = this.a; this.y = Math.max(0, Math.round((this.z - g.Z0) / g.LH));
     }
+    // How far the top of the mast is off plumb along the aisle (m): it leans
+    // back while the crane speeds up and forward while it brakes, then sways
+    // out, damped (the forks wait for it: settleTime). The carriage at a
+    // height follows the mast's bend, (height / mast)².
+    mastSway() {
+      const A = 0.05, P = 0.6, TAU = 0.32, op = this.op, ease = (u) => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+      const x = op && op.op === 'travel' && op.axes.find((a) => a.prop === 'pos');
+      if (x && op.t < x.p.T) {
+        const p = x.p, k = A * (p.vp / x.v) * Math.sign(x.to - x.from), t = op.t, dec = p.T - p.ta;
+        const lean = (u) => (u < p.ta ? -ease(u / 0.3) : -(1 - ease((u - p.ta) / 0.3)) * ease(p.ta / 0.3));
+        return t < dec ? k * lean(t) : k * (lean(dec) + (1 - lean(dec)) * ease((t - dec) / 0.3));
+      }
+      const b = this.braked, dt = b ? this.sim.time - b.at : 9;
+      return dt < 2.5 ? A * b.k * b.dir * Math.exp(-dt / TAU) * Math.cos((2 * Math.PI * dt) / P) : 0;
+    }
     // the first free position on the handler
     freeSlot() { let k = 0; while (this.load.some((id) => this.slotOf[id] === k)) k++; return k; }
     hold(id, k) { this.load.push(id); this.slotOf[id] = k; this.bin = this.load[0]; }
@@ -132,7 +147,7 @@
     // ---------- motion ----------
     craneTravel(pos, z) {
       const c = this.cfg;
-      return { op: 'travel', settle: c.settleTime, axes: [{ prop: 'pos', to: pos, v: c.craneVx / c.cellSize, a: c.craneAx / c.cellSize }, { prop: 'z', to: z, v: c.craneVz / ZU, a: c.craneAz / ZU }] };
+      return { op: 'travel', settle: c.settleTime, settleAxis: 'pos', axes: [{ prop: 'pos', to: pos, v: c.craneVx / c.cellSize, a: c.craneAx / c.cellSize }, { prop: 'z', to: z, v: c.craneVz / ZU, a: c.craneAz / ZU }] };
     }
     // Crane travel time between two points (bay position, render height):
     // mast and carriage move at once, so the slower of the two counts.

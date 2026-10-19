@@ -192,13 +192,13 @@ One-click camera positions: a camera mounted on a robot (looking ahead from its 
 
 ### 30. Breathing status LEDs
 
-**Status:** Idea
+**Status:** Done
 
 Robots' status lights pulse softly and fade between colours when the state changes, instead of switching hard. Drawing only.
 
 ### 31. Realistic settling of machines
 
-**Status:** Idea
+**Status:** Done (robots on the floor keep their own speed model; the smooth ramps are for cranes, shuttles and lifts)
 
 Not overshoot: real drives are tuned not to overshoot their position. What real systems do show:
 - A stacker crane's tall mast sways after braking, and the forks wait until it has settled before they reach in. This is a small real change to the crane's cycle time.
@@ -208,4 +208,4 @@ Not overshoot: real drives are tuned not to overshoot their position. What real 
 
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 and 29 are done too. For impact against effort, the best visuals now are 30 and 31 together; 17 (climbing robots) is the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.

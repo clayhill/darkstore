@@ -76,7 +76,10 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   cam** sits on the front of a robot and looks where it drives (across the grid top, under a pod, on a
   crane's carriage), **Chase** follows just behind one, **Stations** visits the work places, **Orbit**
   turns slowly round the warehouse, and **Ambient tour** cycles through them all like a screensaver.
-  **N** picks the next robot or station; any drag, scroll or key gives the camera back.
+  **N** picks the next robot or station; any drag, scroll or key gives the camera back. Up close the
+  machines behave like real ones: status lights fade between states and breathe while a robot waits,
+  a crane's mast sways after braking (the forks wait for it to settle), PodSwarm pods rock when their
+  robot starts, stops or turns, and cranes, shuttles and lifts ramp their speed up and down smoothly.
 - **Sound** (off by default) is made live from what the machines do, with no sound files: motors
   humming with their speed, a chirp as a machine sets off, the clunk of forks and pod lifts, a
   CubeFlow winch, rollers as a storage unit reaches a station, the scanner beep of every pick, tape at

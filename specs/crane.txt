@@ -33,8 +33,13 @@ comes back. A unit-load system can also just send full pallets to shipping.
 - The crane drives along the aisle and moves the carriage up or down at the
   same time. So the travel time to a location is the larger of the two:
   t = max(t_horizontal, t_vertical), each with its own acceleration, speed and
-  braking.
-- After arriving there is a short settling time before the forks go out.
+  braking. Speed ramps up and down smoothly (jerk-limited), in the time a
+  constant acceleration would take.
+- Braking makes the mast sway: it leans back while the crane speeds up and
+  forward while it brakes, then swings out, damped. The forks wait for it to
+  settle before they go out: the settling time is full after braking from
+  top speed and shorter after a short hop (down to 30 % when the crane only
+  moved the carriage).
 - The load handler takes a fixed time per fork cycle, longer for the back
   position in double deep.
 - A mini-load handler can often hold two totes, so one trip can do two

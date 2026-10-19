@@ -46,6 +46,8 @@ Order management
     smallest stack.
   - Each station's stack light sits on top of the operator's screen, clear of
     the conveyors.
+  - Machines' status lights fade to the colour of a new state, and breathe
+    slowly while a machine idles, waits or charges.
 
 Inventory (IMS)
   - Item master, storage units with 1, 2 or 4 compartments (pods have shelves

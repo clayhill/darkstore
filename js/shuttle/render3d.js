@@ -46,7 +46,7 @@
     // between them for the tote, a status light on the front.
     drawShuttle(sh, a) {
       const sim = this.sim, g = sim.grid, D = this.dy, z = g.levelZ(sh.l), cx = a * 3 + 1.5, y = sh.pos, x0 = cx - 0.42, x1 = cx + 0.42, y0 = y - 0.45, y1 = y + 0.45;
-      const col = WS.stateColor(sim, sh.displayState), pick = { kind: 'robot', id: sh.id }, xf = this.xfer(sh), e = xf ? xf.reach * 0.75 : 0;
+      const col = WS.led(this, sh, sim), pick = { kind: 'robot', id: sh.id }, xf = this.xfer(sh), e = xf ? xf.reach * 0.75 : 0;
       D.box.box(x0 + 0.04, y0 + 0.14, z + 0.02, x1 - 0.04, y1 - 0.14, z + 0.12, '#1f2937', pick);
       const id = xf && xf.u != null ? xf.id : sh.bin;
       if (id) {
@@ -70,7 +70,7 @@
         D.box.box(px, B + 0.08, z - 0.16, px + 0.84, B + 0.92, z - 0.06, CYAN, pick);
         for (let k = 1; k < 6; k++) D.cyl.cylX(px + 0.04, px + 0.8, B + 0.08 + (0.84 * k) / 6, z - 0.04, 0.025, '#67e8f9');
       }
-      D.lit.box(ax + 1.3, B + 0.56, z - 0.13, ax + 1.7, B + 0.57, z - 0.05, WS.stateColor(sim, lift.displayState));
+      D.lit.box(ax + 1.3, B + 0.56, z - 0.13, ax + 1.7, B + 0.57, z - 0.05, WS.led(this, lift, sim));
       if (lift.bin) {
         const T = sim.convTote(), x = lift.side ? g.inX(aisle.a) : g.outX(aisle.a), r = lift.roll;
         let y = B + 0.5;

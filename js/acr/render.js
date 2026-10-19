@@ -139,7 +139,7 @@
     // handler at its current height, its forks reaching into the rack while it
     // takes or puts.
     drawRobot(r, x, y) {
-      const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = WS.stateColor(sim, r.displayState);
+      const sim = this.sim, g = sim.grid, N = sim.cfg.robotSlots, col = WS.led(this, r, sim);
       const F = this.robotFrame(r, x), cx = x + 0.5, cy = y + 0.5, H = F.H, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.42, y1 = cy + 0.02;
       const edge = { stroke: 'rgba(15,23,42,0.5)', lw: 0.8 };
       this.quadTop(cx - 0.36, cy - 0.34, cx + 0.48, cy + 0.5, 0.005, 'rgba(0,0,0,0.35)');

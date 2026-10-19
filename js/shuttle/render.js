@@ -54,7 +54,7 @@
     // a dark deck between them for the tote, a status light on the front.
     drawShuttle(sh, a) {
       const sim = this.sim, g = sim.grid, z = g.levelZ(sh.l), cx = a * 3 + 1.5, y = sh.pos, x0 = cx - 0.42, x1 = cx + 0.42, y0 = y - 0.45, y1 = y + 0.45;
-      const col = WS.stateColor(sim, sh.displayState), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 };
+      const col = WS.led(this, sh, sim), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 };
       if (!sh.idle) this.glow(cx, y, z + 0.3, 22, ORANGE, 0.4);
       const xf = this.xfer(sh), e = xf ? xf.reach * 0.75 : 0;
       this.box(x0 + 0.04, y0 + 0.14, z + 0.02, x1 - 0.04, y1 - 0.14, z + 0.12, '#1f2937', { top: '#334155' });
@@ -80,7 +80,7 @@
     // with the buffers and the aisle's conveyors (left out, right in).
     drawLift(aisle) {
       const sim = this.sim, g = sim.grid, lift = aisle.lift, ax = aisle.a * 3, B = g.B, H = g.Z + 0.8, z = lift.z;
-      const col = WS.stateColor(sim, lift.displayState), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 }, cy = Object.assign({ top: CYAN_TOP }, edge);
+      const col = WS.led(this, lift, sim), edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 }, cy = Object.assign({ top: CYAN_TOP }, edge);
       for (const px of [ax + 1.12, ax + 1.78]) this.box(px, B + 0.42, 0, px + 0.1, B + 0.58, H, CYAN, cy);
       this.box(ax + 1.06, B + 0.4, H, ax + 1.94, B + 0.6, H + 0.3, CYAN, cy);
       this.hazardY(B + 0.582, ax + 1.12, ax + 1.22, 0.1, 0.9, 3); this.hazardY(B + 0.582, ax + 1.78, ax + 1.88, 0.1, 0.9, 3);

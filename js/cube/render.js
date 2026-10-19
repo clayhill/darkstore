@@ -170,7 +170,7 @@
       // paths first, so robots sit on top
       if (this.opts.paths) this.drawPaths(alpha, Z);
       for (const { r, x, y } of list) {
-        const col = WS.stateColor(this.sim, r.displayState);
+        const col = WS.led(this, r, this.sim);
         const x0 = x + 0.08, y0 = y + 0.08, x1 = x + 0.92, y1 = y + 0.92, zt = Z + 2.0;
         // winch bands & hanging bin
         if (r.winch > 0.02) {

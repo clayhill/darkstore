@@ -216,7 +216,7 @@
     // Drive unit: low orange body with chamfered corners, a lift plate on top
     // and a state-coloured light band. It turns on the spot to change direction.
     drawRobot(r, x, y) {
-      const sim = this.sim, P = this.P.bind(this), col = WS.stateColor(this.sim, r.displayState);
+      const sim = this.sim, P = this.P.bind(this), col = WS.led(this, r, this.sim);
       const cx = x + 0.5, cy = y + 0.5;
       const f = r.shift > 0 ? 1 - r.shift / sim.cfg.wheelShift : 1;
       const a = (r.axis === 'x' ? 0 : Math.PI / 2) - (1 - f) * (Math.PI / 2);

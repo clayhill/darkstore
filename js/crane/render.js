@@ -30,7 +30,7 @@
     // carriage on the guide rail with a status beacon, and the lifting
     // carriage whose telescopic forks reach into a rack side or the I/O point.
     drawCrane(cr) {
-      const sim = this.sim, g = sim.grid, cx = g.laneX(cr.a), y = cr.pos, z = cr.z, col = WS.stateColor(sim, cr.displayState), top = g.Z + 0.35;
+      const sim = this.sim, g = sim.grid, cx = g.laneX(cr.a), y = cr.pos, z = cr.z, col = WS.led(this, cr, sim), top = g.Z + 0.35;
       const edge = { stroke: 'rgba(15,23,42,0.55)', lw: 0.8 }, or = Object.assign({ top: ORANGE_TOP }, edge);
       if (cr.state !== 'IDLE') this.glow(cx, y, z + 0.3, 30, ORANGE, 0.3);
       // bottom carriage with wheels, hazard stripes at the ends
@@ -38,11 +38,16 @@
       this.hazardY(y + 0.622, cx - 0.26, cx + 0.26, 0.1, 0.34, 6);
       for (const wy of [y - 0.5, y + 0.4]) this.wheelX(cx + 0.262, wy, 0.17, 0.12, 0.12);
       // mast, its carriage guide, the top carriage and the beacon
-      this.box(cx - 0.16, y - 0.62, 0.42, cx + 0.16, y - 0.3, top, ORANGE, or);
-      this.faceY(y - 0.298, cx - 0.05, cx + 0.05, 0.5, top - 0.05, '#9a3412');
-      this.box(cx - 0.22, y - 0.7, top, cx + 0.22, y - 0.22, top + 0.32, ORANGE, or);
-      this.box(cx - 0.07, y - 0.53, top + 0.32, cx + 0.07, y - 0.39, top + 0.6, col, { top: shade(col, 0.35) });
-      this.glow(cx, y - 0.46, top + 0.5, 14, col, 0.8);
+      // the mast bends with its sway (WS.Crane.mastSway), more the higher up
+      const sw = cr.mastSway() / sim.cfg.cellSize, bend = (h) => sw * ((Math.max(0.42, h) - 0.42) / (top - 0.42)) ** 2, N = 6;
+      for (let k = 0; k < N; k++) {
+        const za = 0.42 + ((top - 0.42) * k) / N, zb = 0.42 + ((top - 0.42) * (k + 1)) / N, o = bend((za + zb) / 2);
+        this.box(cx - 0.16, y - 0.62 + o, za, cx + 0.16, y - 0.3 + o, zb, ORANGE, k === N - 1 ? or : { top: ORANGE_TOP }); // no edge lines between the pieces
+        this.faceY(y - 0.298 + o, cx - 0.05, cx + 0.05, Math.max(0.5, za), Math.min(top - 0.05, zb), '#9a3412');
+      }
+      this.box(cx - 0.22, y - 0.7 + sw, top, cx + 0.22, y - 0.22 + sw, top + 0.32, ORANGE, or);
+      this.box(cx - 0.07, y - 0.53 + sw, top + 0.32, cx + 0.07, y - 0.39 + sw, top + 0.6, col, { top: shade(col, 0.35) });
+      this.glow(cx, y - 0.46 + sw, top + 0.5, 14, col, 0.8);
       // control cabinet on the back end
       this.box(cx - 0.2, y - 1.02, 0.02, cx + 0.2, y - 0.72, 1.8, '#e2e8f0', Object.assign({ top: '#f8fafc' }, edge));
       this.faceY(y - 0.718, cx - 0.13, cx + 0.13, 1.25, 1.6, '#0f172a');
@@ -50,7 +55,7 @@
       // lifting carriage: orange side plates, dark deck, telescopic forks;
       // handler position k holds a tote at y + slotY(k)
       const T = sim.convTote(), last = sim.slotY(sim.cfg.handlerSlots - 1) + T.d + 0.02;
-      const x0 = cx - 0.44, x1 = cx + 0.44, y0 = y - 0.3, y1 = y + last;
+      const yc = y + bend(z), x0 = cx - 0.44, x1 = cx + 0.44, y0 = yc - 0.3, y1 = yc + last;
       const xf = this.xfer(cr), e = xf ? xf.reach * 0.8 : 0;
       this.box(x0, y0, z - 0.2, x1, y1, z - 0.04, '#334155', Object.assign({ top: '#475569' }, edge));
       for (const fy of [y0 + 0.12, y1 - 0.16]) {
@@ -60,7 +65,7 @@
       // totes on the handler; one taken or put slides sideways between its
       // handler position and the rack or a conveyor, growing to its rack size
       const tote = (id, k, u) => {
-        const ty = y + sim.slotY(k), hd = xf && xf.io ? T.d : T.d + (0.4 - T.d) * Math.max(0, 2 * u - 1), tx = cx + (u ? (this.sideX(cr.a, xf.side) - cx) * u : 0);
+        const ty = yc + sim.slotY(k), hd = xf && xf.io ? T.d : T.d + (0.4 - T.d) * Math.max(0, 2 * u - 1), tx = cx + (u ? (this.sideX(cr.a, xf.side) - cx) * u : 0);
         this.toteBox(tx - T.w, ty - hd, tx + T.w, ty + hd, z + 0.06 * u, this.toteColor(sim.inv.binById.get(id)));
       };
       cr.load.forEach((id) => tote(id, cr.slotOf[id], xf && !xf.take && xf.id === id ? xf.u : 0));

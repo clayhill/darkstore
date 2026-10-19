@@ -1,9 +1,14 @@
 /* Fixed machines on rails: a shuttle running along one aisle level, a lift in
  * front of an aisle, later a stacker crane. Like robots they run generator
  * tasks, but they never leave their rail, so there is no routing or traffic:
- *   travel  move one coordinate to a target with a trapezoidal speed profile,
- *           or several at once (axes: a crane's mast and carriage); it ends
- *           when the slowest axis arrives
+ *   travel  move one coordinate to a target, or several at once (axes: a
+ *           crane's mast and carriage); it ends when the slowest axis arrives
+ *           and the machine has settled. The speed ramps up and down along a
+ *           cosine (jerk-limited, as real drives do) in the same time as a
+ *           constant acceleration would take, so travel times are those of a
+ *           trapezoidal profile. With settleAxis the settling time scales
+ *           with the speed that axis braked from (a mast sways less after a
+ *           short hop), and the machine notes when it braked (`braked`).
  *   wait    a fixed time (load handler, transfer)
  *   until   wait for a condition (a full buffer clears)
  * Machines are WS.Movers like robots, so KPIs, the fleet table and the control
@@ -11,7 +16,9 @@
 (function (WS) {
   'use strict';
 
-  // Time to cover distance d starting and ending at rest, and position at time t.
+  // Time to cover distance d starting and ending at rest, and position at time t:
+  // ramps of length ta with v = vp (1 − cos(π t / ta)) / 2, which cover the same
+  // distance as a constant acceleration to vp would.
   function profile(d, v, a) {
     const dAcc = (v * v) / a;
     if (d < dAcc) { const ta = Math.sqrt(d / a); return { T: 2 * ta, ta, vp: a * ta, d, a }; }
@@ -20,9 +27,10 @@
   function along(p, t) {
     if (t <= 0) return 0;
     if (t >= p.T) return p.d;
-    if (t < p.ta) return 0.5 * p.a * t * t;
-    if (t > p.T - p.ta) return p.d - 0.5 * p.a * (p.T - t) * (p.T - t);
-    return 0.5 * p.a * p.ta * p.ta + p.vp * (t - p.ta);
+    const ramp = (u) => 0.5 * p.vp * (u - (p.ta / Math.PI) * Math.sin((Math.PI * u) / p.ta));
+    if (t < p.ta) return ramp(t);
+    if (t > p.T - p.ta) return p.d - ramp(p.T - t);
+    return 0.5 * p.vp * p.ta + p.vp * (t - p.ta);
   }
 
   class Machine extends WS.Mover {
@@ -45,6 +53,7 @@
             this.distance += Math.abs(this[x.prop] - prev);
             this.vel[x.prop] = op.t < x.p.T ? Math.abs(this[x.prop] - prev) / dt : 0;
             v = Math.max(v, this.vel[x.prop]);
+            if (x.prop === op.settleAxis && !x.stopped && op.t >= x.p.T) { x.stopped = true; this.braked = { at: this.sim.time - (op.t - x.p.T), k: x.p.vp / x.v, dir: Math.sign(x.to - x.from) }; }
           }
           this.v = v;
           if (op.t >= op.T + op.settle) { for (const x of op.axes) { this[x.prop] = x.to; this.vel[x.prop] = 0; } this.v = 0; this.finishOp(); }
@@ -66,10 +75,12 @@
           const axes = [];
           for (const x of o.axes || [o]) {
             const from = this[x.prop], d = Math.abs(x.to - from);
-            if (d >= 1e-6) axes.push({ prop: x.prop, from, to: x.to, p: profile(d, x.v, x.a) });
+            if (d >= 1e-6) axes.push({ prop: x.prop, from, to: x.to, v: x.v, p: profile(d, x.v, x.a) });
           }
           if (!axes.length) continue;
-          this.op = { op: 'travel', axes, T: Math.max(...axes.map((x) => x.p.T)), settle: o.settle || 0, t: 0 };
+          let settle = o.settle || 0;
+          if (o.settleAxis) { const ax = axes.find((x) => x.prop === o.settleAxis); settle *= Math.max(0.3, ax ? ax.p.vp / ax.v : 0); }
+          this.op = { op: 'travel', axes, T: Math.max(...axes.map((x) => x.p.T)), settle, settleAxis: o.settleAxis, t: 0 };
           return;
         }
         if (o.op === 'wait') { this.op = { op: 'wait', dur: o.t, t: 0, waitState: o.waitState }; return; }

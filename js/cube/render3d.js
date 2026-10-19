@@ -98,7 +98,7 @@
     // in use lifted), a white shell with a bumper band and a state-coloured
     // light strip and lid. The winch lowers four tapes and the gripper.
     drawRobot(r, x, y) {
-      const sim = this.sim, g = sim.grid, Z = g.Z, D = this.dy, inv = sim.inv, col = WS.stateColor(sim, r.displayState), pick = { kind: 'robot', id: r.id };
+      const sim = this.sim, g = sim.grid, Z = g.Z, D = this.dy, inv = sim.inv, col = WS.led(this, r, sim), pick = { kind: 'robot', id: r.id };
       const x0 = x + 0.08, y0 = y + 0.08, x1 = x + 0.92, y1 = y + 0.92, zc = Z + 0.62, zt = Z + 2.0;
       const binCol = (id) => { const b = inv.binById.get(id); return this.opts.heat && b ? WS.CLASS_COLORS[inv.binClass(b)] : '#64748b'; };
       for (const [px, py] of [[x0, y0], [x1 - 0.12, y0], [x0, y1 - 0.12], [x1 - 0.12, y1 - 0.12]]) D.box.box(px, py, Z + 0.12, px + 0.12, py + 0.12, zc, '#cbd5e1', pick);
