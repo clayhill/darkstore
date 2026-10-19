@@ -25,8 +25,9 @@ shelving and the people stay, and robots can be added a few at a time.
   front, station lanes, parking places and chargers.
 - The robot stops on the aisle cell beside the shelf bay; the picker stands
   next to it.
-- Induct & drop-off stations sit at the front. Empty order totes are staged
-  there, one per released order, until a robot takes them; full totes go
+- Induct & drop-off stations sit at the front. Empty order totes come off
+  the station's stack and are staged there, one per released order, until a
+  robot takes them; full totes go
   from there onto the takeaway conveyor to packing.
 
 3. Equipment

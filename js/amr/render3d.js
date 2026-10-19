@@ -139,16 +139,17 @@
     }
 
     // ---------------------------------------------------------------- stations
-    // the operator's screen on a post and a stack light beside the robot
+    // the operator's screen on a post with the stack light on top
     stationPosts(p) {
       const g = this.sim.grid, front = p.face === 'front';
-      return { sx: front ? p.drop.x - 0.15 : g.W + 0.3, sy: front ? g.D + 0.3 : p.drop.y - 0.15, lx: front ? p.drop.x + 1.05 : g.W + 0.12, ly: front ? g.D + 0.12 : p.drop.y + 1.05 };
+      const sx = front ? p.drop.x - 0.15 : g.W + 0.3, sy = front ? g.D + 0.3 : p.drop.y - 0.15;
+      return { sx, sy, lx: sx + 0.18, ly: sy - 0.01 }; // the stack light sits on top of the screen
     }
     portBody(S, p) {
       const { sx, sy, lx, ly } = this.stationPosts(p), pick = { kind: 'port', id: p.idx };
       S.box.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
       S.box.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a', pick);
-      S.box.box(lx - 0.04, ly - 0.04, 0, lx + 0.04, ly + 0.04, 3.2, '#64748b');
+      S.box.box(lx - 0.03, ly - 0.03, 4.6, lx + 0.03, ly + 0.03, 4.75, '#64748b');
     }
     portLive(p) {
       const D = this.dy, { sx, sy, lx, ly } = this.stationPosts(p);
@@ -156,7 +157,7 @@
       if (p.serving) { D.lit.box(sx - 0.2, sy + 0.05, 4.2, sx + 0.05, sy + 0.06, 4.38, '#e0f2fe'); D.lit.box(sx - 0.2, sy + 0.05, 3.85, sx + 0.18, sy + 0.06, 4.05, '#4ade80'); }
       const starving = !p.serving && p.recentStarve > 0.35;
       [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.serving]].forEach(([c, on], k) => {
-        const z = 3.2 + k * 0.42;
+        const z = 4.75 + k * 0.42;
         (on ? D.litCyl : D.cyl).cyl(lx, ly, z, z + 0.4, 0.09, on ? c : WS.shade(c, -0.65));
       });
     }

@@ -99,7 +99,9 @@ Optional URL parameters for every simulation page, handy for demos:
 
 **Order flow.**
 1. Orders stream in without waves, either from Poisson auto-intake or entered by hand.
-2. Each order is released to the least-loaded pick station that has a free put-wall slot and an empty order tote.
+2. Each order is released to the least-loaded pick station that has a free put-wall slot and an empty order tote
+   on its stack. Every pick station keeps empty totes nested on a dolly. The operator puts one in the slot
+   before the first pick, and emptied totes come back from packing to the station with the fewest.
 3. Stock is reserved, preferring storage units that are already heading to that station.
 4. The operator picks to light. A completed tote rides the takeaway conveyor to a pack station.
 5. At the pack station the order is packed and labelled with an SSCC, then conveyed to the dock.

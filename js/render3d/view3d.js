@@ -613,8 +613,8 @@
       const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
       S.box.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
       S.box.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a', pick);
-      const lx = front ? x0 + 0.12 : g.W + 0.12, ly = front ? g.D + 0.12 : y0 + 0.12;
-      S.box.box(lx - 0.04, ly - 0.04, CZ, lx + 0.04, ly + 0.04, CZ + 2.2, '#64748b');
+      const l = this.stackLightPos(p);
+      S.box.box(l.x - 0.03, l.y - 0.03, l.z - 0.15, l.x + 0.03, l.y + 0.03, l.z, '#64748b');
     }
     portLive(p) {
       const sim = this.sim, g = sim.grid, L = sim.layout, CZ = this.CZ, front = p.face === 'front', D = this.dy, pp = L.portPath(p);
@@ -624,13 +624,28 @@
       p.inQ.forEach((q, k) => { const f = k === 0 ? Math.min(1, q.t / sim.cfg.conveyorStep) : 0, a = pp.entry[0], b = pp.head; bin(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, q.bin.id, sz.q); });
       if (p.pick) { const q = this.pickPos(p); bin(q.x, q.y, p.pick.id, sz.pick); }
       p.outQ.forEach((b, k) => { const e = this.outPos(p, k); bin(e.x, e.y, b.id, sz.q); });
-      const x0 = front ? p.drop.x + 0.1 : g.W, y0 = front ? g.D : p.drop.y + 0.1;
-      this.stackLight(front ? x0 + 0.12 : g.W + 0.12, front ? g.D + 0.12 : y0 + 0.12, CZ + 2.2, p);
+      const l = this.stackLightPos(p);
+      this.stackLight(l.x, l.y, l.z, p);
     }
     // bin sizes and the sliding pick position, as in the isometric view
     portBinSize(p) { return WS.IsoRenderer.prototype.portBinSize.call(this, p); }
     pickPos(p) { return WS.IsoRenderer.prototype.pickPos.call(this, p); }
     outPos(p, k) { return WS.IsoRenderer.prototype.outPos.call(this, p, k); }
+    stackLightPos(p) { return WS.IsoRenderer.prototype.stackLightPos.call(this, p); }
+    slotTote(p, k, o) { return WS.IsoRenderer.prototype.slotTote.call(this, p, k, o); }
+    toteStackTop(n) { return WS.IsoRenderer.prototype.toteStackTop.call(this, n); }
+    // empty order totes nested on a dolly
+    toteStack(x, y, n) {
+      const D = this.dy;
+      D.rnd.box(x - 0.3, y - 0.36, 0.1, x + 0.3, y + 0.36, 0.28, '#475569');
+      for (const [cx, cy] of [[-0.24, -0.3], [0.24, -0.3], [-0.24, 0.3], [0.24, 0.3]]) D.cyl.cyl(x + cx, y + cy, 0, 0.1, 0.045, '#0b0f17');
+      const m = Math.min(n, 12);
+      for (let k = 0; k < m - 1; k++) {
+        D.box.box(x - 0.215, y - 0.275, 0.28 + k * 0.17, x + 0.215, y + 0.275, 0.42 + k * 0.17, '#1d4ed8');
+        D.box.box(x - 0.225, y - 0.285, 0.42 + k * 0.17, x + 0.225, y + 0.285, 0.45 + k * 0.17, '#2563eb');
+      }
+      if (m) this.orderTote(D.box, x, y, this.toteStackTop(m), 0);
+    }
     binColor(id) {
       const inv = this.sim.inv, b = id ? inv.binById.get(id) : null;
       return this.opts.heat && b ? WS.CLASS_COLORS[inv.binClass(b)] : '#64748b';
@@ -721,10 +736,12 @@
           }
           continue;
         }
+        const st = L.toteStack(p);
+        this.toteStack(st.x, st.y, p.stack ? p.stack.length : 0);
         const ln = p.currentLine, wy0 = L.slotPos(p, 0).y - 0.35;
         p.slots.forEach((o, k) => {
           const q = L.slotPos(p, k);
-          if (o) { const units = oms.units(o), picked = o.lines.reduce((s, l) => s + l.picked, 0); this.orderTote(D.box, q.x, q.y, CZ, picked / units); }
+          if (o) { const units = oms.units(o), picked = o.lines.reduce((s, l) => s + l.picked, 0), t = this.slotTote(p, k, o); this.orderTote(D.box, t.x, t.y, t.z, picked / units); }
           const target = ln && ln.order === o, on = target && Math.sin(this.t * 9) > -0.3;
           (target ? D.lit : D.box).box(q.x - 0.1, wy0 - 0.02, 4.15, q.x + 0.1, wy0 + 0.12, 4.4, on ? '#4ade80' : o ? '#e2e8f0' : '#334155');
         });

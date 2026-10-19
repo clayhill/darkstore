@@ -94,7 +94,7 @@
       }
       const back = sim.oms.orders.filter((o) => o.status === 'BACKORDER').length;
       if (back) out.push({ sev: back > 10 ? 'critical' : 'warning', key: 'back', title: 'Backorders', msg: `${back} order(s) waiting for stock` });
-      if (!sim.oms.freeTotes.length) out.push({ sev: 'warning', key: 'totes', title: 'Tote shortage', msg: 'No empty order totes — release paused' });
+      if (sim.oms.orders.length && !sim.oms.emptyTotes) out.push({ sev: 'warning', key: 'totes', title: 'Tote shortage', msg: 'No empty order totes — release paused' });
       const low = sim.cfg.chargers ? sim.fleet.filter((r) => r.battery < 12) : [];
       if (low.length) out.push({ sev: 'critical', key: 'batt', title: 'Low battery', msg: low.map((r) => r.name).join(', ') + ' below 12%' });
       const waiting = sim.fleet.filter((r) => r.displayState === 'WAITING_IN_TRAFFIC').length;

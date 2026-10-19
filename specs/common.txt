@@ -33,11 +33,19 @@ says otherwise.
 Order management
   - Orders stream in without waves, from a Poisson process or entered by hand.
     An order has one or more lines (SKU, quantity).
+  - Empty order totes stand nested on a dolly at every pick station; the
+    totes are shared out over the stations at the start.
   - An order is released to the least loaded pick station that has a free
-    put-wall slot and an empty order tote.
+    put-wall slot and an empty tote on its stack. The operator takes the
+    tote off the stack and puts it in the slot (2.5 s); no line is picked
+    into it before it is there.
   - The operator picks to light from the storage unit into the order tote.
     A complete tote goes by conveyor to packing, gets an SSCC label, and goes
     to the dock. The truck leaves when it is full or at the cut-off time.
+  - The emptied tote goes back from packing (60 s) to the station with the
+    smallest stack.
+  - Each station's stack light sits on top of the operator's screen, clear of
+    the conveyors.
 
 Inventory (IMS)
   - Item master, storage units with 1, 2 or 4 compartments (pods have shelves

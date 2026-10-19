@@ -196,10 +196,11 @@
         this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
         this.faceY(sy + 0.045, sx - 0.24, sx + 0.24, 3.4, 4.5, p.serving ? '#0c4a6e' : '#111c2e');
         if (p.serving) { this.faceY(sy + 0.05, sx - 0.2, sx + 0.05, 4.2, 4.38, '#e0f2fe'); this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80'); }
-        const lx = front ? p.drop.x + 1.05 : g.W + 0.12, ly = front ? g.D + 0.12 : p.drop.y + 1.05, starving = !p.serving && p.recentStarve > 0.35;
-        this.box(lx - 0.04, ly - 0.04, 0, lx + 0.04, ly + 0.04, 3.2, '#64748b');
+        // stack light on top of the screen, clear of the lane behind the totes
+        const lx = sx + 0.18, ly = sy - 0.01, starving = !p.serving && p.recentStarve > 0.35;
+        this.box(lx - 0.03, ly - 0.03, 4.6, lx + 0.03, ly + 0.03, 4.75, '#64748b');
         [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.serving]].forEach(([lc, on], k) => {
-          const z = 3.2 + k * 0.42;
+          const z = 4.75 + k * 0.42;
           this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : WS.shade(lc, -0.65), on ? { top: WS.shade(lc, 0.4) } : {});
           if (on) this.glow(lx, ly, z + 0.2, 16, lc, 0.55);
         });

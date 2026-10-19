@@ -38,6 +38,8 @@
       pp.head = along(pp.entry[1], pp.entry[0], BACK); pp.out2 = along(pp.exit[0], pp.exit[1], BACK);
       return pp;
     }
+    // the dolly with the station's stack of empty order totes, in front of the put wall's first slot
+    toteStack(port) { const s = this.slotPos(port, 0); return { x: s.x - 0.02, y: s.y + 0.95 }; }
     operatorPos(port) { return port.face === 'front' ? { x: port.drop.x + 1.0, y: this.D + 2.35 } : { x: this.W + 2.35, y: port.drop.y + 1.0 }; }
     // A finished order tote is pushed off the back of the put wall onto a
     // lane behind it, which runs to the spur down to the takeaway conveyor.

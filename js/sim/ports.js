@@ -140,7 +140,9 @@
         const j = this.job;
         if (j.next < j.lines.length || j.t < j.total) {
           this.stats.busy += dt;
-          if (this.mode === 'auto') {
+          // a line waits for its order tote to be in the slot
+          const ln = j.lines[j.next], tote = ln && ln.order && ln.order.placedAt;
+          if (this.mode === 'auto' && !(tote > this.sim.time && j.t + dt >= ln.at)) {
             j.t += dt;
             while (j.next < j.lines.length && j.t >= j.lines[j.next].at) { this.applyLine(j.lines[j.next]); j.next++; }
           }

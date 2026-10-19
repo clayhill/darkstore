@@ -104,7 +104,28 @@
       const f = u * u * (3 - 2 * u);
       return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
     }
+    // Empty order totes nested on a dolly; how high the stack shows (levels) for n totes
+    toteStackTop(n) { return 0.28 + Math.max(0, Math.min(n, 12) - 1) * 0.17; }
+    drawToteStack(x, y, n) {
+      this.box(x - 0.3, y - 0.36, 0.1, x + 0.3, y + 0.36, 0.28, '#475569', { top: '#64748b' });
+      for (const [cx, cy] of [[-0.24, -0.3], [0.24, -0.3], [-0.24, 0.3], [0.24, 0.3]]) this.box(x + cx - 0.04, y + cy - 0.04, 0, x + cx + 0.04, y + cy + 0.04, 0.1, '#0b0f17');
+      const m = Math.min(n, 12);
+      for (let k = 0; k < m - 1; k++) this.box(x - 0.22, y - 0.28, 0.28 + k * 0.17, x + 0.22, y + 0.28, 0.45 + k * 0.17, '#1d4ed8', { top: '#2563eb' });
+      if (m) this.orderTote(x, y, this.toteStackTop(m), 0);
+    }
+    // Where order tote k stands: in its slot, or on its way there from the
+    // top of the stack for the first TOTE_PLACE seconds after release.
+    slotTote(p, k, o) {
+      const L = this.sim.layout, q = L.slotPos(p, k), left = (o.placedAt || 0) - this.sim.time;
+      if (left <= 0) return { x: q.x, y: q.y, z: this.CZ };
+      const s = L.toteStack(p), f = 1 - left / WS.TOTE_PLACE, e = f * f * (3 - 2 * f), z0 = this.toteStackTop((p.stack ? p.stack.length : 0) + 1);
+      return { x: s.x + (q.x - s.x) * e, y: s.y + (q.y - s.y) * e, z: z0 + (this.CZ - z0) * e + Math.sin(Math.PI * e) * 0.9 };
+    }
     // Conveyor port: the frame the bins ride through, HMI screen and stack light.
+    stackLightPos(p) {
+      const g = this.sim.grid, front = p.face === 'front';
+      return { x: front ? p.drop.x + 1.93 : g.W + 2.08, y: front ? g.D + 1.94 : p.drop.y + 1.74, z: 4.75 };
+    }
     drawPortBody(p, add) {
       const sim = this.sim, g = sim.grid, L = sim.layout, CZ = this.CZ;
       const pp = L.portPath(p), op = L.operatorPos(p), front = p.face === 'front';
@@ -145,12 +166,12 @@
           this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80');
           this.faceY(sy + 0.05, sx - 0.2, sx + 0.1, 3.55, 3.7, '#7dd3fc');
         }
-        // stack light: green = working, amber = waiting for bins, off = idle
-        const lx = front ? x0 + 0.12 : g.W + 0.12, ly = front ? g.D + 0.12 : y0 + 0.12;
-        this.box(lx - 0.04, ly - 0.04, CZ, lx + 0.04, ly + 0.04, CZ + 2.2, '#64748b');
+        // stack light on top of the screen, clear of the conveyors: green = working, amber = waiting for bins, off = idle
+        const { x: lx, y: ly, z: lz } = this.stackLightPos(p);
+        this.box(lx - 0.03, ly - 0.03, lz - 0.15, lx + 0.03, ly + 0.03, lz, '#64748b');
         const starving = !p.job && !p.inQ.length && p.demand() > 0, lamps = [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]];
         lamps.forEach(([lc, on], k) => {
-          const z = CZ + 2.2 + k * 0.42;
+          const z = lz + k * 0.42;
           this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : shade(lc, -0.65), on ? { top: shade(lc, 0.4) } : {});
           if (on) this.glow(lx, ly, z + 0.2, 16, lc, 0.55);
         });
@@ -324,8 +345,8 @@
             p.slots.forEach((o, k) => {
               const q = L.slotPos(p, k);
               if (o) {
-                const units = oms.units(o), picked = o.lines.reduce((s, l) => s + l.picked, 0);
-                this.orderTote(q.x, q.y, CZ, picked / units);
+                const units = oms.units(o), picked = o.lines.reduce((s, l) => s + l.picked, 0), t = this.slotTote(p, k, o);
+                this.orderTote(t.x, t.y, t.z, picked / units);
               }
               const target = ln && ln.order === o;
               const lc = target ? '#4ade80' : o ? '#e2e8f0' : '#334155';
@@ -333,6 +354,8 @@
               if (target) this.glow(q.x, wy0, 4.3, 26, '#4ade80', 0.65 + 0.3 * Math.sin(this.t * 9));
             });
           });
+          const st = L.toteStack(p);
+          add(st.x + st.y, () => this.drawToteStack(st.x, st.y, p.stack ? p.stack.length : 0));
         } else {
           // supplier pallets awaiting decant
           const open = oms.receipts.filter((r) => r.status !== 'RECEIVED').reduce((s, r) => s + r.lines.length, 0);

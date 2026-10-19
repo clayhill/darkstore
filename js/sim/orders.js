@@ -15,6 +15,9 @@
   };
   const LAST = ['Peeters', 'Janssens', 'Maes', 'Jacobs', 'Mertens', 'Willems', 'Claes', 'Goossens', 'Wouters', 'De Smet', 'Dubois', 'Lambert', 'Martin', 'Smit', 'Müller', 'Bakker'];
 
+  const TOTE_PLACE = 2.5; // s to take an empty tote off the stack and put it in a put-wall slot
+  WS.TOTE_PLACE = TOTE_PLACE;
+
   class OMS {
     constructor(sim) {
       this.sim = sim;
@@ -89,14 +92,14 @@
       const picks = sim.ports.filter((p) => p.kind === 'PICK');
       // routing at release keeps orders the arm cannot pick for the manual stations, if there are any
       const route = sim.cfg.armExceptions === 'route' && picks.some((p) => !p.arm);
+      this.fillStacks();
       for (const o of open) {
-        if (!this.freeTotes.length) return;
-        // port with a free put-wall slot and the least work queued
+        // port with a free put-wall slot, an empty tote on its stack and the least work queued
         let port = null, best = Infinity, full = true;
         const manualOnly = route && !this.armCanPick(o);
         for (const p of picks) {
           const free = p.slots.indexOf(null);
-          if (free < 0) continue;
+          if (free < 0 || !p.stack.length) continue;
           full = false;
           if (manualOnly && p.arm) continue;
           const load = p.slots.filter(Boolean).length * 3 + p.demand();
@@ -118,13 +121,29 @@
           if (o.status !== 'BACKORDER') { o.status = 'BACKORDER'; sim.log('warn', `${o.id} awaiting stock (backorder)`); }
           continue;
         }
-        const slot = port.slots.indexOf(null), tote = this.freeTotes.shift();
+        const slot = port.slots.indexOf(null), tote = port.stack.pop();
         tote.order = o; o.tote = tote; o.port = port.idx; o.slot = slot; port.slots[slot] = o;
         o.status = 'RELEASED'; o.times.released = sim.time;
+        o.placedAt = sim.time + TOTE_PLACE; // taken off the stack and put in the slot; picks wait for it
         plans.forEach((plan, k) => plan.forEach((p) => sim.requestBin(p.bin, port.idx, { order: o, line: k, comp: p.comp, qty: p.qty, gtin: o.lines[k].gtin })));
         sim.log('release', `${o.id} → ${port.name} slot ${slot + 1} · tote ${tote.id}`);
       }
     }
+    // Empty order totes stand nested on a stack at every pick station. They
+    // are shared out at the start, and an emptied tote back from packing goes
+    // to the station with the fewest.
+    fillStacks() {
+      const picks = this.sim.ports.filter((p) => p.kind === 'PICK');
+      if (!picks.length || picks[0].stack) return;
+      for (const p of picks) p.stack = [];
+      this.freeTotes.splice(0).forEach((t, k) => picks[k % picks.length].stack.push(t));
+    }
+    returnTote(tote) {
+      let best = null;
+      for (const p of this.sim.ports) if (p.stack && (!best || p.stack.length < best.stack.length)) best = p;
+      if (best) best.stack.push(tote); else this.freeTotes.push(tote);
+    }
+    get emptyTotes() { return this.freeTotes.length + this.sim.ports.reduce((s, p) => s + (p.stack ? p.stack.length : 0), 0); }
     onLinePicked(ln, qty, port) {
       const o = ln.order, line = o.lines[ln.line];
       line.picked += qty;
@@ -311,7 +330,7 @@
             o.carrier = this.truck.carrier;
             o.status = 'PACKED'; o.times.packed = sim.time; o.pack = pk.kind;
             const tote = o.tote; tote.order = null; o.toteId = tote.id; o.tote = null;
-            sim.schedule(60, () => this.freeTotes.push(tote)); // empty tote returns to the tote stack
+            sim.schedule(60, () => this.returnTote(tote)); // the empty tote goes back to a station's stack
             this.toConveyor({ kind: 'parcel', order: o, path: sim.layout.parcelRoute(pk.idx) });
             sim.log('pack', `${o.id} packed · SSCC ${o.sscc} · ${o.carrier.name}`);
           }
