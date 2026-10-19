@@ -6,6 +6,7 @@
 (function (WS) {
   'use strict';
   const { shade, roundRect } = WS;
+  const LZ3 = 17 / ((64 / Math.SQRT2) * Math.cos(Math.PI / 6)); // cells per render level, as in the 3D view
 
   // A person's look, fixed by an id: woman or man, skin, hair and how it is
   // worn, workwear. Shared by the isometric and the 3D view.
@@ -25,6 +26,39 @@
       style: female ? ((h >>> 14) & 1 ? 'ponytail' : 'long') : ((h >>> 14) % 3 === 0 ? 'beard' : 'short') };
     looks.set(key, L);
     return L;
+  };
+
+  // Paints what a screen shows (a model from IsoRenderer.portScreen and the
+  // like) into a w × h canvas context: a header with the station and its
+  // mode, the instruction in large type, the product, details, a progress bar.
+  WS.paintScreen = (c, w, h, m) => {
+    const u = w / 100, font = (px, weight) => `${weight} ${px * u}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    // text at size px, shrunk to fit max (down to min px), cut short only if it still does not fit
+    const text = (s, x, y, px, min, weight, max) => {
+      s = String(s);
+      c.font = font(px, weight);
+      for (let k = 0; k < 8 && px > min && c.measureText(s).width > max; k++) { px = Math.max(min, (px * max * 0.98) / c.measureText(s).width); c.font = font(px, weight); }
+      if (c.measureText(s).width > max) { while (s.length > 1 && c.measureText(s + '…').width > max) s = s.slice(0, -1); s += '…'; }
+      c.fillText(s, x, y);
+    };
+    c.fillStyle = '#071226'; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#0f2747'; c.fillRect(0, 0, w, 15 * u);
+    c.textBaseline = 'middle'; c.textAlign = 'left';
+    let tagW = 0;
+    if (m.tag) { c.font = font(6.5, 700); tagW = c.measureText(m.tag).width + 4 * u; c.textAlign = 'right'; c.fillStyle = m.tag === 'MANUAL' ? '#fbbf24' : '#7dd3fc'; c.fillText(m.tag, w - 5 * u, 7.8 * u); c.textAlign = 'left'; }
+    c.fillStyle = '#cbd5e1'; text(m.title, 5 * u, 7.8 * u, 7.5, 5.5, 700, 90 * u - tagW);
+    let y = 15 * u + h * 0.17;
+    c.fillStyle = m.accent || '#e2e8f0'; text(m.big, 5 * u, y, Math.min(24, (h / u) * 0.2), 10, 800, 90 * u);
+    y += h * 0.17;
+    c.fillStyle = '#f1f5f9'; text(m.name || '', 5 * u, y, 8.5, 6, 650, 90 * u);
+    c.fillStyle = '#94a3b8';
+    for (const line of m.info || []) { y += 10 * u; text(line, 5 * u, y, 7, 5.5, 500, 90 * u); }
+    if (m.bar != null) {
+      const by = h - (m.foot ? 17 : 8) * u;
+      c.fillStyle = '#1e293b'; c.fillRect(5 * u, by, 90 * u, 3.5 * u);
+      c.fillStyle = m.accent || '#38bdf8'; c.fillRect(5 * u, by, 90 * u * Math.max(0, Math.min(1, m.bar)), 3.5 * u);
+    }
+    if (m.foot) { c.fillStyle = '#64748b'; text(m.foot, 5 * u, h - 6 * u, 6, 5, 500, 90 * u); }
   };
 
   class IsoRenderer extends WS.IsoView {
@@ -122,6 +156,52 @@
       c.fillStyle = shade(L.hat, 0.25); c.fillRect(hx - 1, hy - 12.4, 2, 7.4);
       c.fillStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.ellipse(hx - 3, hy - 9, 1.6, 2.6, -0.5, 0, Math.PI * 2); c.fill();
     }
+    // ---------------------------------------------------------------- screens
+    // What a station's screen shows (WS.paintScreen draws it): the line being
+    // picked or decanted, what to do with it and where, how far the job is.
+    portScreen(p) {
+      const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine, pick = p.kind === 'PICK', T = sim.terms;
+      const title = `${p.code} · ${pick ? (p.arm ? 'Robot pick' : 'Pick') : p.decanter ? 'Auto goods-in' : 'Goods-in'}`, tag = p.mode === 'manual' ? 'MANUAL' : 'AUTO';
+      if (ln) {
+        const prod = inv.byGtin.get(ln.gtin), n = j.lines.length, from = this.compName(p.pick, ln.comp);
+        return pick
+          ? { title, tag, accent: '#4ade80', big: `Pick ${ln.qty} → slot ${ln.order.slot + 1}`, name: prod.name, info: [`from ${from}`, `${ln.order.id} · ${ln.order.customer}`], bar: j.next / n, foot: `Line ${j.next + 1} of ${n} · ${T.unit} ${p.pick.id}` }
+          : { title, tag, accent: '#86efac', big: `Decant ${ln.qty}`, name: prod.name, info: [`into ${from}`, ln.receipt ? `${ln.receipt.id} · ${ln.receipt.supplier}` : ''], bar: j.next / n, foot: `Line ${j.next + 1} of ${n} · ${T.unit} ${p.pick.id}` };
+      }
+      if (j) return { title, tag, accent: '#38bdf8', big: 'Done', name: `${T.Unit} ${p.pick.id} goes back`, info: [], bar: 1 };
+      const coming = p.inQ.length > 0, wanted = p.demand() > 0;
+      return { title, tag, accent: coming ? '#38bdf8' : wanted ? '#f59e0b' : '#64748b', big: coming ? 'Next coming' : wanted ? `Waiting for ${T.units}` : 'Idle', name: coming ? `${T.Unit} ${p.inQ[0].bin.id} on the infeed` : '', info: pick ? [`Put wall ${p.slots.filter(Boolean).length} of ${p.slots.length} slots in use`] : [] };
+    }
+    // A screen on a face at y (facing +y) from x0 to x1, levels z0 to z1. Zoomed
+    // in it shows the model (WS.paintScreen, cached per screen and redrawn
+    // only when it changes) mapped onto the face; further out a lit panel
+    // with the progress bar.
+    screenFace(key, x0, x1, y, z0, z1, m) {
+      const c = this.ctx, TL = this.P(x0, y, z1), TR = this.P(x1, y, z1), BL = this.P(x0, y, z0);
+      if (Math.hypot(TR[0] - TL[0], TR[1] - TL[1]) * this.cam.zoom < 55) {
+        const idle = !m.accent || m.accent === '#64748b';
+        this.faceY(y, x0, x1, z0, z1, idle ? '#111c2e' : '#0c4a6e');
+        if (!idle) this.faceY(y + 0.002, x0 + (x1 - x0) * 0.08, x0 + (x1 - x0) * 0.55, z0 + (z1 - z0) * 0.72, z0 + (z1 - z0) * 0.86, '#e0f2fe');
+        if (m.bar != null) this.faceY(y + 0.002, x0 + (x1 - x0) * 0.08, x0 + (x1 - x0) * (0.08 + 0.84 * Math.min(1, m.bar)), z0 + (z1 - z0) * 0.15, z0 + (z1 - z0) * 0.27, m.accent);
+        return;
+      }
+      const all = this.screenCache || (this.screenCache = new Map());
+      let sc = all.get(key);
+      if (!sc) { sc = { cv: document.createElement('canvas'), sig: null }; sc.cv.width = 240; sc.cv.height = Math.round((240 * (z1 - z0) * LZ3) / (x1 - x0)); all.set(key, sc); }
+      const sig = JSON.stringify(m, (k, v) => (k === 'bar' && v != null ? Math.round(v * 40) : v));
+      if (sig !== sc.sig) { sc.sig = sig; WS.paintScreen(sc.cv.getContext('2d'), sc.cv.width, sc.cv.height, m); }
+      const W = sc.cv.width, H = sc.cv.height;
+      c.save(); c.transform((TR[0] - TL[0]) / W, (TR[1] - TL[1]) / W, (BL[0] - TL[0]) / H, (BL[1] - TL[1]) / H, TL[0], TL[1]);
+      c.drawImage(sc.cv, 0, 0); c.restore();
+    }
+    // a compartment as an operator would read it; types with other storage override
+    compName(bin, comp) { return bin && bin.comps && bin.comps.length > 1 ? `compartment ${comp + 1} of ${bin.comps.length}` : 'the ' + this.sim.terms.unit; }
+    packerScreen(pk) {
+      const oms = this.sim.oms, o = pk.cur, title = pk.name;
+      if (!o) return { title, tag: pk.queue.length ? `${pk.queue.length} QUEUED` : '', accent: '#64748b', big: pk.queue.length ? 'Next order' : 'Idle', name: pk.queue.length ? `${pk.queue[0].id} on the conveyor` : 'Waiting for order totes', info: [] };
+      const units = oms.units(o), what = pk.kind === 'bagger' ? 'Bag' : pk.kind === 'boxer' ? 'Box (made to fit)' : 'Pack';
+      return { title, tag: `${pk.queue.length} QUEUED`, accent: '#38bdf8', big: `${what} ${units} item${units > 1 ? 's' : ''}`, name: o.id, info: [`${o.customer} · ${o.postcode} ${o.city}`, `Carrier ${oms.truck.carrier.name}`], bar: pk.t / pk.dur };
+    }
     // Half sizes { w, d } of the bins on a port's conveyor (q) and at its pick position.
     portBinSize(p) {
       const front = p.face === 'front';
@@ -198,12 +278,7 @@
         const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
         this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
         this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
-        this.faceY(sy + 0.045, sx - 0.24, sx + 0.24, 3.4, 4.5, p.job ? '#0c4a6e' : '#111c2e');
-        if (p.job) {
-          this.faceY(sy + 0.05, sx - 0.2, sx + 0.05, 4.2, 4.38, '#e0f2fe');
-          this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80');
-          this.faceY(sy + 0.05, sx - 0.2, sx + 0.1, 3.55, 3.7, '#7dd3fc');
-        }
+        this.screenFace('port' + p.idx, sx - 0.24, sx + 0.24, sy + 0.045, 3.4, 4.5, this.portScreen(p));
         // stack light on top of the screen, clear of the conveyors: green = working, amber = waiting for bins, off = idle
         const { x: lx, y: ly, z: lz } = this.stackLightPos(p);
         this.box(lx - 0.03, ly - 0.03, lz - 0.15, lx + 0.03, ly + 0.03, lz, '#64748b');
@@ -284,7 +359,7 @@
       // monitor on a pole, label printer, tape dispenser
       this.box(q.x - 0.85, q.y - 0.5, 2.1, q.x - 0.79, q.y - 0.44, 3.6, '#475569');
       this.box(q.x - 0.98, q.y - 0.52, 3.3, q.x - 0.5, q.y - 0.44, 4.3, '#0f172a');
-      this.faceY(q.y - 0.435, q.x - 0.95, q.x - 0.53, 3.38, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
+      this.screenFace('pack' + pk.idx, q.x - 0.95, q.x - 0.53, q.y - 0.435, 3.38, 4.22, this.packerScreen(pk));
       this.box(q.x + 0.5, q.y - 0.45, 2.1, q.x + 0.92, q.y - 0.08, 2.75, '#e2e8f0', { top: '#f8fafc' });
       this.faceY(q.y - 0.079, q.x + 0.55, q.x + 0.87, 2.45, 2.55, '#0f172a');
       this.box(q.x + 0.55, q.y + 0.15, 2.1, q.x + 0.85, q.y + 0.35, 2.4, '#dc2626');
@@ -305,7 +380,7 @@
       this.box(q.x - 0.75, q.y - 0.45, 0, q.x + 0.05, q.y + 0.4, 3.7, '#334155', { top: '#475569' });
       this.box(q.x - 0.7, q.y - 0.3, 3.7, q.x + 0.0, q.y + 0.2, 4.15, '#e5e7eb', { top: '#f8fafc', right: '#cbd5e1' }); // film roll
       this.faceX(q.x + 0.001, q.y - 0.3, q.y + 0.2, 3.82, 4.03, '#94a3b8');
-      this.faceY(q.y + 0.402, q.x - 0.6, q.x - 0.15, 2.6, 3.3, pk.cur ? '#0c4a6e' : '#111c2e');
+      this.screenFace('pack' + pk.idx, q.x - 0.6, q.x - 0.15, q.y + 0.402, 2.6, 3.3, this.packerScreen(pk));
       this.faceY(q.y + 0.403, q.x - 0.62, q.x - 0.08, 1.15, 1.7, '#0b1220'); // bag outlet
       if (pk.cur) this.glow(q.x - 0.35, q.y + 0.4, 3.0, 16, '#22c55e', 0.45);
       // loading shelf with the order tote

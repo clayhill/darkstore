@@ -135,11 +135,14 @@
       });
       D.box.box(x - 0.03, y - 0.33, BODY, x + 0.03, y - 0.27, MAST, '#475569', pick);
       D.box.box(x - 0.2, y - 0.33, MAST, x + 0.2, y - 0.27, MAST + 0.75, '#0f172a', pick);
-      D.lit.box(x - 0.17, y - 0.27, MAST + 0.08, x + 0.17, y - 0.265, MAST + 0.68, r.displayState === 'WAITING_PICKER' ? '#14b8a6' : '#0c4a6e');
+      D.lit.box(x - 0.17, y - 0.27, MAST + 0.08, x + 0.17, y - 0.265, MAST + 0.68, '#0b1220');
+      this.screen('tab' + r.id, x - 0.165, x + 0.165, y - 0.262, MAST + 0.1, MAST + 0.66, this.tabletScreen(r));
     }
 
     // ---------------------------------------------------------------- stations
     // the operator's screen on a post with the stack light on top
+    tabletScreen(r) { return WS.AmrRenderer.prototype.tabletScreen.call(this, r); }
+    compName(bin, comp) { return WS.AmrRenderer.prototype.compName.call(this, bin, comp); }
     stationPosts(p) {
       const g = this.sim.grid, front = p.face === 'front';
       const sx = front ? p.drop.x - 0.15 : g.W + 0.3, sy = front ? g.D + 0.3 : p.drop.y - 0.15;
@@ -153,8 +156,8 @@
     }
     portLive(p) {
       const D = this.dy, { sx, sy, lx, ly } = this.stationPosts(p);
-      D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, p.serving ? '#0c4a6e' : '#111c2e');
-      if (p.serving) { D.lit.box(sx - 0.2, sy + 0.05, 4.2, sx + 0.05, sy + 0.06, 4.38, '#e0f2fe'); D.lit.box(sx - 0.2, sy + 0.05, 3.85, sx + 0.18, sy + 0.06, 4.05, '#4ade80'); }
+      D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, '#0b1220');
+      this.screen('port' + p.idx, sx - 0.235, sx + 0.235, sy + 0.053, 3.42, 4.48, WS.AmrRenderer.prototype.amrStationScreen.call(this, p));
       const starving = !p.serving && p.recentStarve > 0.35;
       [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.serving]].forEach(([c, on], k) => {
         const z = 4.75 + k * 0.42;

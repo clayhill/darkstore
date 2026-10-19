@@ -9,6 +9,31 @@
   const STEEL = '#1d4ed8', BEAM = '#f97316';
 
   class AmrRenderer extends WS.IsoRenderer {
+    // ---------------------------------------------------------------- screens (WS.paintScreen)
+    // a shelf location's level and slot, as on its label
+    compName(bin, comp) { const n = this.sim.cfg.shelfSlots; return `${bin.id} · level ${Math.floor(comp / n) + 1} · slot ${(comp % n) + 1}`; }
+    // the induct & drop-off (or goods-in) operator's screen
+    amrStationScreen(p) {
+      const r = p.serving, pick = p.kind === 'PICK', staged = p.slots.filter(Boolean).length;
+      const title = `${p.code} · ${pick ? 'Induct & drop-off' : 'Goods-in'}`, info = pick ? [`${staged} empty tote${staged === 1 ? '' : 's'} staged`] : [];
+      if (!r) return { title, accent: '#64748b', big: 'No robot', name: pick ? 'Staging totes for the next robot' : 'Waiting for a robot', info };
+      return { title, tag: r.name, accent: '#4ade80', big: pick ? (r.totes.length ? `Swap ${r.totes.length} totes` : 'Load totes') : `Load ${r.cases} cases`, name: `${r.name} at the station`, info };
+    }
+    // The robot's tablet: what the picker at its stop is to pick, and into which tote.
+    tabletScreen(r) {
+      const sim = this.sim, st = sim.stops.find((s) => s.robot === r && !s.done), title = r.name;
+      if (!st) {
+        const at = r.displayState === 'TRANSPORTING_TO_PORT' || r.displayState === 'AT_PORT';
+        return { title, accent: '#64748b', big: at ? 'To the station' : r.displayState === 'CHARGING' ? 'Charging' : 'Idle', name: r.totes.length ? `${r.totes.length} order totes on board` : '', info: [] };
+      }
+      const L = st.lines[0], prod = sim.inv.byGtin.get(L.gtin), qty = st.lines.reduce((s, l) => s + l.qty, 0), more = st.lines.length > 1 ? ` + ${st.lines.length - 1} more` : '';
+      const tote = st.kind === 'pick' ? r.totes.indexOf(L.order) + 1 : 0;
+      return {
+        title, tag: st.picker ? st.picker.name : '', accent: st.arrived ? '#e879f9' : '#38bdf8',
+        big: st.arrived ? `${st.kind === 'pick' ? 'Pick' : 'Put away'} ${qty}` : `Next: ${st.bin.id}`,
+        name: prod.name + more, info: [this.compName(st.bin, L.comp), tote ? `into tote ${tote}` : `${r.cases} cases on board`],
+      };
+    }
     constructor(canvas, app) {
       super(canvas, app);
       this.sprites = new Map(); // location id → { key, zoom, cv }
@@ -171,7 +196,7 @@
       for (const [px, py] of front) this.box(px, py, BODY, px + 0.04, py + 0.04, 3.0, '#64748b');
       // tablet facing forward; it lights up while the robot waits for a picker
       this.box(cx - 0.2, cy - 0.33, MAST, cx + 0.2, cy - 0.27, MAST + 0.75, '#0f172a');
-      this.faceY(cy - 0.268, cx - 0.17, cx + 0.17, MAST + 0.08, MAST + 0.68, waiting ? '#14b8a6' : '#0c4a6e');
+      this.screenFace('tab' + r.id, cx - 0.17, cx + 0.17, cy - 0.268, MAST + 0.08, MAST + 0.68, this.tabletScreen(r));
       if (waiting) this.glow(cx, cy - 0.27, MAST + 0.4, 22, '#2dd4bf', 0.4 + 0.2 * Math.sin(this.t * 6));
       if (r.displayState === 'WAITING_IN_TRAFFIC') this.glow(cx, cy, BODY + 0.3, 20, col, 0.35 + 0.25 * Math.sin(this.t * 6));
       const sel = this.selected && this.selected.kind === 'robot' && this.selected.id === r.id;
@@ -194,8 +219,7 @@
       add(sx + sy + 0.3, () => {
         this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
         this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
-        this.faceY(sy + 0.045, sx - 0.24, sx + 0.24, 3.4, 4.5, p.serving ? '#0c4a6e' : '#111c2e');
-        if (p.serving) { this.faceY(sy + 0.05, sx - 0.2, sx + 0.05, 4.2, 4.38, '#e0f2fe'); this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80'); }
+        this.screenFace('port' + p.idx, sx - 0.24, sx + 0.24, sy + 0.045, 3.4, 4.5, this.amrStationScreen(p));
         // stack light on top of the screen, clear of the lane behind the totes
         const lx = sx + 0.18, ly = sy - 0.01, starving = !p.serving && p.recentStarve > 0.35;
         this.box(lx - 0.03, ly - 0.03, 4.6, lx + 0.03, ly + 0.03, 4.75, '#64748b');

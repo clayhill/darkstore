@@ -10,6 +10,11 @@
   const SIDE_N = [[0, 1], [1, 0], [0, -1], [-1, 0]]; // local outward normal of pod face k
 
   class PodRenderer extends WS.IsoRenderer {
+    // a pod pocket as the operator reads it: face, shelf (from the bottom) and pocket
+    compName(pod, comp) {
+      const sim = this.sim, per = sim.perFace, f = Math.floor(comp / per), rest = comp % per;
+      return `face ${'ABCD'[f]} · shelf ${Math.floor(rest / sim.cfg.podSlots) + 1} · pocket ${(rest % sim.cfg.podSlots) + 1}`;
+    }
     constructor(canvas, app) {
       super(canvas, app);
       this.sprites = new Map(); // pod id → { key, zoom, cv } — pods at rest are blitted from these
@@ -267,11 +272,7 @@
         const sx = front ? x0 - 0.35 : x0 + 0.35, sy = front ? y0 + 0.35 : y0 - 0.35;
         this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
         this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
-        this.faceY(sy + 0.045, sx - 0.24, sx + 0.24, 3.4, 4.5, p.job ? '#0c4a6e' : '#111c2e');
-        if (p.job) {
-          this.faceY(sy + 0.05, sx - 0.2, sx + 0.05, 4.2, 4.38, '#e0f2fe');
-          this.faceY(sy + 0.05, sx - 0.2, sx + 0.18, 3.85, 4.05, '#4ade80');
-        }
+        this.screenFace('port' + p.idx, sx - 0.24, sx + 0.24, sy + 0.045, 3.4, 4.5, this.portScreen(p));
         const lx = x1, ly = y1, starving = !p.job && !p.inQ.length && p.demand() > 0;
         [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]].forEach(([lc, on], k) => {
           const z = TOP + 1.3 + k * 0.42;

@@ -48,6 +48,11 @@ Order management
     the conveyors.
   - Machines' status lights fade to the colour of a new state, and breathe
     slowly while a machine idles, waits or charges.
+  - Each operator's screen shows the live job: the line being picked or
+    decanted (quantity, product, the compartment it comes from or goes into,
+    the put-wall slot, the order and customer), the job's progress, or what
+    the station is waiting for. Pack benches show the order, its address and
+    carrier.
 
 Inventory (IMS)
   - Item master, storage units with 1, 2 or 4 compartments (pods have shelves

@@ -464,10 +464,12 @@
       this.updateCamera(dt, alpha);
       this.cutaway();
       for (const b of Object.values(this.dy)) b.begin();
+      this.frameNo = (this.frameNo || 0) + 1;
       this.drawLive(alpha);
       this.drawStationsLive();
       this.drawSelection(alpha);
       for (const b of Object.values(this.dy)) b.end();
+      if (this.screens) for (const sc of this.screens.values()) sc.mesh.visible = sc.used === this.frameNo;
       this.drawPaths(alpha);
       this.renderer.render(this.scene, this.camera);
       this.drawLabelLayer();
@@ -633,6 +635,34 @@
       for (const B of Object.values(this.roof)) B.mesh.visible = inside;
     }
 
+    // ---------------------------------------------------------------- screens
+    // A screen facing +y between x0 and x1 at y, from level z0 to z1, showing
+    // model (WS.paintScreen). Each screen keeps its own small canvas texture,
+    // repainted only when what it shows changes, and not while it is far
+    // from the camera; a screen not drawn in a frame is hidden.
+    screen(key, x0, x1, y, z0, z1, model) {
+      const S = this.screens || (this.screens = new Map());
+      let sc = S.get(key);
+      if (!sc) {
+        const cv = document.createElement('canvas'), W = 320, H = Math.round((W * (z1 - z0) * LZ) / (x1 - x0));
+        cv.width = W; cv.height = H;
+        const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+        this.scene.add(mesh);
+        sc = { cv, tex, mesh, sig: null };
+        S.set(key, sc);
+      }
+      sc.used = this.frameNo;
+      sc.mesh.position.set((x0 + x1) / 2, ((z0 + z1) / 2) * LZ, y); sc.mesh.scale.set(x1 - x0, (z1 - z0) * LZ, 1);
+      const far = this.camera.position.distanceTo(sc.mesh.position) > 40;
+      if (far && sc.sig) return;
+      const sig = JSON.stringify(model, (k, v) => (k === 'bar' && v != null ? Math.round(v * 40) : v));
+      if (sig === sc.sig) return;
+      sc.sig = sig;
+      WS.paintScreen(sc.cv.getContext('2d'), sc.cv.width, sc.cv.height, model);
+      sc.tex.needsUpdate = true;
+    }
+
     // ---------------------------------------------------------------- shared parts
     // conveyor: frame from the floor up to z with rollers across it
     conveyor(B, pts, width, z, color) {
@@ -752,7 +782,8 @@
     portLive(p) {
       const sim = this.sim, g = sim.grid, L = sim.layout, CZ = this.CZ, front = p.face === 'front', D = this.dy, pp = L.portPath(p);
       const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
-      D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, p.job ? '#0c4a6e' : '#111c2e');
+      D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, '#0b1220');
+      this.screen('port' + p.idx, sx - 0.235, sx + 0.235, sy + 0.053, 3.42, 4.48, this.portScreen(p));
       const bin = (x, y, id, s) => this.tote(D.box, x - s.w, y - s.d, x + s.w, y + s.d, CZ, 0.95, this.binColor(id)), sz = this.portBinSize(p);
       p.inQ.forEach((q, k) => { const f = k === 0 ? Math.min(1, q.t / sim.cfg.conveyorStep) : 0, a = pp.entry[0], b = pp.head; bin(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, q.bin.id, sz.q); });
       if (p.pick) { const q = this.pickPos(p); bin(q.x, q.y, p.pick.id, sz.pick); }
@@ -765,6 +796,9 @@
     pickPos(p) { return WS.IsoRenderer.prototype.pickPos.call(this, p); }
     outPos(p, k) { return WS.IsoRenderer.prototype.outPos.call(this, p, k); }
     stackLightPos(p) { return WS.IsoRenderer.prototype.stackLightPos.call(this, p); }
+    portScreen(p) { return WS.IsoRenderer.prototype.portScreen.call(this, p); }
+    packerScreen(pk) { return WS.IsoRenderer.prototype.packerScreen.call(this, pk); }
+    compName(bin, comp) { return WS.IsoRenderer.prototype.compName.call(this, bin, comp); }
     slotTote(p, k, o) { return WS.IsoRenderer.prototype.slotTote.call(this, p, k, o); }
     toteStackTop(n) { return WS.IsoRenderer.prototype.toteStackTop.call(this, n); }
     // empty order totes nested on a dolly
@@ -883,7 +917,7 @@
         const q = L.packerPos(pk.idx);
         if (pk.kind === 'bagger') this.baggerLive(pk, q);
         else if (pk.kind === 'boxer') this.boxMakerLive(pk, q);
-        else D.lit.box(q.x - 0.95, q.y - 0.44, 3.38, q.x - 0.53, q.y - 0.43, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
+        else { D.lit.box(q.x - 0.95, q.y - 0.44, 3.38, q.x - 0.53, q.y - 0.43, 4.22, '#0b1220'); this.screen('pack' + pk.idx, q.x - 0.945, q.x - 0.535, q.y - 0.427, 3.4, 4.2, this.packerScreen(pk)); }
         if (pk.cur && pk.kind === 'manual') {
           const f = pk.t / pk.dur;
           if (f < 0.6) { this.orderTote(D.box, q.x - 0.45, q.y, 2.1, 1 - f / 0.6); this.tote(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.25 + Math.min(1, f * 1.6) * 0.55, '#b8875a'); } else this.parcel(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.8, f > 0.8);
@@ -941,7 +975,8 @@
     }
     baggerLive(pk, q) {
       const D = this.dy, f = pk.cur ? pk.t / pk.dur : 0;
-      D.lit.box(q.x - 0.6, q.y + 0.4, 2.6, q.x - 0.15, q.y + 0.41, 3.3, pk.cur ? '#0c4a6e' : '#111c2e');
+      D.lit.box(q.x - 0.6, q.y + 0.4, 2.6, q.x - 0.15, q.y + 0.41, 3.3, '#0b1220');
+      this.screen('pack' + pk.idx, q.x - 0.595, q.x - 0.155, q.y + 0.413, 2.62, 3.28, this.packerScreen(pk));
       if (pk.cur) D.litCyl.cyl(q.x - 0.05, q.y + 0.35, 3.7, 3.9, 0.06, '#22c55e');
       if (pk.cur && f < 0.6) this.orderTote(D.box, q.x + 0.47, q.y, 2.1, 1 - f / 0.6);
       if (pk.cur && f >= 0.6) this.bag(D.box, q.x - 0.35, q.y + 0.6, 1.4);

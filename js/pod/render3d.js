@@ -27,7 +27,8 @@
       this.podIdx = new Map(sim.inv.bins.map((b, k) => [b.id, k]));
     }
     extraBatches() { return [this.podBatch]; }
-    rideHeight() { return 0.45; } // the robot cam stays under the pod it carries
+    rideHeight() { return 0.45; }
+    compName(pod, comp) { return WS.PodRenderer.prototype.compName.call(this, pod, comp); } // the robot cam stays under the pod it carries
 
     // The floor paint as one texture: storage cells, highways with their
     // fiducials, lanes with chevrons, stations, chargers, and the traffic heat.
@@ -222,8 +223,8 @@
       if (active) for (let z = 0.6; z < TOP; z += 0.55) D.clear.box(f.x0, f.y0 - 0.01, z, f.x1, f.y1 + 0.01, z + 0.04, '#f87171');
       if (active) D.lit.box(f.x0 + 0.1, f.y0 + 0.04, TOP + 0.95, f.x1 - 0.1, f.y1 + 0.06, TOP + 1.05, '#4ade80');
       const sx = front ? f.x0 - 0.35 : f.x0 + 0.35, sy = front ? f.y0 + 0.35 : f.y0 - 0.35;
-      D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, p.job ? '#0c4a6e' : '#111c2e');
-      if (p.job) { D.lit.box(sx - 0.2, sy + 0.05, 4.2, sx + 0.05, sy + 0.06, 4.38, '#e0f2fe'); D.lit.box(sx - 0.2, sy + 0.05, 3.85, sx + 0.18, sy + 0.06, 4.05, '#4ade80'); }
+      D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, '#0b1220');
+      this.screen('port' + p.idx, sx - 0.235, sx + 0.235, sy + 0.053, 3.42, 4.48, this.portScreen(p));
       this.stackLight(f.x1, f.y1, TOP + 1.3, p);
     }
 

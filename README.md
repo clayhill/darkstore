@@ -80,6 +80,10 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   machines behave like real ones: status lights fade between states and breathe while a robot waits,
   a crane's mast sways after braking (the forks wait for it to settle), PodSwarm pods rock when their
   robot starts, stops or turns, and cranes, shuttles and lifts ramp their speed up and down smoothly.
+  The operators' screens show the live job: what to pick or decant, how many, from which compartment
+  (or pod face, shelf and pocket) into which put-wall slot, for which order and customer; pack benches
+  show the order, its address and carrier; AisleMate robots' tablets tell the picker what to pick
+  where and into which tote. Readable up close in 3D, and in the floor view when zoomed in.
 - **Sound** (off by default) is made live from what the machines do, with no sound files: motors
   humming with their speed, a chirp as a machine sets off, the clunk of forks and pod lifts, a
   CubeFlow winch, rollers as a storage unit reaches a station, the scanner beep of every pick, tape at
