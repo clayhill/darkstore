@@ -60,11 +60,11 @@ Denser than SkyStack. RailRunner's code fits it closely.
 
 ## Across the whole warehouse
 
-### 9. Comparing the five types on the same order profile
+### 9. Comparing the systems on the same order profile
 
 **Status:** Idea
 
-Run the same orders, product range and target lines/h through every type, and compare floor space, robot count, cost and throughput. The simulators already share orders, stock and stations, so this mainly needs one comparison page.
+Run the same orders, product range and target lines/h through every storage type, and compare floor space, robot count, cost and throughput. The simulators already share orders, stock and stations, so this mainly needs one comparison page.
 
 ### 10. Peak days and failures
 
@@ -72,6 +72,112 @@ Run the same orders, product range and target lines/h through every type, and co
 
 A Black Friday order surge, a robot breaking down, a lost charger, an operator break. Shows how robust each system is, not just how fast.
 
+### 11. Dispatching parcels to the hub
+
+**Status:** Idea
+
+Connect SortHub to the storage simulations: their packed parcels feed the sorter instead of going straight onto one truck, and leave by carrier or route from several dock doors. Realistic (fulfilment centre → sortation → carriers) without needing a new storage type.
+
+### 12. Cost and payback
+
+**Status:** Idea
+
+Rough capital and labour costs per system and per automation (robot arms, decanting cells, packing machines, robots, pickers). The control room shows the cost per order line, so a question like "is a robot arm worth it?" gets an answer. Pairs naturally with 9.
+
+### 13. Learning mode and guided scenarios
+
+**Status:** Idea
+
+Short challenges with a goal, such as "the pick stations are starving: fix it with the settings" or "reach 4000 parcels/h with the fewest robots". Makes the teaching purpose of the simulator explicit.
+
+### 14. Save and share a scenario
+
+**Status:** Idea
+
+The settings encoded in the page URL, so a link opens exactly the setup you are looking at. Small, and makes comparisons easy to share.
+
+### 15. Shifts and labour
+
+**Status:** Idea
+
+Operators, pickers and bag workers with shifts, breaks and different speeds. Several bottlenecks found so far were people rather than machines (pickers in AisleMate, bag workers in SortHub), so this makes the people side as real as the robots.
+
+### 16. Tilt-tray control room
+
+**Status:** Idea
+
+With SortHub's tilt-tray loop the control room's fleet chart and table stay empty: there are no robots. Show tray occupancy there instead. Small, but the gap is visible today.
+
+## More types for the landing page
+
+### 17. Climbing robots in racking
+
+**Status:** Idea
+
+Robots drive on the floor and climb straight up the racking to fetch a tote (Exotec Skypod style). Sits between StackPilot and RailRunner: the climb is fast, but a climbing robot blocks its column. Already noted as not modelled yet in StackPilot.
+
+### 18. Vertical lift modules and carousels
+
+**Status:** Idea
+
+Tall cabinets whose trays come to a hatch where an operator picks: the classic small-parts system in factories, pharmacies and spare-parts stores. The simplest new type.
+
+### 19. Pick-to-light flow racks
+
+**Status:** Idea
+
+Carton flow racks along a conveyor; order totes move from zone to zone and lights show what to pick in each. The traditional high-throughput setup, a good baseline against goods-to-person.
+
+### 20. Micro-fulfilment store
+
+**Status:** Idea
+
+A small cube or shuttle in the back of a supermarket, picking online orders for collection and delivery, with a ready-for-collection buffer and time slots. Reuses CubeFlow; what changes is the demand, with peaks around collection times.
+
+### 21. Cold store and freezer
+
+**Status:** Idea
+
+A variant setting rather than a new mechanism: slower robots, shorter battery life, people working in short shifts. Fits with 15.
+
+## Visuals
+
+### 22. Lights-out mode in 3D
+
+**Status:** Idea
+
+Day and night lighting: in lights-out mode only the robots' status lights and the stations are lit, which makes the DarkStore name literal. Cheap in three.js, high impact.
+
+### 23. Follow an order or a parcel
+
+**Status:** Idea
+
+Click an order and the camera follows it from release through picking, packing and the truck, or a parcel through the sorter. Good for demos and teaching.
+
+### 24. Heat overlays in 3D
+
+**Status:** Idea
+
+Traffic, waiting and bag fill as a coloured layer on the 3D floor, as the isometric view already has for some types.
+
+### 25. Better people
+
+**Status:** Idea
+
+Walking animation for pickers and bag workers (they glide now), operators turning to face their work, hi-vis colours by role.
+
+### 26. Smoother robots in 3D
+
+**Status:** Idea
+
+Robots turn on the spot by snapping. Animate the turn, and add small details up close (wheels, lidar, status LEDs) so they read as real machines.
+
+### 27. Mini-map in 3D
+
+**Status:** Idea
+
+A small top-down map in a corner showing where the camera is, helpful once you have walked into an aisle.
+
 ## Suggested order
 
-Do 9 first, because it uses the most of what is already built. Then 2, because it removes a real throughput limit. 5, the most familiar real-world system that was missing, is now built as AisleMate.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. For impact against effort, 22 (lights-out mode) is the best visual; 17 (climbing robots) the most interesting new type.
