@@ -2,7 +2,7 @@
 
 This is the list of possible next features for DarkStore. Items are numbered so they can be referred to by number.
 
-DarkStore currently has five storage types: CubeFlow (cube AS/RS), PodSwarm (pod robots), RailRunner (shuttle AS/RS), SkyStack (stacker crane AS/RS) and StackPilot (case-handling robots).
+DarkStore currently has six storage types: CubeFlow (cube AS/RS), PodSwarm (pod robots), RailRunner (shuttle AS/RS), SkyStack (stacker crane AS/RS), StackPilot (case-handling robots) and AisleMate (robots alongside pickers), plus SortHub, a parcel sorter.
 
 ## Around the existing storage types
 
@@ -144,7 +144,7 @@ A variant setting rather than a new mechanism: slower robots, shorter battery li
 
 ### 22. Lights-out mode in 3D
 
-**Status:** Idea
+**Status:** Done (with the building hall, new lighting and rounded robot shells)
 
 Day and night lighting: in lights-out mode only the robots' status lights and the stations are lit, which makes the DarkStore name literal. Cheap in three.js, high impact.
 
@@ -162,9 +162,9 @@ Traffic, waiting and bag fill as a coloured layer on the 3D floor, as the isomet
 
 ### 25. Better people
 
-**Status:** Idea
+**Status:** Partly done: every person has their own look (women and men, skin, hair, workwear), a face and a proper hard hat
 
-Walking animation for pickers and bag workers (they glide now), operators turning to face their work, hi-vis colours by role.
+Still open: a walking animation for pickers and bag workers (they glide now), operators turning to face their work, hi-vis colours by role.
 
 ### 26. Smoother robots in 3D
 
@@ -178,6 +178,34 @@ Robots turn on the spot by snapping. Animate the turn, and add small details up 
 
 A small top-down map in a corner showing where the camera is, helpful once you have walked into an aisle.
 
+### 28. Procedural soundscape
+
+**Status:** Idea
+
+Sound made live with the Web Audio API, no audio files: motor whine whose pitch follows speed, the click of a winch locking or forks extending, the thud of a pod set down, the clack of rollers and tilt-trays. Louder near the camera. At high sim speeds single events would come hundreds a second, so they thin out and blend into a steady hum of the whole fleet. Off by default behind a sound toggle (browsers only allow audio after a click).
+
+### 29. Camera presets and a camera on a robot
+
+**Status:** Idea
+
+One-click camera positions: a camera mounted on a robot (looking ahead from its front, riding along as it drives, lifts and digs), on a crane's carriage or a shuttle, beside a station or a sorter chute, and a slow orbit. An ambient mode cycles through them, as a screensaver. Builds on the follow camera and walk mode the 3D view already has.
+
+### 30. Breathing status LEDs
+
+**Status:** Idea
+
+Robots' status lights pulse softly and fade between colours when the state changes, instead of switching hard. Drawing only.
+
+### 31. Realistic settling of machines
+
+**Status:** Idea
+
+Not overshoot: real drives are tuned not to overshoot their position. What real systems do show:
+- A stacker crane's tall mast sways after braking, and the forks wait until it has settled before they reach in. This is a small real change to the crane's cycle time.
+- PodSwarm pods rock a little when they are lifted, set down or turned.
+- Motion starts and stops on smooth, jerk-limited ramps instead of constant acceleration.
+- A short pause to confirm the position before forks extend or a gripper closes.
+
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. For impact against effort, 22 (lights-out mode) is the best visual; 17 (climbing robots) the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is a quick fix to fold in along the way. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. For impact against effort, the best visuals now are 28 (soundscape) first, then 29 (camera on a robot), then 30 and 31 together; 17 (climbing robots) is the most interesting new type.
