@@ -69,7 +69,10 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
-  racking systems the **Levels** slider works in 3D too; X-ray works in CubeFlow's 3D view.
+  racking systems the **Levels** slider works in 3D too; X-ray works in CubeFlow's 3D view. The
+  warehouse stands in a hall with windows, columns and roof lamps. The walls on your side drop to a
+  kerb so you can see in. **Lights out** switches the hall lights off: the robots keep working in the
+  dark, and only the stations, packing and the dock stay lit.
 - **ABC & heat** colours storage by velocity class and shows traffic heat. CubeFlow's **X-ray** shows
   every buried bin; in the three racking systems the **Levels** slider cuts the racking away above
   a level (or shows one level only), so you can check level by level where the fast movers sit.

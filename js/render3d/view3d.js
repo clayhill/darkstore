@@ -21,7 +21,7 @@
   // gives each object its own fixed range so only changed objects are rewritten.
   class Batch {
     constructor(view, geo, mat, o = {}) {
-      Object.assign(this, { view, geo, mat, shadow: o.shadow !== false, n: 0, cap: 0, picks: [], mesh: null });
+      Object.assign(this, { view, geo, mat, shadow: o.shadow !== false, cast: o.cast !== false, n: 0, cap: 0, picks: [], mesh: null });
       this.alloc(o.cap || 256);
     }
     alloc(cap) {
@@ -32,7 +32,7 @@
         m.instanceMatrix.array.set(old.instanceMatrix.array); m.instanceColor.array.set(old.instanceColor.array);
         this.view.scene.remove(old); old.dispose();
       }
-      m.frustumCulled = false; m.castShadow = m.receiveShadow = this.shadow; m.userData.batch = this;
+      m.frustumCulled = false; m.receiveShadow = this.shadow; m.castShadow = this.shadow && this.cast; m.userData.batch = this;
       this.view.scene.add(m); this.mesh = m; this.cap = cap;
     }
     begin() { this.n = 0; this.picks.length = 0; }
@@ -116,25 +116,33 @@
       this.canvas = canvas; this.labels = labels; this.lctx = labels.getContext('2d'); this.app = app;
       this.t = 0; this.CZ = 2.2; // conveyor height (levels), as in the isometric view
       const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true }));
-      r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
+      r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+      r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.25;
       r.setClearColor(BG);
       const scene = (this.scene = new THREE.Scene());
       scene.fog = new THREE.Fog(BG, 70, 190);
       this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
-      scene.add(new THREE.HemisphereLight('#c7d7ff', '#1a2332', 1.6));
+      scene.add((this.hemi = new THREE.HemisphereLight('#c7d7ff', '#1a2332', 1.6)));
       const sun = (this.sun = new THREE.DirectionalLight('#ffffff', 2.2));
       sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
       scene.add(sun, sun.target);
       // unit shapes: box, smooth cylinder, octagonal prism (flat sides facing the axes)
       const box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 18), oct = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
       oct.rotateY(Math.PI / 8);
+      // moulded shell: a unit box with rounded upright edges and bevelled top and bottom
+      const rr = new THREE.Shape(), q = 0.44, c = 0.1, bv = 0.06;
+      rr.moveTo(-q + c, -q); rr.lineTo(q - c, -q); rr.quadraticCurveTo(q, -q, q, -q + c); rr.lineTo(q, q - c); rr.quadraticCurveTo(q, q, q - c, q);
+      rr.lineTo(-q + c, q); rr.quadraticCurveTo(-q, q, -q, q - c); rr.lineTo(-q, -q + c); rr.quadraticCurveTo(-q, -q, -q + c, -q);
+      const rnd = new THREE.ExtrudeGeometry(rr, { depth: 1 - 2 * bv, bevelEnabled: true, bevelThickness: bv, bevelSize: bv, bevelSegments: 2, curveSegments: 4 });
+      rnd.translate(0, 0, -(0.5 - bv)); rnd.rotateX(-Math.PI / 2);
       const std = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0.08 });
       const lit = new THREE.MeshBasicMaterial({ toneMapped: false }); // lamps, screens, state lights
       const clear = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.32, depthWrite: false });
-      this.geos = { box, cyl, oct }; this.mats = { std, lit, clear };
+      const glass = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false, roughness: 0.15, metalness: 0.1 }); // lit like the rest
+      this.geos = { box, cyl, oct, rnd }; this.mats = { std, lit, clear, glass };
       const mk = () => ({
-        box: this.newBatch('box'), cyl: this.newBatch('cyl'), oct: this.newBatch('oct'),
-        lit: this.newBatch('box', 'lit'), litCyl: this.newBatch('cyl', 'lit'), litOct: this.newBatch('oct', 'lit'), clear: this.newBatch('box', 'clear'),
+        box: this.newBatch('box'), cyl: this.newBatch('cyl'), oct: this.newBatch('oct'), rnd: this.newBatch('rnd'),
+        lit: this.newBatch('box', 'lit'), litCyl: this.newBatch('cyl', 'lit'), litOct: this.newBatch('oct', 'lit'), litRnd: this.newBatch('rnd', 'lit'), clear: this.newBatch('box', 'clear'), glass: this.newBatch('box', 'glass'),
       });
       this.st = mk(); this.dy = mk();
       this.paths = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 }));
@@ -142,9 +150,11 @@
       this.cam = { tx: 0, ty: 0, tz: 0, yaw: Math.PI / 4, pitch: 0.62, dist: 40, walk: false, ex: 0, ey: 0, follow: null };
       this.keys = new Set(); this.ray = new THREE.Raycaster(); this.last = 0;
       this.staticKey = null;
+      this.spots = [];
+      try { this.dark = localStorage.getItem('ds-lights-out') === '1'; } catch (e) { this.dark = false; }
       this.bindInput();
     }
-    // a batch of one shape ('box', 'cyl', 'oct') in one material ('std', 'lit' unlit, 'clear' see-through)
+    // a batch of one shape ('box', 'cyl', 'oct', 'rnd' rounded) in one material ('std', 'lit' unlit, 'clear' see-through)
     newBatch(shape, mat = 'std', cap) { return new Batch(this, this.geos[shape], this.mats[mat], { shadow: mat === 'std', cap }); }
     get sim() { return this.app.sim; }
     get opts() { return this.app.iso.opts; }
@@ -223,6 +233,8 @@
       window.addEventListener('blur', () => this.keys.clear());
       const walk = document.getElementById('btn-walk');
       if (walk) walk.addEventListener('click', () => this.setWalk(!this.cam.walk));
+      const dark = document.getElementById('btn-dark');
+      if (dark) { dark.addEventListener('click', () => this.setDark(!this.dark)); dark.classList.toggle('on', this.dark); }
     }
     mouse(e) { const r = this.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
     // direction the camera looks along the floor (x, y)
@@ -298,7 +310,7 @@
       if (!this.w) return null;
       this.ray.setFromCamera({ x: (sx / this.w) * 2 - 1, y: -(sy / this.h) * 2 + 1 }, this.camera);
       const meshes = [];
-      for (const set of [this.dy, this.st]) for (const k of ['box', 'cyl', 'oct']) if (set[k].mesh.count) meshes.push(set[k].mesh);
+      for (const set of [this.dy, this.st]) for (const k of ['box', 'cyl', 'oct', 'rnd']) if (set[k].mesh.count) meshes.push(set[k].mesh);
       for (const b of this.extraBatches()) if (b.mesh.count) meshes.push(b.mesh);
       // robots win, as in the isometric view: one under a pod is picked through it
       let first = null;
@@ -339,9 +351,11 @@
         for (const b of Object.values(this.st)) b.begin();
         this.buildStatic();
         for (const b of Object.values(this.st)) b.end();
+        this.buildHall();
         this.placeSun();
       }
       this.updateCamera(dt, alpha);
+      this.cutaway();
       for (const b of Object.values(this.dy)) b.begin();
       this.drawLive(alpha);
       this.drawStationsLive();
@@ -352,7 +366,7 @@
       this.drawLabelLayer();
     }
     // static parts are rebuilt when this changes
-    buildKey() { return [this.sim.cfg.seed, this.sim.ports.length, this.opts.heat].join('|'); }
+    buildKey() { return [this.sim.cfg.seed, this.sim.ports.length, this.opts.heat].join('|') + (this.dark ? '|dark' : ''); }
     placeSun() {
       const b = this.bounds(), cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, r = Math.hypot(b.x1 - b.x0, b.y1 - b.y0) / 2 + 4;
       this.sun.position.set(cx - r * 0.45, r * 1.1, cy + r * 0.75); this.sun.target.position.set(cx, 0, cy);
@@ -370,6 +384,148 @@
       this.buildStations(S);
     }
 
+    // ---------------------------------------------------------------- the hall
+    // Lights-out: the hall lights go off and the robots work in the dark; only
+    // the work places (stations, packing, the dock) keep a light over them.
+    setDark(on) {
+      this.dark = on; this.staticKey = null;
+      try { localStorage.setItem('ds-lights-out', on ? '1' : '0'); } catch (e) { /* private window */ }
+      const b = document.getElementById('btn-dark');
+      if (b) b.classList.toggle('on', on);
+    }
+    // metres to render levels
+    lv(m) { return m / (LZ * (this.sim.cfg.cellSize || 1)); }
+    // the floor the hall stands on and its doors ({ side: 'N' | 'S' | 'W' | 'E', a, b along the wall, h high })
+    hall() {
+      const b = this.bounds(), L = this.sim.layout, d = L && L.dock ? L.dock() : null;
+      return { x0: b.x0 - 0.5, y0: b.y0 - 0.5, x1: d ? d.x + 0.1 : b.x1 + 0.5, y1: b.y1 + 0.5, doors: d ? [{ side: 'E', a: d.y - 1.45, b: d.y + 1.45, h: 7.6 }] : [] };
+    }
+    // where people work: these keep a light in lights-out
+    workLights() {
+      const sim = this.sim, L = sim.layout, out = sim.ports.map((p) => L.operatorPos(p));
+      for (const pk of sim.oms.packers) out.push(L.packerOperator(pk));
+      const d = L.dock(); out.push({ x: d.x - 1, y: d.y });
+      return out;
+    }
+    // highest point of the static parts, in levels
+    staticTop() {
+      let top = 0;
+      for (const b of Object.values(this.st)) {
+        const a = b.mesh.instanceMatrix.array;
+        for (let i = 0; i < b.n; i++) { const o = i * 16; top = Math.max(top, a[o + 13] + (Math.abs(a[o + 1]) + Math.abs(a[o + 5]) + Math.abs(a[o + 9])) / 2); }
+      }
+      return top / LZ;
+    }
+    // Walls round the hall with a concrete plinth, cladding, a band of
+    // windows and steel columns; roof trusses with high-bay lamps. A wall on the
+    // camera's side drops to a low kerb so the view stays open.
+    buildHall() {
+      const H = (this.hallRect = this.hall()), cs = this.sim.cfg.cellSize || 1, T = 0.3 / cs;
+      const top = (this.hallTop = Math.max(this.staticTop() + this.lv(2.5), this.lv(7.5)));
+      const plinth = this.lv(1.2), kerb = this.lv(0.9), w0 = top - this.lv(2.4), w1 = top - this.lv(1.0), colStep = Math.max(4, Math.round(6 / cs));
+      if (!this.walls) {
+        this.walls = {};
+        for (const k of ['N', 'S', 'W', 'E']) this.walls[k] = { full: new Batch(this, this.geos.box, this.mats.std, { cast: false }), glass: new Batch(this, this.geos.box, this.mats.glass, { shadow: false }), low: new Batch(this, this.geos.box, this.mats.std, { cast: false }) };
+        this.roof = { box: new Batch(this, this.geos.box, this.mats.std, { cast: false }), cyl: new Batch(this, this.geos.cyl, this.mats.std, { cast: false }), lit: new Batch(this, this.geos.cyl, this.mats.lit, { shadow: false }) };
+        const T3 = THREE;
+        this.hallFloor = new T3.Mesh(new T3.PlaneGeometry(1, 1), new T3.MeshStandardMaterial({ color: '#2a3446', roughness: 0.7, metalness: 0.05 }));
+        this.hallFloor.rotation.x = -Math.PI / 2; this.hallFloor.receiveShadow = true; this.scene.add(this.hallFloor);
+      }
+      this.hallFloor.scale.set(H.x1 - H.x0, H.y1 - H.y0, 1); this.hallFloor.position.set((H.x0 + H.x1) / 2, -0.001, (H.y0 + H.y1) / 2);
+      if (this.ground) this.ground.material.color.set(this.dark ? '#0b0f17' : '#161d29');
+      const put = (B, side, s0, s1, t0, t1, z0, z1, c) => { // s along the wall, t outwards from its line
+        if (side === 'N') B.box(s0, H.y0 - t1, z0, s1, H.y0 - t0, z1, c);
+        else if (side === 'S') B.box(s0, H.y1 + t0, z0, s1, H.y1 + t1, z1, c);
+        else if (side === 'W') B.box(H.x0 - t1, s0, z0, H.x0 - t0, s1, z1, c);
+        else B.box(H.x1 + t0, s0, z0, H.x1 + t1, s1, z1, c);
+      };
+      const glassCol = this.dark ? '#0b1730' : '#9cc9f0';
+      for (const side of ['N', 'S', 'W', 'E']) {
+        const W = this.walls[side], along = side === 'N' || side === 'S', a = (along ? H.x0 : H.y0) - T, b = (along ? H.x1 : H.y1) + T;
+        W.full.begin(); W.glass.begin(); W.low.begin();
+        const doors = H.doors.filter((d) => d.side === side).sort((p, q) => p.a - q.a), spans = [];
+        let s = a;
+        for (const d of doors) { spans.push([s, d.a]); s = d.b; }
+        spans.push([s, b]);
+        for (const [s0, s1] of spans) {
+          if (s1 - s0 < 1e-3) continue;
+          put(W.full, side, s0, s1, 0, T, 0, plinth, '#4b5563');
+          put(W.full, side, s0, s1, 0.04, T, plinth, w0, '#344256');
+          put(W.glass, side, s0, s1, 0.1, 0.16, w0, w1, glassCol);
+          put(W.full, side, s0, s1, 0.04, T, w1, top, '#344256');
+          put(W.full, side, s0, s1, -0.05, T + 0.05, top, top + this.lv(0.35), '#5b6b80');
+          for (let r = s0 + 0.5 / cs; r < s1 - 0.1; r += 1 / cs) put(W.full, side, r - 0.03, r + 0.03, 0, 0.04, plinth, w0, '#3d4b60');
+          for (let r = s0 + 1 / cs; r < s1 - 0.5; r += 2 / cs) put(W.full, side, r - 0.04, r + 0.04, 0.1, 0.16, w0, w1, '#5b6b80');
+          put(W.low, side, s0, s1, 0, T, 0, kerb, '#4b5563');
+          put(W.low, side, s0, s1, -0.03, T + 0.03, kerb, kerb + this.lv(0.12), '#facc15');
+        }
+        for (const d of doors) {
+          put(W.full, side, d.a, d.b, 0.04, T, d.h, top, '#344256');
+          put(W.full, side, d.a - 0.1, d.b + 0.1, -0.06, T, d.h - 0.4, d.h, '#1f2937');
+          for (const e of [d.a, d.b]) for (const B of [W.full, W.low]) {
+            const hh = B === W.low ? kerb : d.h;
+            for (let z = 0; z < hh; z += 0.6) put(B, side, e - 0.1, e + 0.1, -0.06, T + 0.02, z, Math.min(hh, z + 0.6), (z / 0.6) % 2 < 1 ? '#facc15' : '#111827');
+          }
+        }
+        // steel columns on the inside face, the bottom in a yellow guard
+        const span = b - a, n = Math.max(1, Math.round(span / colStep));
+        for (let k = 0; k <= n; k++) {
+          const r = a + T + ((span - 2 * T) * k) / n;
+          if (doors.some((d) => r > d.a - 0.4 && r < d.b + 0.4)) continue;
+          put(W.full, side, r - 0.15 / cs, r + 0.15 / cs, -0.3 / cs, 0, 0, top, '#556275');
+          put(W.full, side, r - 0.2 / cs, r + 0.2 / cs, -0.35 / cs, 0, 0, this.lv(1.0), '#eab308');
+          put(W.low, side, r - 0.2 / cs, r + 0.2 / cs, -0.35 / cs, 0, 0, kerb + this.lv(0.12), '#eab308');
+        }
+        W.full.end(); W.glass.end(); W.low.end();
+      }
+      // roof trusses across the hall with lamps hanging from them
+      const R = this.roof, lights = this.workLights(), xs = [];
+      for (const B of Object.values(R)) B.begin();
+      const nx = Math.max(1, Math.round((H.x1 - H.x0) / colStep));
+      for (let k = 1; k < nx; k++) xs.push(H.x0 + ((H.x1 - H.x0) * k) / nx);
+      const lamp = (x, y, on) => {
+        R.cyl.cyl(x, y, top - this.lv(1.4), top - this.lv(0.4), 0.015 / cs, '#64748b');
+        R.cyl.cyl(x, y, top - this.lv(1.65), top - this.lv(1.4), 0.3 / cs, '#1f2937');
+        (on ? R.lit : R.cyl).cyl(x, y, top - this.lv(1.68), top - this.lv(1.65), 0.26 / cs, on ? '#fff4d6' : '#273244');
+      };
+      for (const x of xs) {
+        R.box.box(x - 0.1 / cs, H.y0, top - this.lv(0.5), x + 0.1 / cs, H.y1, top - this.lv(0.1), '#3b4a5f');
+        R.box.box(x - 0.1 / cs, H.y0, top - this.lv(1.0), x + 0.1 / cs, H.y1, top - this.lv(0.85), '#3b4a5f');
+        for (let y = H.y0 + colStep / 2; y < H.y1; y += colStep) lamp(x, y, !this.dark);
+      }
+      // a lamp over every work place
+      for (const p of lights) lamp(p.x, p.y, true);
+      for (const B of Object.values(R)) B.end();
+      this.applyLights(lights, top);
+    }
+    // the light level of the hall, and a spot over every work place in lights-out
+    applyLights(lights, top) {
+      const dark = this.dark, bg = dark ? '#03060c' : BG;
+      this.renderer.setClearColor(bg); this.scene.fog.color.set(bg);
+      this.hemi.intensity = dark ? 0.22 : 1.6; this.hemi.color.set(dark ? '#7d8fc9' : '#c7d7ff');
+      this.sun.intensity = dark ? 0.1 : 2.2;
+      const n = dark ? Math.min(24, lights.length) : 0;
+      while (this.spots.length < n) {
+        const sp = new THREE.SpotLight('#ffe9c4', 1, 0, 0.6, 0.65, 2);
+        this.scene.add(sp, sp.target); this.spots.push(sp);
+      }
+      this.spots.forEach((sp, k) => {
+        sp.visible = k < n;
+        if (k >= n) return;
+        // a pool about 3.5 m across whatever the hall's height, as bright as the hall lights
+        const p = lights[k], h = (top - this.lv(1.7)) * LZ, r = 3.5 / (this.sim.cfg.cellSize || 1);
+        sp.position.set(p.x, h, p.y); sp.target.position.set(p.x, 0, p.y); sp.angle = Math.atan(r / h); sp.intensity = 3.2 * h * h;
+      });
+    }
+    // walls between the camera and the hall drop to their kerb; the roof shows from inside only
+    cutaway() {
+      if (!this.walls) return;
+      const p = this.camera.position, H = this.hallRect, out = { N: p.z < H.y0, S: p.z > H.y1, W: p.x < H.x0, E: p.x > H.x1 };
+      for (const [k, W] of Object.entries(this.walls)) { W.full.mesh.visible = W.glass.mesh.visible = !out[k]; W.low.mesh.visible = out[k]; }
+      const inside = p.y < this.hallTop * LZ;
+      for (const B of Object.values(this.roof)) B.mesh.visible = inside;
+    }
+
     // ---------------------------------------------------------------- shared parts
     // conveyor: frame from the floor up to z with rollers across it
     conveyor(B, pts, width, z, color) {
@@ -385,12 +541,23 @@
         }
       }
     }
+    // Audit (tests only): while this.probe is an array, every storage unit
+    // drawn is recorded in it as { kind, box: [x0, y0, z0, x1, y1, z1], who }
+    // (who: the drawing function), so a test can find units that intersect.
+    probeAdd(kind, x0, y0, z0, x1, y1, z1) {
+      const line = (new Error().stack.split('\n')[3] || '').trim().replace(/^at /, '').split(' ')[0];
+      this.probe.push({ kind, box: [Math.min(x0, x1), Math.min(y0, y1), z0, Math.max(x0, x1), Math.max(y0, y1), z1], who: line });
+    }
     // Plastic tote: four walls and a floor, open at the top.
     tote(B, x0, y0, x1, y1, z0, h, color) {
+      if (this.probe) this.probeAdd('tote', x0, y0, z0, x1, y1, z0 + h);
       const t = 0.035, zt = z0 + h;
       B.box(x0, y0, z0, x1, y1, z0 + 0.08, WS.shade(color, -0.3));
       B.box(x0, y0, z0, x1, y0 + t, zt, color); B.box(x0, y1 - t, z0, x1, y1, zt, color);
       B.box(x0, y0, z0, x0 + t, y1, zt, WS.shade(color, -0.12)); B.box(x1 - t, y0, z0, x1, y1, zt, WS.shade(color, -0.12));
+      // hand holes in the short ends, below a thicker rim
+      const hz0 = z0 + h * 0.68, hz1 = z0 + h * 0.84, dark = WS.shade(color, -0.55);
+      if (x1 - x0 < y1 - y0) { const hw = (x1 - x0) * 0.22, mx = (x0 + x1) / 2; for (const e of [y0, y1]) B.box(mx - hw, e - 0.005, hz0, mx + hw, e + 0.005, hz1, dark); } else { const hw = (y1 - y0) * 0.22, my = (y0 + y1) / 2; for (const e of [x0, x1]) B.box(e - 0.005, my - hw, hz0, e + 0.005, my + hw, hz1, dark); }
     }
     // blue order tote, fill (0..1) = share of the order already in it
     orderTote(B, x, y, z, fill, s = 1) {
@@ -403,6 +570,7 @@
       }
     }
     parcel(B, x0, y0, x1, y1, z0, h, label) {
+      if (this.probe) this.probeAdd('parcel', x0, y0, z0, x1, y1, z0 + h);
       const my = (y0 + y1) / 2, tw = Math.min(0.06, (y1 - y0) * 0.15);
       B.box(x0, y0, z0, x1, y1, z0 + h, '#b8875a');
       B.box(x0 - 0.005, my - tw, z0 + h * 0.6, x1 + 0.005, my + tw, z0 + h + 0.01, '#e6c79c');
@@ -453,15 +621,16 @@
       const sx = front ? p.drop.x + 1.75 : g.W + 1.9, sy = front ? g.D + 1.95 : p.drop.y + 1.75;
       D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, p.job ? '#0c4a6e' : '#111c2e');
       const bin = (x, y, id, s) => this.tote(D.box, x - s.w, y - s.d, x + s.w, y + s.d, CZ, 0.95, this.binColor(id)), sz = this.portBinSize(p);
-      p.inQ.forEach((q, k) => { const f = k === 0 ? Math.min(1, q.t / sim.cfg.conveyorStep) : 0, a = pp.entry[0], b = pp.entry[1]; bin(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, q.bin.id, sz.q); });
+      p.inQ.forEach((q, k) => { const f = k === 0 ? Math.min(1, q.t / sim.cfg.conveyorStep) : 0, a = pp.entry[0], b = pp.head; bin(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, q.bin.id, sz.q); });
       if (p.pick) { const q = this.pickPos(p); bin(q.x, q.y, p.pick.id, sz.pick); }
-      p.outQ.forEach((b, k) => { const e = pp.exit[k === 0 ? 1 : 0]; bin(e.x, e.y, b.id, sz.q); });
+      p.outQ.forEach((b, k) => { const e = this.outPos(p, k); bin(e.x, e.y, b.id, sz.q); });
       const x0 = front ? p.drop.x + 0.1 : g.W, y0 = front ? g.D : p.drop.y + 0.1;
       this.stackLight(front ? x0 + 0.12 : g.W + 0.12, front ? g.D + 0.12 : y0 + 0.12, CZ + 2.2, p);
     }
     // bin sizes and the sliding pick position, as in the isometric view
     portBinSize(p) { return WS.IsoRenderer.prototype.portBinSize.call(this, p); }
     pickPos(p) { return WS.IsoRenderer.prototype.pickPos.call(this, p); }
+    outPos(p, k) { return WS.IsoRenderer.prototype.outPos.call(this, p, k); }
     binColor(id) {
       const inv = this.sim.inv, b = id ? inv.binById.get(id) : null;
       return this.opts.heat && b ? WS.CLASS_COLORS[inv.binClass(b)] : '#64748b';
@@ -480,7 +649,7 @@
       const sim = this.sim, L = sim.layout, oms = sim.oms, CZ = this.CZ;
       const lastPk = L.packerPos(oms.packers.length - 1);
       this.conveyor(S, [{ x: 1.2, y: L.takeawayY }, { x: lastPk.x, y: L.takeawayY }], 0.5, 1.6);
-      for (const p of sim.ports) if (p.kind === 'PICK') this.conveyor(S, [{ x: L.spurX(p), y: L.slotPos(p, 0).y }, { x: L.spurX(p), y: L.takeawayY - 0.25 }], 0.45, 1.6);
+      for (const p of sim.ports) if (p.kind === 'PICK') { const y = L.backLaneY(p); this.conveyor(S, [{ x: L.backLaneX(p), y }, { x: L.spurX(p), y }, { x: L.spurX(p), y: L.takeawayY - 0.25 }], 0.45, 1.6); }
       for (const pk of oms.packers) { const q = L.packerPos(pk.idx); this.conveyor(S, [{ x: q.x, y: L.takeawayY + 0.25 }, { x: q.x, y: q.y - 0.75 }], 0.45, 1.6); }
       for (const pk of oms.packers) this.conveyor(S, L.parcelRoute(pk.idx).slice(0, 2), 0.45, 1.4, '#2b3646');
       const r0 = L.parcelRoute(0);
@@ -562,7 +731,6 @@
       }
       for (const pk of oms.packers) {
         const q = L.packerPos(pk.idx);
-        for (let k = Math.min(pk.queue.length, 3) - 1; k >= 0; k--) this.orderTote(D.box, q.x, q.y - 1.05, 1.6 + k * 0.85, 0.8, 0.9);
         if (pk.kind === 'bagger') this.baggerLive(pk, q);
         else if (pk.kind === 'boxer') this.boxMakerLive(pk, q);
         else D.lit.box(q.x - 0.95, q.y - 0.44, 3.38, q.x - 0.53, q.y - 0.43, 4.22, pk.cur ? '#0c4a6e' : '#111c2e');
@@ -587,7 +755,7 @@
       // totes and parcels on the conveyors
       for (const it of oms.conveyor) {
         const q = oms.posOnPath(it);
-        if (it.kind === 'tote') this.orderTote(D.box, q.x, q.y, 1.6, 1, 0.85);
+        if (it.kind === 'tote') this.orderTote(D.box, q.x, q.y, q.z ?? 1.6, 1, 0.85);
         else if (it.order.pack === 'bagger') this.bag(D.box, q.x, q.y, 1.4);
         else this.parcel(D.box, q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, true);
       }

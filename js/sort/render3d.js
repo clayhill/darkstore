@@ -13,6 +13,7 @@
   class SortRenderer3D extends WS.View3D {
     bounds() { const g = this.sim.grid; return { x0: -2, y0: -2, x1: g.W + 2, y1: g.D + 4 }; }
     get robotZ() { return this.sim.tray ? 0 : PZ; }
+    workLights() { const g = this.sim.grid; return this.sim.ports.map((p) => (this.sim.tray ? { x: p.slot.x + 0.8, y: g.Yt - 2.6 } : { x: p.drop.x + 1.2, y: g.D + 1.5 })); }
     buildKey() { const c = this.sim.cfg; return [c.seed, c.mechanism, c.chutes, c.inducts, this.sim.grid.W, this.sim.grid.D].join('|'); }
     fit() {
       super.fit();
@@ -127,9 +128,9 @@
     // tray on top that tips the parcel into the hole.
     sortRobot(r, x, y) {
       const sim = this.sim, D = this.dy, pick = { kind: 'robot', id: r.id }, h = 0.3, z = PZ;
-      D.box.box(x - h, y - h, z, x + h, y + h, z + 0.16, '#e2e8f0', pick);
-      D.lit.box(x - h - 0.005, y - h - 0.005, z + 0.16, x + h + 0.005, y + h + 0.005, z + 0.24, WS.stateColor(sim, r.displayState));
-      D.box.box(x - h, y - h, z + 0.24, x + h, y + h, z + 0.34, '#e2e8f0', pick);
+      D.rnd.box(x - h, y - h, z, x + h, y + h, z + 0.16, '#e2e8f0', pick);
+      D.litRnd.box(x - h - 0.005, y - h - 0.005, z + 0.16, x + h + 0.005, y + h + 0.005, z + 0.24, WS.stateColor(sim, r.displayState));
+      D.rnd.box(x - h, y - h, z + 0.24, x + h, y + h, z + 0.34, '#e2e8f0', pick);
       const f = r.tip != null ? Math.min(1, (sim.time - r.tip) / 0.3) : 0;
       D.box.box(x - h, y - h, z + 0.36 - f * 0.1, x + h, y + h, z + 0.42 - f * 0.1, '#0ea5e9', pick);
       if (r.parcel && !f) { const p = r.parcel, s = 0.22 * p.size; D.box.box(x - s, y - s * 0.8, z + 0.42, x + s, y + s * 0.8, z + 0.85, CARTON(p)); }

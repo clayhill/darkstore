@@ -66,6 +66,11 @@
       B.end(); G.end();
     }
 
+    // stored bins for the audit (WS.View3D.probe)
+    probeStatic(out) {
+      const g = this.sim.grid;
+      for (let i = 0; i < g.stacks.length; i++) for (let z = 0; z < g.stacks[i].length; z++) out.push({ kind: 'stored', box: [g.cx(i) + 0.07, g.cy(i) + 0.07, z + 0.03, g.cx(i) + 0.93, g.cy(i) + 0.93, z + 0.97], who: 'stack ' + g.stacks[i][z] });
+    }
     drawLive(alpha) {
       const sim = this.sim, g = sim.grid, Z = g.Z, D = this.dy;
       const key = `${g.version}|${this.opts.xray}|${this.opts.heat}|${sim.inv.bins.length}`;
@@ -110,10 +115,10 @@
       for (const wx of [x0 + 0.23, x1 - 0.23]) for (const wy of [y0 - 0.01, y1 - 0.03]) D.cyl.cylY(wx, wy, wy + 0.04, Z + 0.24 + lx, 0.11, '#0b0f17');
       for (const wy of [y0 + 0.23, y1 - 0.23]) for (const wx of [x0 - 0.01, x1 - 0.03]) D.cyl.cylX(wx, wx + 0.04, wy, Z + 0.24 + ly, 0.11, '#0b0f17');
       D.box.box(x0 - 0.005, y0 - 0.005, zc, x1 + 0.005, y1 + 0.005, zc + 0.16, '#334155', pick);
-      D.box.box(x0, y0, zc + 0.16, x1, y1, zt - 0.14, '#f1f5f9', pick);
+      D.rnd.box(x0, y0, zc + 0.16, x1, y1, zt - 0.14, '#f1f5f9', pick);
       D.lit.box(x0 + 0.06, y0 - 0.006, zt - 0.5, x1 - 0.06, y1 + 0.006, zt - 0.38, col);
       D.lit.box(x0 - 0.006, y0 + 0.06, zt - 0.5, x1 + 0.006, y1 - 0.06, zt - 0.38, col);
-      D.box.box(x0 + 0.03, y0 + 0.03, zt - 0.14, x1 - 0.03, y1 - 0.03, zt, '#e2e8f0', pick);
+      D.rnd.box(x0 + 0.03, y0 + 0.03, zt - 0.14, x1 - 0.03, y1 - 0.03, zt, '#e2e8f0', pick);
       D.lit.box(x0 + 0.2, y0 + 0.2, zt, x1 - 0.2, y1 - 0.2, zt + 0.02, WS.shade(col, 0.2));
     }
     followPos(id, alpha) {

@@ -120,10 +120,11 @@
     // the back carrying the tablet, lit while the robot waits for a picker.
     drawRobot(r, x, y, pick) {
       const sim = this.sim, oms = sim.oms, D = this.dy, col = WS.stateColor(sim, r.displayState), h = 0.36;
-      D.box.box(x - h - 0.01, y - h - 0.01, 0.02, x + h + 0.01, y + h + 0.01, 0.2, '#1f2937', pick);
-      D.box.box(x - h, y - h, 0.2, x + h, y + h, 0.42, '#e2e8f0', pick);
-      D.lit.box(x - h - 0.005, y - h - 0.005, 0.42, x + h + 0.005, y + h + 0.005, 0.52, col);
-      D.box.box(x - h, y - h, 0.52, x + h, y + h, BODY, '#e2e8f0', pick);
+      D.rnd.box(x - h - 0.01, y - h - 0.01, 0.02, x + h + 0.01, y + h + 0.01, 0.2, '#1f2937', pick);
+      for (const s of [-1, 1]) D.cyl.cylX(x + s * (h + 0.005) - 0.035, x + s * (h + 0.005) + 0.035, y, 0.24, 0.1, '#0b0f17');
+      D.rnd.box(x - h, y - h, 0.2, x + h, y + h, 0.42, '#e2e8f0', pick);
+      D.litRnd.box(x - h - 0.005, y - h - 0.005, 0.42, x + h + 0.005, y + h + 0.005, 0.52, col);
+      D.rnd.box(x - h, y - h, 0.52, x + h, y + h, BODY, '#e2e8f0', pick);
       for (const [px, py] of [[x - 0.31, y - 0.31], [x + 0.27, y - 0.31], [x - 0.31, y + 0.27], [x + 0.27, y + 0.27]]) D.box.box(px, py, BODY, px + 0.04, py + 0.04, 3.0, '#64748b', pick);
       DECKS.forEach((dz, k) => {
         D.box.box(x - 0.32, y - 0.32, dz - 0.06, x + 0.32, y + 0.32, dz, '#334155', pick);

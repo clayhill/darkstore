@@ -16,7 +16,7 @@
       const sim = this.sim, g = sim.grid, S = this.st;
       this.buildFloor();
       // safety fence along the back and the left, charger posts on the back wall
-      S.clear.box(0, -0.03, 0, g.W, 0.0, 7.4, '#94a3b8'); S.clear.box(-0.03, 0, 0, 0, g.D, 7.4, '#94a3b8');
+      S.glass.box(0, -0.03, 0, g.W, 0.0, 7.4, '#94a3b8'); S.glass.box(-0.03, 0, 0, 0, g.D, 7.4, '#94a3b8');
       for (let x = 0; x <= g.W; x += 2) S.box.box(x - 0.04, -0.06, 0, x + 0.04, 0.02, 7.4, '#64748b');
       for (let y = 0; y <= g.D; y += 2) S.box.box(-0.06, y - 0.04, 0, 0.02, y + 0.04, 7.4, '#64748b');
       S.box.box(0, -0.06, 7.3, g.W, 0.02, 7.45, '#94a3b8'); S.box.box(-0.06, 0, 7.3, 0.02, g.D, 7.45, '#94a3b8');
@@ -115,6 +115,8 @@
         }
       }
     }
+    // a pod's footprint (turned by angle) for the audit (WS.View3D.probe)
+    probePod(cx, cy, a, z0) { const h = HALF * (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))); this.probeAdd('pod', cx - h, cy - h, z0, cx + h, cy + h, z0 + TOP); }
     stockSig(pod) { let h = 0; for (let k = 0; k < pod.comps.length; k++) h = (h * 31 + pod.comps[k].qty * (k + 1)) | 0; return h; }
 
     // ---------------------------------------------------------------- frame
@@ -129,6 +131,7 @@
         const id = g.podAt[i]; if (!id) continue;
         const pod = inv.binById.get(id), k = this.podIdx.get(id), lift = (lifting.get(i) || 0) * 0.25;
         seen[k] = 1;
+        if (this.probe) this.probePod(g.cx(i) + 0.5, g.cy(i) + 0.5, pod.angle, lift);
         if (P.open(k, `${i}|${pod.angle}|${lift}|${pod.requests.length > 0}|${heat}|${this.stockSig(pod)}`)) {
           this.writePod(P, pod, g.cx(i) + 0.5, g.cy(i) + 0.5, pod.angle, lift, { kind: 'cell', id: i });
           P.close(k);
@@ -142,6 +145,7 @@
         let lift = 1;
         if (r.state === 'LIFTING_POD' && r.op && r.op.op === 'timer') lift = 1 - r.op.t / r.op.dur;
         seen[k] = 1;
+        if (this.probe) this.probePod(x, y, pod.angle, lift * 0.25);
         if (P.open(k, `r${x}|${y}|${pod.angle}|${lift}|${heat}|${this.stockSig(pod)}`)) { this.writePod(P, pod, x, y, pod.angle, lift * 0.25, pick); P.close(k); }
         // the pocket the operator picks from lights up
         const port = pod.loc === 'port' ? sim.ports[pod.port] : null, ln = port && port.job && port.job.bin === pod ? port.currentLine : null;

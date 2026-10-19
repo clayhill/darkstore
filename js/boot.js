@@ -86,7 +86,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
           <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
-${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n' : ''}
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>

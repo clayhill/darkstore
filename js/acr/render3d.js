@@ -11,13 +11,16 @@
     buildKey() { return super.buildKey() + '|' + this.sim.cfg.aisleMode; }
     rackPick(a, s, l, b) { return { kind: 'cell', id: this.sim.grid.idx(a * 3 + s * 2, this.Y0 + b) }; }
     followPos(id, alpha) { return WS.View3D.prototype.followPos.call(this, id, alpha); }
+    // the robot's frame and the path of a tote it moves, as in the isometric view
+    robotFrame(r, x) { return WS.AcrRenderer.prototype.robotFrame.call(this, r, x); }
+    xferTote(r, x, y, xf) { return WS.AcrRenderer.prototype.xferTote.call(this, r, x, y, xf); }
 
     buildStatic() {
       super.buildStatic();
       const sim = this.sim, g = sim.grid, S = this.st, ps = sim.ports;
       this.buildFloor();
       // fence behind the robot area, charger posts beside the parking column
-      S.clear.box(0, -0.03, 0, g.W, 0, 7.4, '#94a3b8');
+      S.glass.box(0, -0.03, 0, g.W, 0, 7.4, '#94a3b8');
       for (let x = 0; x <= g.W; x += 2) S.box.box(x - 0.04, -0.06, 0, x + 0.04, 0.02, 7.4, '#64748b');
       S.box.box(0, -0.06, 7.3, g.W, 0.02, 7.45, '#94a3b8');
       for (const ch of g.chargers) S.box.box(ch.x + 0.82, ch.y + 0.3, 0, ch.x + 0.98, ch.y + 0.7, 1.8, '#334155');
@@ -81,17 +84,19 @@
     }
 
     // Drive unit with bumper, blue band and state light; mast with the back
-    // shelves and their totes, a blue top beam with a beacon; the orange
-    // handler at its height, forks reaching into a rack while it works.
+    // shelves and their totes behind, a blue top beam with a beacon; in front
+    // the orange handler at its height, forks reaching into a rack while it
+    // works. The tote it moves follows WS.AcrRenderer.xferTote.
     drawRobot(r, x, y) {
-      const sim = this.sim, g = sim.grid, D = this.dy, N = sim.cfg.robotSlots, col = WS.stateColor(sim, r.displayState), pick = { kind: 'robot', id: r.id };
-      const cx = x + 0.5, cy = y + 0.5, H = g.Z + 0.5, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.28, y1 = cy + 0.28;
-      D.box.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, 0.14, '#1e293b', pick);
-      D.box.box(cx - 0.41, cy - 0.41, 0.14, cx + 0.41, cy + 0.41, BODY, '#e2e8f0', pick);
-      D.box.box(cx - 0.415, cy - 0.415, 0.22, cx + 0.415, cy + 0.415, 0.3, BLUE, pick);
+      const sim = this.sim, D = this.dy, N = sim.cfg.robotSlots, col = WS.stateColor(sim, r.displayState), pick = { kind: 'robot', id: r.id };
+      const F = this.robotFrame(r, x), cx = x + 0.5, cy = y + 0.5, H = F.H, x0 = cx - 0.3, x1 = cx + 0.3, y0 = cy - 0.42, y1 = cy + 0.02;
+      D.rnd.box(cx - 0.42, cy - 0.42, 0.02, cx + 0.42, cy + 0.42, 0.14, '#1e293b', pick);
+      for (const s of [-1, 1]) D.cyl.cylX(cx + s * 0.425 - 0.035, cx + s * 0.425 + 0.035, cy, 0.24, 0.1, '#0b0f17');
+      D.rnd.box(cx - 0.41, cy - 0.41, 0.14, cx + 0.41, cy + 0.41, BODY, '#e2e8f0', pick);
+      D.rnd.box(cx - 0.415, cy - 0.415, 0.22, cx + 0.415, cy + 0.415, 0.3, BLUE, pick);
       D.lit.box(cx - 0.14, cy + 0.415, 0.36, cx + 0.14, cy + 0.42, 0.44, col);
       for (const [px, py] of [[x0, y0], [x1 - 0.07, y0], [x0, y1 - 0.07], [x1 - 0.07, y1 - 0.07]]) D.box.box(px, py, BODY, px + 0.07, py + 0.07, H, '#e2e8f0', pick);
-      const shelfZ = (k) => BODY + 0.5 + (k * (H - BODY - 1.6)) / Math.max(1, N - 1), xf = this.xfer(r);
+      const shelfZ = F.shelfZ, xf = this.xfer(r);
       for (let k = 0; k < N; k++) {
         D.box.box(x0, y0, shelfZ(k) - 0.04, x1, y1, shelfZ(k), '#94a3b8', pick);
         const id = r.load[k];
@@ -99,18 +104,12 @@
       }
       D.box.box(x0, y0, H, x1, y1, H + 0.2, BLUE, pick);
       D.litCyl.cyl(cx, cy, H + 0.2, H + 0.45, 0.06, col);
-      // handler and forks; a tote taken or put slides between its shelf and the rack
+      // handler and forks in front of the shelves, and the tote it is moving
       const e = xf ? xf.reach * 0.75 : 0;
-      D.box.box(cx - 0.36, cy - 0.32, r.mast - 0.08, cx + 0.36, cy + 0.32, r.mast + 0.06, ORANGE, pick);
-      // (or a station's conveyor, taking on the conveyor's tote size)
-      if (xf && xf.u != null) {
-        const k = xf.take ? r.load.length : r.load.indexOf(xf.id), u = xf.u, T = sim.convTote();
-        const at = xf.at || { x: this.sideX(Math.round((x - 1) / 3), xf.side), y: cy }, w = xf.at ? 0.25 + (T.w - 0.25) * u : 0.25, d = xf.at ? 0.23 + (T.d - 0.23) * u : 0.23;
-        const tx = cx + (at.x - cx) * u, ty = cy + (at.y - cy) * u, tz = shelfZ(k) + (r.mast + 0.06 - shelfZ(k)) * u;
-        this.box3(D.box, tx - w, ty - d, tx + w, ty + d, tz, this.binColor(xf.id));
-      }
-      if (xf && xf.side === 2) for (const fx of [cx - 0.24, cx + 0.18]) D.box.box(fx, cy - 0.3, r.mast + 0.06, fx + 0.06, cy + 0.36 + e, r.mast + 0.11, '#cbd5e1', pick);
-      else for (const fy of [cy - 0.24, cy + 0.18]) {
+      D.box.box(cx - 0.36, cy + 0.02, r.mast - 0.08, cx + 0.36, cy + 0.42, r.mast + 0.06, ORANGE, pick);
+      if (xf && xf.u != null) { const q = this.xferTote(r, x, y, xf); this.box3(D.box, q.x - q.w, q.y - q.d, q.x + q.w, q.y + q.d, q.z, this.binColor(xf.id)); }
+      if (xf && xf.side === 2) for (const fx of [cx - 0.24, cx + 0.18]) D.box.box(fx, cy + 0.02, r.mast + 0.06, fx + 0.06, cy + 0.42 + e, r.mast + 0.11, '#cbd5e1', pick);
+      else for (const fy of [cy + 0.06, cy + 0.32]) {
         const fx0 = xf && xf.side === 0 ? cx - 0.36 - e : cx - 0.3, fx1 = xf && xf.side === 1 ? cx + 0.36 + e : cx + 0.3;
         D.box.box(fx0, fy, r.mast + 0.06, fx1, fy + 0.06, r.mast + 0.11, '#cbd5e1', pick);
       }
