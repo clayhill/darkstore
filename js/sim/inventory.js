@@ -165,6 +165,7 @@
       const cand = [];
       for (const id of prod.bins) {
         const bin = this.binById.get(id);
+        if (this.sim.canReach && !this.sim.canReach(bin)) continue; // e.g. a pallet behind others in its lane
         bin.comps.forEach((c, k) => {
           if (c.gtin !== gtin) return;
           const avail = c.qty - c.reserved;

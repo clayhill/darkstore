@@ -274,4 +274,6 @@
   }
 
   WS.PreZoneSim = PreZoneSim;
+  WS.Racking = Racking;
+  WS.RackMap = RackMap;
 })((globalThis.WS = globalThis.WS || {}));

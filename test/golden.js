@@ -17,6 +17,7 @@ const RUNS = {
   acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],
   sort: ['sort', {}], 'sort-tray': ['sort', { mechanism: 'tray' }],
   amr: ['amr', {}], 'amr-nozones': ['amr', { zonePicking: 'off' }],
+  pallet: ['pallet', {}], 'pallet-small': ['pallet', { palletVolume: 25 }],
 };
 
 // Child mode: run one type and print its fingerprint lines.

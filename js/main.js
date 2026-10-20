@@ -95,6 +95,7 @@
     acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer, Renderer3D: WS.AcrRenderer3D }),
     sort: () => ({ Sim: WS.SortSim, Renderer: WS.SortRenderer, Renderer3D: WS.SortRenderer3D }),
     amr: () => ({ Sim: WS.AmrSim, Renderer: WS.AmrRenderer, Renderer3D: WS.AmrRenderer3D }),
+    pallet: () => ({ Sim: WS.PalletSim, Renderer: WS.PalletRenderer, Renderer3D: WS.PalletRenderer3D }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

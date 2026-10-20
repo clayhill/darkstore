@@ -1,0 +1,112 @@
+DarkStore - pallet shuttle store
+================================
+
+Read common.txt first. Implemented as DeepLane.
+
+1. Overview
+
+Storage is a block of racking with deep lanes: each lane holds several
+pallets one behind the other, on both sides of a transfer aisle that runs
+along the front of the lanes on every level. A carrier (mother shuttle) runs
+along each level's transfer aisle with a satellite (child shuttle) on board.
+At a lane the satellite drives in on the lane's rails, under the pallets,
+lifts one off the rails and brings it back onto the carrier. At the front of
+the block a lift moves pallets between the levels and the pallet conveyors
+that feed the stations.
+
+This is the densest way to store pallets: no aisle per lane, only one
+transfer aisle per level. It suits few SKUs with many pallets each (food,
+drinks, consumer goods), and the price is access: in a lane only the pallet
+nearest the transfer aisle can be taken.
+
+2. Layout
+
+- A position is [block][level][side][lane][position in the lane], the
+  position counted from the transfer aisle (0 = the front pallet).
+- One SKU per lane. A lane is filled from the back: a pallet put away goes
+  in front of the others, so a lane works last in, first out.
+- The two lanes nearest the lift on each side of a level hold the level
+  buffers instead of pallets: short conveyors between the carrier and the
+  lift, outbound on the left, inbound on the right (as in RailRunner).
+- In front of the blocks a one-way pallet conveyor loop (the pre-zone, as
+  in RailRunner) connects the lifts with the stations. Full pallets join it
+  from the receiving dock on its left; empty pallets leave it to the
+  empty-pallet stacker on its right.
+
+3. Equipment
+
+Carrier
+  - One per level of each block, rail powered, runs along the transfer
+    aisle: acceleration and braking, plus a fixed time to line up with a
+    lane.
+Satellite
+  - Rides on its carrier and drives into the lanes on their rails, with its
+    own acceleration and braking, and a fixed time to lift a pallet off the
+    rails or set it down.
+Lift
+  - One per block, one pallet, with a platform on each side in line with
+    the buffers and the block's conveyors. Acceleration and braking, a
+    transfer time at each end. Usually the bottleneck.
+Conveyor
+  - Fixed speed; pallets keep their distance and give way where lines meet.
+
+4. Retrieval
+
+1. Only the front pallet of a lane can be reserved for an order line, and
+   not while a pallet is on its way into that lane.
+2. An order line the front pallets cannot fill on their own takes all a
+   front pallet has left (it then leaves empty) and goes on with the
+   pallet behind it. That pallet is fetched once the one in front has gone.
+3. The carrier drives to the lane, the satellite fetches the pallet, the
+   carrier drives to the front and the satellite sets it down in the
+   outbound buffer (waiting while the buffer is full).
+4. The lift brings it down to the conveyor, which takes it to the station.
+
+5. Storage policy
+
+- A returning pallet goes in front of pallets of its own SKU, or into an
+  empty lane, never in front of a pallet a station is waiting for.
+- Lanes its SKU already has are preferred, so a SKU does not spread over
+  many half-empty lanes.
+- Velocity-based: fast movers in the lanes nearest the lift, spread over
+  the blocks and levels with the least work queued (as in RailRunner).
+- A pallet picked empty does not go back: it leaves the loop to the
+  empty-pallet stacker.
+
+6. Inbound
+
+Received goods arrive as new full pallets at the receiving dock (as many as
+the receipt needs, each as full as a pallet holds). The conveyor takes each
+one past the goods-in station, where the operator checks and labels it, and
+on into the store. Replenishment orders whole pallets: below half a pallet,
+two more.
+
+7. Output
+
+On top of the common output:
+
+- Lift utilization and carrier cycles per hour.
+- Pallets stored against positions, pallets received and pallets emptied.
+
+8. Parameters
+
+These are the defaults in js/pallet/config.js. A real store is usually
+larger (more levels, longer and deeper lanes); these values keep the 3D view
+readable.
+
+  blocks               2
+  levels               6, 1.9 m apart
+  lanes                12 per side (1.25 m apart), the two front lanes of
+                       each side hold the level buffers
+  lane depth           6 pallets (1.3 m apart)
+  pallet               1200 x 800 mm, 900 L of goods
+  carrier              2.0 m/s, 0.5 m/s2, 1.0 s to line up with a lane
+  satellite            1.0 m/s, 0.5 m/s2, 2.5 s to lift or set down
+  level buffer         2 pallets out (left), 2 pallets in (right)
+  lift                 1 pallet, 1.5 m/s, 0.8 m/s2, 6 s per transfer
+  conveyor             0.5 m/s
+  stations             3 pick, 1 goods-in, 3 pallets in flight per station
+  orders               70 per hour
+
+Not modelled yet: lanes reachable from both ends (first in, first out),
+carriers that change level, full-pallet orders that leave without picking.

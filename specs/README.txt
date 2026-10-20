@@ -18,6 +18,8 @@ output) are written down once, in common.txt.
                 (implemented as StackPilot)
   crane.txt     stacker crane AS/RS: one crane per aisle, mini-load (totes)
                 or unit-load (pallets) (mini-load implemented as SkyStack)
+  pallet.txt    pallet shuttle store: deep lanes, a carrier with a satellite
+                per level, lifts (implemented as DeepLane)
   sort.txt      parcel sorter: a tilt-tray loop or a robot sorter sorting a
                 parcel stream into chutes (no stock; implemented as SortHub)
   amr.txt       robots alongside pickers: people still pick from ordinary

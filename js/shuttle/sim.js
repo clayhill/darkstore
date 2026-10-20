@@ -173,9 +173,15 @@
     newAisle(a) { const L = this.cfg.levels; return Object.assign(super.newAisle(a), { outBuf: Array.from({ length: L }, () => []), inBuf: Array.from({ length: L }, () => []), shuttles: [], lift: null }); }
     createMachines() {
       let id = 0;
-      for (const aisle of this.aisles) for (let l = 0; l < this.cfg.levels; l++) { const sh = new Shuttle(this, id++, aisle.a, l); aisle.shuttles.push(sh); this.fleet.push(sh); }
+      for (const aisle of this.aisles) for (let l = 0; l < this.cfg.levels; l++) { const sh = this.createShuttle(id++, aisle.a, l); aisle.shuttles.push(sh); this.fleet.push(sh); }
       for (const aisle of this.aisles) { aisle.lift = new Lift(this, id++, aisle.a); this.fleet.push(aisle.lift); }
     }
+
+    // a level machine's jobs (DeepLane's carriers bring their own)
+    storeJob(sh, item) { return shuttleStore(this, sh, item); }
+    retrieveJob(sh, t) { return shuttleRetrieve(this, sh, t); }
+    // the machines, for a type built on this one
+    createShuttle(id, a, l) { return new Shuttle(this, id, a, l); }
 
     // ---------- motion ----------
     shuttleTravel(to) { const c = this.cfg; return { op: 'travel', prop: 'pos', to, v: c.shuttleV / c.cellSize, a: c.shuttleA / c.cellSize, settle: c.bayPositioning }; }
@@ -210,12 +216,12 @@
         for (const sh of aisle.shuttles) {
           if (!sh.idle) continue;
           const inb = aisle.inBuf[sh.l];
-          if (inb.length) { sh.run(shuttleStore(this, sh, inb[0]), { type: 'STORE', bin: inb[0].bin }); continue; }
+          if (inb.length) { sh.run(this.storeJob(sh, inb[0]), { type: 'STORE', bin: inb[0].bin }); continue; }
           if (!sh.jobs.length) continue;
           let k = 0;
           sh.jobs.forEach((t, j) => { if (Math.abs(t.bin.bay + 0.5 - sh.pos) < Math.abs(sh.jobs[k].bin.bay + 0.5 - sh.pos)) k = j; });
           const t = sh.jobs.splice(k, 1)[0];
-          sh.run(shuttleRetrieve(this, sh, t), t);
+          sh.run(this.retrieveJob(sh, t), t);
         }
         // lift: the tote that has waited longest, outbound or inbound
         const lift = aisle.lift;
@@ -238,4 +244,5 @@
   }
 
   WS.ShuttleSim = ShuttleSim;
+  WS.ShuttleMachines = { Shuttle, Lift };
 })((globalThis.WS = globalThis.WS || {}));

@@ -38,6 +38,11 @@
       tabs: [['chutes', 'Chutes'], ['parcels', 'Parcels'], ['settings', 'Settings']],
       sim: ['js/sort/config.js', 'js/sort/sim.js'], view: ['js/sort/render.js', 'js/sort/ui.js'],
     },
+    pallet: {
+      name: 'DeepLane', cut: true, noSolid: true, three: ['js/render3d/rack3d.js', 'js/pallet/render3d.js'], sub: 'Pallet shuttle AS/RS', scan: 'pallet, order, machine', click: 'carriers, lifts, lanes, stations',
+      map: 'Levels × blocks', stations: 'Stations', flow: 'Pallets at stations', fleet: 'Machine',
+      sim: ['js/sim/prezone.js', 'js/shuttle/sim.js', 'js/pallet/config.js', 'js/pallet/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/pallet/render.js', 'js/pallet/ui.js'],
+    },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',
@@ -81,7 +86,7 @@ ${k.three ? '      <button data-view="3d" title="Free 3D view: orbit, walk throu
         <canvas id="iso"></canvas>
 ${k.three ? '        <canvas id="gl"></canvas><canvas id="gl-labels"></canvas>\n' : ''}
         <div class="iso-tools" id="iso-tools">
-${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n          <button data-opt="solid" title="Draw the racking solid, so it hides the machines behind it; Shift-drag to look down into the aisles">Solid racking</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
+${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n' : ''}${k.cut && !k.noSolid ? '          <button data-opt="solid" title="Draw the racking solid, so it hides the machines behind it; Shift-drag to look down into the aisles">Solid racking</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
           <button data-opt="paths" class="on">Paths</button>
           <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
           <button data-opt="labels" class="on">Labels</button>

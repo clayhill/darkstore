@@ -1,7 +1,7 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
-const sim = new WS.SIMS[kind]({ seed });
+const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
 const g = sim.grid;
 function check() {
   // single occupancy: each robot's current cell claimed by itself, no two robots on same cell
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -44,10 +44,26 @@ function checkRacking() {
     for (const p of sim.ports) p.back.forEach((b) => { if (!b.conv) put(b.id, p.code + ' return'); }); // still on the return conveyor: counted there
   }
   for (const p of sim.ports) { p.inQ.forEach((q) => put(q.bin.id, p.code)); if (p.pick) put(p.pick.id, p.code); p.outQ.forEach((b) => put(b.id, p.code)); }
+  if (kind === 'pallet') { checkLanes(); for (const b of sim.inv.bins) if (b.loc === 'dock') put(b.id, 'dock'); }
   for (const b of sim.inv.bins) {
     if (!where.has(b.id)) throw new Error(`tote ${b.id} (${b.loc}) is nowhere`);
     if (b.loc === 'grid' && where.get(b.id) !== 'slot') throw new Error(`${b.id} loc grid but in ${where.get(b.id)}`);
-    if (b.loc === 'grid' && sim.aisles[b.aisle].slot[sim.si(b.level, b.side, b.bay)] !== b.id) throw new Error('slot mismatch ' + b.id);
+    if (b.loc === 'grid' && sim.aisles[b.aisle].slot[sim.si(b.level, b.side, b.bay, b.depth)] !== b.id) throw new Error('slot mismatch ' + b.id);
+  }
+}
+// pallet lanes: filled from the back without gaps, one SKU per lane
+function checkLanes() {
+  const DN = sim.cfg.laneDepth;
+  for (const a of sim.aisles) for (let l = 0; l < sim.cfg.levels; l++) for (let s = 0; s < 2; s++) for (let b = 0; b < g.SB; b++) {
+    let gtin = null, seen = false;
+    for (let d = 0; d < DN; d++) {
+      const id = a.slot[sim.si(l, s, b, d)];
+      if (!id) { if (seen) throw new Error(`t=${sim.time.toFixed(1)} gap in lane ${a.a}.${l}.${s}.${b} at ${d}`); continue; }
+      seen = true;
+      const gt = sim.inv.binById.get(id).comps[0].gtin;
+      if (gtin && gt && gt !== gtin) throw new Error(`two SKUs in lane ${a.a}.${l}.${s}.${b}`);
+      gtin = gtin || gt;
+    }
   }
 }
 // pods: every stored pod on exactly one cell, every other pod on a robot

@@ -80,6 +80,19 @@
             <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </a>
+        <a class="card" href="deeplane.html">
+          <div class="preview">
+            <canvas data-preview="pallet" role="img" aria-label="Animated preview: carriers on every level of a pallet store sending their satellites into deep lanes for pallets, and a lift bringing the pallets down to a conveyor"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Pallet shuttle AS/RS</p>
+            <h3>DeepLane</h3>
+            <p class="desc">Pallets stored in deep lanes, one SKU per lane. On every level a carrier sends its satellite in under the pallets to fetch the front one; lifts bring them down to the pallet conveyors and the stations.</p>
+            <ul class="specs" data-specs="pallet"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
         <a class="card" href="stackpilot.html">
           <div class="preview">
             <canvas data-preview="acr" role="img" aria-label="Animated preview: robots with tall masts driving into shelving aisles, collecting several totes on their back shelves and bringing them to a station"></canvas>
@@ -127,7 +140,7 @@
 
   <script>
     // load fresh copies, so the cards always match the current simulations
-    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
+    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
   </script>
 </body>
 </html>

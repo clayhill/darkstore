@@ -4,7 +4,7 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
@@ -12,6 +12,7 @@
     crane: [`${KC.aisles} aisles`, `${KC.levels} levels`, `${KC.aisles} cranes`, `twin load handler`],
     acr: [`${AC.aisles} aisles`, `${AC.levels} levels`, `${AC.robots} robots`, `${AC.robotSlots} back shelves`],
     sort: [`${XC.parcelRate} parcels/h`, `${XC.robots} robots`, `${XC.chutes} chutes`, `or a tilt-tray loop`],
+    pallet: [`${DC.aisles} blocks`, `lanes ${DC.laneDepth} pallets deep`, `${DC.aisles * DC.levels} carriers`, `${DC.aisles} lifts`],
     amr: [`${MC.aisles} aisles of shelving`, `${MC.robots} robots`, `${MC.pickers} pickers`, `${MC.robotTotes} totes per robot`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
@@ -421,6 +422,91 @@
     });
   }
 
+  /* ---------- pallet shuttle preview ---------- */
+  // One block of deep lanes on both sides of a transfer aisle. On every level
+  // a carrier drives to a lane, its satellite dives in under the pallets and
+  // comes back with the front one; at the front the lift takes it down to the
+  // conveyor and on to a station.
+  function palletPreview(canvas) {
+    const B = 6, L = 4, LH = 1.0, Z0 = 0.3, DN = 4, AX = DN, GW = 2 * DN + 4, GD = B + 2.6, TOP = Z0 + L * LH;
+    const kit = isoKit(canvas, GW, GD, TOP + 0.8, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(17), HUES = ['#38bdf8', '#e879f9', '#facc15'], lanes = new Map();
+    for (let s2 = 0; s2 < 2; s2++) for (let l = 0; l < L; l++) for (let b = 0; b < B - 1; b++) {
+      const n = Math.floor(rand() * (DN + 1)), hue = rand() < 0.15 ? HUES[Math.floor(rand() * 3)] : null;
+      lanes.set([s2, l, b].join(), { n, hue });
+    }
+    const front = B - 0.5, conveyorY = B + 1.5, station = GW - 0.8;
+    const carriers = [...Array(L)].map((_, l) => ({ l, y: front, to: front, sat: 0, satTo: 0, side: 0, wait: rand() * 3, load: false, phase: 'idle', lane: null }));
+    const lift = { z: 0.4, to: 0.4, wait: 0.5, load: false, queue: [] }, pallets = [];
+    let glow = 0;
+    const slotX = (s2, d) => (s2 ? AX + 1 + d + 0.5 : AX - d - 0.5);
+    function step(dt) {
+      for (const c of carriers) {
+        if (c.wait > 0) { c.wait -= dt; continue; }
+        if (Math.abs(c.to - c.y) > 1e-3) { const m = 2.4 * dt; c.y = Math.abs(c.to - c.y) > m ? c.y + Math.sign(c.to - c.y) * m : c.to; continue; }
+        if (Math.abs(c.satTo - c.sat) > 1e-3) { const m = 1.8 * dt; c.sat = Math.abs(c.satTo - c.sat) > m ? c.sat + Math.sign(c.satTo - c.sat) * m : c.satTo; continue; }
+        if (c.phase === 'idle') {
+          // a lane with pallets on this level
+          const opts = [...lanes.entries()].filter(([k, v]) => v.n && k.split(',')[1] === String(c.l));
+          if (!opts.length) { c.wait = 1; continue; }
+          const [k, v] = opts[Math.floor(rand() * opts.length)], [s2, , b] = k.split(',').map(Number);
+          Object.assign(c, { lane: v, side: s2, to: b + 0.5, phase: 'in' });
+        } else if (c.phase === 'in') { c.satTo = DN - c.lane.n + 0.5; c.phase = 'take'; }
+        else if (c.phase === 'take') { c.lane.n--; c.load = true; c.hue = c.lane.hue; c.satTo = 0; c.wait = 0.5; c.phase = 'home'; }
+        else if (c.phase === 'home') { c.to = front; c.phase = 'hand'; }
+        else if (c.phase === 'hand') { if (lift.queue.length < 2) { lift.queue.push({ l: c.l, hue: c.hue }); c.load = false; c.phase = 'back'; c.wait = 0.6; } else c.wait = 0.5; }
+        else { c.lane.n = Math.min(DN, c.lane.n + 1); c.phase = 'idle'; c.wait = 0.4 + rand(); } // a returning pallet goes back in front
+      }
+      if (lift.wait > 0) lift.wait -= dt;
+      else if (Math.abs(lift.to - lift.z) > 1e-3) { const m = 2.2 * dt; lift.z = Math.abs(lift.to - lift.z) > m ? lift.z + Math.sign(lift.to - lift.z) * m : lift.to; }
+      else if (lift.load && lift.to === 0.4) { pallets.push({ x: AX + 0.5, hue: lift.hue }); lift.load = false; lift.wait = 0.6; }
+      else if (lift.load) lift.to = 0.4;
+      else if (lift.cur && lift.to !== 0.4) { lift.load = true; lift.hue = lift.cur.hue; lift.cur = null; lift.wait = 0.6; }
+      else if (lift.queue.length && !lift.cur) { lift.cur = lift.queue.shift(); lift.to = Z0 + lift.cur.l * LH; }
+      for (let k = pallets.length - 1; k >= 0; k--) { pallets[k].x += 1.3 * dt; if (pallets[k].x >= station) { pallets.splice(k, 1); glow = 1.2; } }
+      glow = Math.max(0, glow - dt);
+    }
+    const pallet = (x, y, z, hue, w = 0.42, d = 0.36) => {
+      box(x - w, y - d, x + w, y + d, z, z + 0.1, '#8a6a42', '#6b4f2e', '#5a4126');
+      box(x - w + 0.03, y - d + 0.03, x + w - 0.03, y + d - 0.03, z + 0.1, z + 0.68, hue ? hue + '66' : 'rgba(30,42,61,.75)', hue ? hue + '44' : 'rgba(30,42,61,.6)', hue ? hue + '33' : 'rgba(30,42,61,.5)', hue ? hue + 'cc' : 'rgba(56,189,248,.25)');
+    };
+    function side(s2) {
+      const x0 = s2 ? AX + 1 : 0, x1 = x0 + DN;
+      quad([P(x0, 0, 0), P(x1, 0, 0), P(x1, B - 1, 0), P(x0, B - 1, 0)], 'rgba(56,189,248,.05)');
+      for (let l = 0; l < L; l++) {
+        const z = Z0 + l * LH;
+        for (let b = 0; b < B - 1; b++) {
+          const v = lanes.get([s2, l, b].join());
+          for (let k = 0; k < v.n; k++) pallet(slotX(s2, DN - 1 - k), b + 0.5, z, v.hue);
+        }
+        quad([P(s2 ? x0 : x1, 0, z), P(s2 ? x0 : x1, B - 1, z)], null, 'rgba(56,189,248,.3)');
+      }
+      ctx.save(); ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
+      for (const [px, py] of [[x0, B - 1], [x1, B - 1], [s2 ? x1 : x0, 0]]) quad([P(px, py, 0), P(px, py, TOP)], null, 'rgba(125,211,252,.75)', 1.2);
+      quad([P(x0, B - 1, TOP), P(x1, B - 1, TOP), P(x1, 0, TOP), P(x0, 0, TOP)], 'rgba(56,189,248,.06)', 'rgba(125,211,252,.75)', 1.2);
+      ctx.restore();
+    }
+    function drawCarrier(c) {
+      const z = Z0 + c.l * LH, cx = AX + 0.5, sx = cx + (c.side ? 1 : -1) * c.sat;
+      box(cx - 0.45, c.y - 0.42, cx + 0.45, c.y + 0.42, z - 0.2, z, '#0f172a', '#f97316', '#b45309', 'rgba(249,115,22,.8)');
+      box(sx - 0.35, c.y - 0.26, sx + 0.35, c.y + 0.26, z, z + 0.08, '#facc15', '#ca8a04', '#a16207');
+      if (c.load) pallet(sx, c.y, z + 0.1, c.hue);
+    }
+    animate(canvas, kit, step, () => {
+      quad([P(AX + 0.1, conveyorY - 0.4, 0.4), P(station + 0.6, conveyorY - 0.4, 0.4), P(station + 0.6, conveyorY + 0.4, 0.4), P(AX + 0.1, conveyorY + 0.4, 0.4)], 'rgba(56,189,248,.08)', 'rgba(125,211,252,.5)');
+      quad([P(AX + 0.1, B - 0.9, 0.4), P(AX + 0.9, B - 0.9, 0.4), P(AX + 0.9, conveyorY - 0.4, 0.4), P(AX + 0.1, conveyorY - 0.4, 0.4)], 'rgba(56,189,248,.08)', 'rgba(125,211,252,.5)');
+      side(0);
+      carriers.forEach(drawCarrier);
+      side(1);
+      const lx = AX + 0.5;
+      for (const px of [lx - 0.45, lx + 0.45]) quad([P(px, B - 0.5, 0), P(px, B - 0.5, TOP + 0.4)], null, 'rgba(232,121,249,.8)', 1.4);
+      box(lx - 0.5, B - 0.95, lx + 0.5, B - 0.05, lift.z, lift.z + 0.1, 'rgba(232,121,249,.5)', 'rgba(232,121,249,.35)', 'rgba(232,121,249,.25)', '#e879f9');
+      if (lift.load) pallet(lx, B - 0.5, lift.z + 0.1, lift.hue);
+      for (const p of pallets) pallet(p.x, conveyorY, 0.4, p.hue, 0.36, 0.42);
+      box(station, conveyorY - 0.7, station + 1, conveyorY + 0.7, 0, 0.9, glow ? 'rgba(74,222,128,.55)' : 'rgba(74,222,128,.15)', 'rgba(74,222,128,.25)', 'rgba(74,222,128,.15)', '#4ade80');
+    });
+  }
+
   // See-through racking for the crane and ACR previews: A aisles of B bays and
   // L levels with totes on both sides (a few lit up, `fill` of the positions
   // used); rack(a, side) draws one side of an aisle.
@@ -689,6 +775,6 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview };
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

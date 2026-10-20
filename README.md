@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the seven simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the eight simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of seven
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of eight
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,7 +14,7 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Five of the seven systems work this way. AisleMate is the common first step towards it: people
+Six of the eight systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. SortHub is not a store
 at all but a parcel sorter, the kind of hub parcels go through after the warehouse.
 
@@ -32,7 +32,7 @@ at all but a parcel sorter, the kind of hub parcels go through after the warehou
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The seven systems**
+**The eight systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -42,11 +42,12 @@ at all but a parcel sorter, the kind of hub parcels go through after the warehou
 | [**SkyStack**](https://clayhill.github.io/darkstore/skystack.html) | Stacker crane AS/RS | Totes in high racking | One crane per aisle | Cycle times against FEM 9.851 |
 | [**StackPilot**](https://clayhill.github.io/darkstore/stackpilot.html) | Case-handling robots (ACR) | Totes on shelving | Robots collecting batches of totes | Totes per trip, aisle traffic |
 | [**AisleMate**](https://clayhill.github.io/darkstore/aislemate.html) | Robots alongside pickers (collaborative AMRs) | Goods on ordinary shelving | Robots with order totes, pickers walking to them | Robot waits for pickers, picker utilization |
+| [**DeepLane**](https://clayhill.github.io/darkstore/deeplane.html) | Pallet shuttle AS/RS | Pallets in deep lanes, one SKU per lane | A carrier with a satellite per level, a lift per block | Last in, first out lanes, the lift as the bottleneck |
 | [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
-by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `amr.txt` and
-`sort.txt` describe the seven systems.
+by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `pallet.txt`, `amr.txt` and
+`sort.txt` describe the eight systems.
 
 ## Run
 
@@ -57,7 +58,7 @@ To run it locally, open `index.html` in Safari (or any modern browser). It has n
 dependencies, so double-clicking the file works. Only the 3D view needs a network connection: it loads
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
-`skystack.html`, `stackpilot.html`, `aislemate.html` and `sorthub.html`.
+`skystack.html`, `stackpilot.html`, `deeplane.html`, `aislemate.html` and `sorthub.html`.
 
 **In a simulation**
 
@@ -71,7 +72,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   machine breaking down, a charger fault or an operator going on a break, or let robots fail at
   random. See how each system copes, and how long it takes to catch up.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D**: a free 3D view of the whole warehouse, in all seven systems. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all eight systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
@@ -209,7 +210,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The seven systems in detail
+## The eight systems in detail
 
 ### CubeFlow — cube storage
 
@@ -407,6 +408,45 @@ how the fleet's working time splits into driving, mast travel, handling, handove
 aisle waits. A robot needs minutes to bring a batch, so each station keeps 12 orders open on a wide
 put wall. Not modelled yet: double-deep storage and robots that climb the racking.
 
+### DeepLane — pallet shuttle store
+
+![DeepLane: two blocks of deep pallet lanes with a carrier on every level, lifts at the front, the pallet conveyor loop and the stations](docs/screenshots/pallet-floor.png)
+
+| | |
+|---|---|
+| ![Close-up: carriers on every level with their satellites, the lifts and pallets on their way to the stations](docs/screenshots/pallet-closeup.png) | ![DeepLane control room: lift utilization, carrier cycles, pallets stored and a levels-by-blocks map](docs/screenshots/pallet-control.png) |
+| **Close-up:** carriers and their satellites, a lift at the front of each block | **Control room:** lift utilization, carrier cycles, pallets stored, received and emptied |
+| ![DeepLane in 3D: the pallet racking, the lift towers, the conveyor loop and the receiving dock](docs/screenshots/pallet-3d.png) | ![Close-up in 3D: deep lanes of pallets on their rails, carriers on every level and the lift](docs/screenshots/pallet-3d-closeup.png) |
+| **3D:** the blocks, the receiving dock on the left and the empty-pallet stacker | **3D close-up:** pallets in their lanes, the carriers' rails along the transfer aisle |
+
+**Racking.** Blocks of deep lanes on both sides of a transfer aisle, six pallets deep and six levels
+high by default. Each lane holds one SKU and is filled from the back, so it works last in, first out:
+only the pallet nearest the transfer aisle can be taken, and a pallet put away goes in front of the
+others. The two lanes nearest the lift on each side of a level hold the level buffers.
+
+**Carriers, satellites and lifts.** Every level of every block has a carrier with a satellite on
+board. The carrier drives along the transfer aisle to a lane; the satellite drives in under the
+pallets, lifts the front one off the rails and brings it back, and the carrier takes it to the
+level's outbound buffer. As in RailRunner (whose code DeepLane builds on), the block's lift brings it
+down to the pallet conveyor loop, which carries it to a station, and returning pallets go the other
+way. The lift is the bottleneck: one pallet at a time, with long transfers.
+
+**Lanes and stock.** Only stock at the front of a lane can be reserved. An order line the front
+pallets cannot fill on their own takes all a front pallet has left and goes on with the pallet behind
+it, which is fetched once the one in front has gone. A returning pallet goes in front of pallets of
+its own SKU or into an empty lane, never in front of a pallet a station is waiting for, and lanes its
+SKU already has come first, so SKUs do not spread over many half-empty lanes.
+
+**Pallets in and out.** Received goods arrive as new full pallets at the receiving dock on the left
+of the loop; the conveyor takes each one past the goods-in station, where it is checked and labelled,
+and on into the store. A pallet picked empty leaves the loop to the empty-pallet stacker on the
+right instead of going back.
+
+**KPIs.** Lift utilization, carrier cycles per hour, and pallets stored, received and emptied. With
+the defaults (70 orders an hour) the lifts run at about two thirds and the stations wait on them.
+Not modelled yet: lanes open at both ends (first in, first out), carriers that change level and
+full-pallet orders.
+
 ### AisleMate — robots alongside pickers
 
 ![AisleMate: shelving aisles with robots waiting at the shelves, pickers beside them and the stations in front](docs/screenshots/amr-floor.png)
@@ -503,8 +543,8 @@ limit for both.
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
-cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, aislemate.html,
-sorthub.html
+cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
+aislemate.html, sorthub.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -514,25 +554,29 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             floor), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout), rack (tote slots, seeding and conveyors of every racking
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
-            paths and putaway: RailRunner and SkyStack)
+            paths and putaway: RailRunner, SkyStack and DeepLane), disrupt (surges,
+            breakdowns, charger faults, breaks)
 js/render/  iso (shared isometric view: camera, input, primitives, robot overlays), stations
             (warehouse floor, stations, packing, dock), control (SCADA map + charts),
             rack (see-through racking), prezone (pre-zone conveyor, levels × aisles picking)
-js/ui/      ui (panels, inspector, labels, scanning), rack (rack inspector for both rack types)
+js/ui/      ui (panels, inspector, labels, scanning), rack (rack inspector for both rack types),
+            share (the scenario in the page URL)
 js/cube/    CubeFlow: config, grid, tasks (dig, store, restack), sim (seeding, dispatch,
             slotting), render, ui (KPI tiles, settings, stack inspector)
 js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, ui
 js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
 js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
 js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), render, ui
+js/pallet/  DeepLane: config, sim (lanes, carriers and satellites on RailRunner's machines,
+            receiving and empty pallets), render, render3d, ui
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
 js/sort/    SortHub: config, sim (parcels, inducts, chutes, tray loop, robot deck, bag workers),
             render, render3d, ui (its own tiles, tabs and settings)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|pallet|amr|sort] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
-            one-way aisles, no picker zones, robot sorter), and compares a fingerprint of stock, fleet, orders and KPIs
+            one-way aisles, no picker zones, robot sorter, small pallets), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 
