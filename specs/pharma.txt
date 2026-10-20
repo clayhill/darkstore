@@ -1,0 +1,176 @@
+DarkStore - pharmacy wholesale: A-frame and zone picking
+========================================================
+
+Read common.txt first. To be implemented as ZoneHop.
+
+1. Overview
+
+The system a pharmacy wholesaler uses to deliver many small orders to
+pharmacies several times a day. It turns the other types round: no storage
+unit travels to a picker. The order tote travels past the stock instead,
+zone after zone, until the order is complete, and then through a row of
+machines that close it and send it to the right van.
+
+  order start  →  A-frame  →  zones (pick-to-light, carousel, RF)  →
+  merge  →  check weight  →  documents  →  lid  →  label  →
+  shipping sorter  →  route lanes  →  vans
+
+Products are small boxes (medicines, about 0.05-0.5 L), so one order tote
+holds a typical pharmacy order of 10 to 40 lines. Totes come back from the
+pharmacies, are emptied and stacked, and go round again.
+
+2. Layout
+
+Everything is conveyor; there is no robot floor. In the model:
+
+- The main line runs from order start past the A-frame to a loop with a
+  spur into every picking zone, then to the merge and the closing line.
+- A-frame: one frame with channels on both sides, a belt running underneath
+  its full length. Channel k is a location; it holds one SKU.
+- Pick-to-light zones: flow racks along a spur, a light per location. A tote
+  turns into the spur only if its order has lines there (zone skipping) and
+  waits at the zone's pick position.
+- Carousel zone: horizontal carousels (a ring of shelves turning past one
+  operator), a light per shelf position.
+- RF zone: ordinary shelving for slow movers; a picker walks it with an RF
+  scanner and picks into a separate tote, which joins its order at the merge.
+- Closing line: weighing scale, document printer and inserter, lidding
+  machine, label printer and applicator.
+- Shipping sorter: a line with a diverter per route lane; each lane is the
+  buffer for one van.
+- Tote return: totes back from the vans' previous trips are tipped empty by
+  the tote-emptying machine, stacked, and fed to order start by the
+  de-stacker.
+
+3. Equipment
+
+A-frame
+  - Each order gets its own stretch of belt (a window). As its window passes
+    a channel holding one of its products, the dispenser ejects the units
+    (a fixed time per unit; a channel ejects one unit at a time).
+  - At the end of the belt the window tips into the order tote waiting
+    there. The belt only moves on when that tote is in place.
+  - Channels empty as they dispense. An operator behind the frame refills
+    them from supplier cartons (a fixed time per refill, units per refill).
+    A channel below its refill level raises a refill request; refill
+    operators work the most urgent first. A line whose channel is empty when
+    its window passes is short: the tote is sent to the completion zone
+    (pick-to-light) for the missing units.
+Pick-to-light zone
+  - One operator per zone. The tote stops at the pick position, the lights
+    of its lines turn on with the quantity, the operator picks and confirms
+    each (time per line plus per unit), then the tote moves on.
+  - Up to a few totes queue on the spur; when it is full, a tote stays on
+    the loop and goes round once more (as in RailRunner).
+Carousel zone
+  - The carousel turns to the shelf with the next line (travel time from
+    the distance round the ring), the operator picks and confirms.
+  - Two carousels per operator, so one turns while the operator picks from
+    the other.
+RF zone
+  - A picker takes a batch of orders' RF lines, walks a route through the
+    shelving (walking speed, time per line), picks into one tote per order
+    and puts the totes onto the merge conveyor.
+Conveyors
+  - Fixed speed; totes keep their distance and give way where lines meet
+    (the conveyor model of the shared order totes).
+Closing line
+  - Each machine works one tote at a time, with a fixed cycle: scale,
+    document inserter, lidding machine, labeller. A tote that fails the
+    weight check (an error rate) goes to a manual check station.
+Shipping sorter and vans
+  - Each tote is diverted into its route's lane. A van has fixed departure
+    times; at departure it takes what is in its lane, up to its capacity.
+    Totes that miss it wait for the next trip.
+
+4. Order flow
+
+1. Pharmacies order through the day, with peaks before each van departure;
+   an order belongs to the route of its pharmacy. Lines are split by zone
+   from the product's slotting.
+2. Order start: the de-stacker feeds an empty tote, a label printer gives it
+   the order's code. An order too large for one tote gets two.
+3. The A-frame window is filled while the tote waits at the end of the belt
+   and then tipped into it.
+4. The tote turns into every zone its order needs, and only those.
+5. At the merge, the order's RF tote (if any) joins it; the order waits
+   there until all its totes are in.
+6. Closing line, shipping sorter, van.
+
+5. Traffic
+
+- A full zone spur: totes for it go round the loop again.
+- A full merge buffer or closing line backs up into the loop: order start
+  stops releasing totes while the loop is three quarters full.
+- The A-frame belt waits for its tote at the end; the de-stacker waits for
+  free belt windows.
+
+6. Slotting and replenishment
+
+- Products are ranked by units per day. The fastest that fit the A-frame's
+  channels (small, regular boxes) go there; the next ones to pick-to-light,
+  then the carousels; the long tail to the RF shelving.
+- A-frame refill: refill level and refill quantity per channel; refill
+  operators are the A-frame's limit at peak.
+- Zones are replenished from a reserve store (not modelled: stock in the
+  zones is topped up after a fixed delay).
+
+7. Output
+
+On top of the common output:
+
+- Order totes out per hour, lines per hour per zone, the A-frame's share of
+  units.
+- Zone utilization and zone skipping (share of totes that skip each zone).
+- A-frame: empty channels now, refill requests waiting, short lines sent to
+  completion.
+- Loop recirculation, merge wait time.
+- Totes per van and per route, totes that missed their van.
+- Control room map: the conveyor network with totes, zone and machine
+  states, and the route lanes.
+
+8. Parameters
+
+Typical values, to be tuned once the model runs.
+
+  products             1200 SKUs; A-frame 240 channels (120 per side),
+                       pick-to-light 2 zones of 150 locations, carousel
+                       zone 2 carousels of 60 shelves, RF 600 locations
+  orders               400 per hour, 10-40 lines, 1-3 units per line
+  A-frame              belt 0.5 m/s, window 1.2 m, 0.25 s per unit,
+                       channels 80 units, refill at 20, 30 s per refill,
+                       2 refill operators
+  pick-to-light        2 s per line plus 1.5 s per unit, 4 totes per spur
+  carousel             0.5 m/s ring speed, 3 s per line
+  RF                   1.1 m/s walking, 8 s per line, batches of 8 orders
+  conveyors            0.6 m/s
+  closing line         scale 2 s, documents 4 s, lid 3 s, label 3 s,
+                       weight errors 1 %
+  routes               8 routes, vans of 60 totes, departures 3 times a day
+  totes                300 in circulation
+
+9. Build plan
+
+Each step ends in something that runs, and in a commit.
+
+1. Simulation core and a plain 2D view: orders with routes, order start,
+   the conveyor loop with pick-to-light zones, merge, closing line as one
+   machine, shipping lanes and vans. Golden test.
+2. The A-frame: windows, dispensing, tipping into the tote, channels
+   emptying and refill operators, short lines to completion.
+3. Carousel and RF zones, the merge of RF totes, the full closing line.
+4. The 2D view in detail, the control room (conveyor map, zone cards,
+   route lanes), KPIs and the inspectors.
+5. The 3D view, with the A-frame as its centrepiece; Follow an order.
+6. Landing page card and preview, README section, soak test invariants,
+   disruptions (an A-frame refill operator on break, a jammed channel).
+
+10. Decisions
+
+- Name: ZoneHop.
+- All four zones (A-frame, pick-to-light, carousels, RF) in the first
+  release, built in the steps above.
+- Orders arrive in waves before the van departures; totes that miss their
+  van wait for the next trip.
+- The closing line and route vans replace the shared packing benches and
+  truck.
