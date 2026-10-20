@@ -78,6 +78,7 @@
       for (const p of this.ports) if (p.kind === 'GOODS_IN' && cells > 0) { cells--; p.setDecanter(); }
       this.layout = this.createLayout();
       this.kpi = new WS.KPI(this);
+      this.disrupt = new WS.Disruptions(this);
       this.fleet = [];
       this.seed();
       this.oms = new WS.OMS(this);
@@ -159,8 +160,8 @@
     dispatchCharging() {
       const cfg = this.cfg, g = this.grid;
       for (const r of this.fleet) {
-        if (r.task || r.battery >= cfg.battLow) continue;
-        const ch = g.chargers.filter((c) => c.robot < 0).sort((a, b) => WS.U.manhattan(r.x, r.y, a.x, a.y) - WS.U.manhattan(r.x, r.y, b.x, b.y))[0];
+        if (r.task || r.down || r.battery >= cfg.battLow) continue;
+        const ch = g.chargers.filter((c) => c.robot < 0 && !c.down).sort((a, b) => WS.U.manhattan(r.x, r.y, a.x, a.y) - WS.U.manhattan(r.x, r.y, b.x, b.y))[0];
         if (ch) { ch.robot = r.id; this.assignTask(r, { type: 'CHARGE', charger: ch, priority: 9 }); this.log('robot', `${r.name} battery ${r.battery.toFixed(0)}% → charger ${ch.id + 1}`); }
       }
     }
@@ -170,7 +171,7 @@
     pendingTasks() { return this.tasks.filter((t) => t.robot < 0).sort((a, b) => this.taskPriority(b) - this.taskPriority(a)); }
     // A station already has as many units on their way as it may have.
     portFull(port) { return port.inbound + port.inQ.length + (port.pick ? 1 : 0) >= this.cfg.portInboundCap; }
-    idleRobots() { return this.fleet.filter((r) => !r.task && r.battery >= this.cfg.battLow * 0.5); }
+    idleRobots() { return this.fleet.filter((r) => !r.task && !r.down && r.battery >= this.cfg.battLow * 0.5); }
     nearestRobot(list, x, y) {
       let best = null, bd = Infinity;
       for (const r of list) { const d = WS.U.manhattan(r.x, r.y, x, y); if (d < bd) { bd = d; best = r; } }
@@ -218,6 +219,7 @@
       const dt = this.cfg.tick;
       this.time += dt; this.ticks++;
       while (this.events.length && this.events[0].t <= this.time) this.events.shift().fn();
+      this.disrupt.update(dt);
       this.inv.update(dt);
       this.oms.update(dt);
       for (const p of this.ports) p.update(dt);

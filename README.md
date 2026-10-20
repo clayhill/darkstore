@@ -64,6 +64,9 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
 - Drag to pan, scroll or pinch to zoom, **Shift-drag** (or right-drag) to tilt the view from almost level
   to nearly top-down, **space** to pause, **Esc** to close panels.
 - Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
+- **Disruptions** (top of the Settings tab): hit the running warehouse with an order surge, a robot or
+  machine breaking down, a charger fault or an operator going on a break, or let robots fail at
+  random. See how each system copes, and how long it takes to catch up.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
 - **3D**: a free 3D view of the whole warehouse, in all seven systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
@@ -184,9 +187,20 @@ company prefix `9521234`, from the 952 range that GS1 reserves for demonstration
 they can never match a real product, asset or shipment.
 
 **Control room.** Every system reports units presented per hour (throughput), order lines per hour,
-orders shipped, fleet utilization split into working, waiting, idle and charging, the order cycle
-time and the orders in process, plus its own KPIs (see below). Bottleneck alerts flag traffic
+orders shipped, fleet utilization split into working, waiting, idle, charging and down, the order
+cycle time and the orders in process, plus its own KPIs (see below). Bottleneck alerts flag traffic
 hotspots, starved or blocked stations, backorders, tote shortage and low battery.
+
+**Disruptions.** A calm, steady day shows how fast a system is; a bad day shows how robust it is.
+From the Settings tab you can start an order surge (2.5× as many orders for 30 minutes, as on Black
+Friday), break down a robot or machine, take a charger out of service or send an operator on a
+break; random breakdowns are a rate per hour. A broken robot stands where it stopped until it is
+repaired (10 minutes), with its light flashing red, and the others route round it or wait behind it;
+a broken crane or lift takes its aisle out, and on the tilt-tray loop the whole sorter stops. A
+station whose operator is on a break turns its stack light red, shows it on its screen and gets no
+new orders. The control room lists each disruption with the time left, shades a surge on the
+throughput chart and marks the others along its bottom, and the time split shows the machines that
+are down. With the defaults every system works off the backlog once the disruptions are over.
 
 **Time model.** The simulation advances in fixed 100 ms ticks and also has a small discrete-event
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a

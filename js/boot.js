@@ -45,7 +45,7 @@
     },
   };
   const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',
-    'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/sim.js', 'js/sim/floor.js', 'js/sim/rack.js'];
+    'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/disrupt.js', 'js/sim/sim.js', 'js/sim/floor.js', 'js/sim/rack.js'];
   const k = KINDS[document.body.dataset.kind];
   document.title = `${k.name} — DarkStore`;
   // keep the page hidden until the stylesheet is in, so it never flashes unstyled

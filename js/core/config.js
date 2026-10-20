@@ -52,5 +52,9 @@
     // Demand
     autoOrders: true, orderRate: 300, // orders / hour
     autoReplenish: true,
+
+    // Disruptions (js/sim/disrupt.js): what the buttons in Settings do, and
+    // random breakdowns (failRate per hour over the whole fleet, 0 = none)
+    surgeFactor: 2.5, surgeMinutes: 30, repairMinutes: 10, chargerMinutes: 30, breakMinutes: 15, failRate: 0,
   };
 })((globalThis.WS = globalThis.WS || {}));

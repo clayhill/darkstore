@@ -68,7 +68,7 @@ Run the same orders, product range and target lines/h through every storage type
 
 ### 10. Peak days and failures
 
-**Status:** Idea
+**Status:** Done: order surges, breakdowns, charger faults and operator breaks from the Settings tab, random breakdowns as a rate, all shown in the control room. Shifts and planned breaks are left for 15
 
 A Black Friday order surge, a robot breaking down, a lost charger, an operator break. Shows how robust each system is, not just how fast.
 
@@ -208,4 +208,4 @@ Not overshoot: real drives are tuned not to overshoot their position. What real 
 
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). Next: 10, because every system now runs only on a calm, steady day, and a surge or a breakdown shows which ones cope. 16 is done. Then 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). 10 (peak days and failures) and 16 are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.

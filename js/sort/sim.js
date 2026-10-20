@@ -164,6 +164,7 @@
     update(dt) {
       const sim = this.sim;
       this.stats.t += dt;
+      if (this.away) { this.stats.away = (this.stats.away || 0) + dt; return; } // the operator is on a break (WS.Disruptions)
       if (!this.cur && this.queue.length) { this.cur = this.queue.shift(); this.t = sim.cfg.inductTime; sim.scanned(this.cur, this); }
       let starved = 0;
       if (this.cur && this.t > 0) { this.stats.busy += dt; this.t -= dt; }
@@ -320,7 +321,7 @@
     arrivals(dt) {
       const rate = this.cfg.parcelRate / 3600;
       if (rate <= 0) return;
-      this.arrivalAcc += dt;
+      this.arrivalAcc += dt * this.disrupt.rateFactor; // a surge runs the arrival clock faster
       if (this.nextGap === undefined) this.nextGap = -Math.log(1 - this.rng()) / rate;
       while (this.arrivalAcc >= this.nextGap) {
         this.arrivalAcc -= this.nextGap;
@@ -404,7 +405,9 @@
         }
       }
     }
-    trayAt(tr, alpha = 1) { const g = this.grid; return g.loopAt(this.offset + tr.id * this.trayPitch - (1 - alpha) * (this.cfg.loopSpeed / this.cfg.cellSize) * this.cfg.tick); }
+    trayAt(tr, alpha = 1) { const g = this.grid; return g.loopAt(this.offset + tr.id * this.trayPitch - (this.loopStopped ? 0 : (1 - alpha) * (this.cfg.loopSpeed / this.cfg.cellSize) * this.cfg.tick)); }
+    // a breakdown stops the whole loop (WS.Disruptions)
+    stopLoop(on) { this.loopStopped = on; }
     trayState(tr) { const p = tr.parcel; return !p ? 'empty' : p.target === this.reject ? 'reject' : p.laps ? 'round' : 'carry'; }
     // The control room has no robots to show for the tray loop: its time
     // split chart, table and map show the trays instead.
@@ -494,7 +497,7 @@
       super.tick();
       const dt = this.cfg.tick;
       this.arrivals(dt);
-      if (this.tray) this.stepTrays(dt);
+      if (this.tray && !this.loopStopped) this.stepTrays(dt);
       for (const w of this.workers) w.update(dt);
     }
   }

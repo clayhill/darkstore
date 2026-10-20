@@ -274,7 +274,7 @@
         this.box(sx - 0.28, sy - 0.06, 3.3, sx + 0.28, sy + 0.04, 4.6, '#0f172a');
         this.screenFace('port' + p.idx, sx - 0.24, sx + 0.24, sy + 0.045, 3.4, 4.5, this.portScreen(p));
         const lx = x1, ly = y1, starving = !p.job && !p.inQ.length && p.demand() > 0;
-        [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]].forEach(([lc, on], k) => {
+        [['#ef4444', !!p.away], ['#f59e0b', starving && !p.away], ['#22c55e', !!p.job && !p.away]].forEach(([lc, on], k) => {
           const z = TOP + 1.3 + k * 0.42;
           this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : WS.shade(lc, -0.65), on ? { top: WS.shade(lc, 0.4) } : {});
           if (on) this.glow(lx, ly, z + 0.2, 16, lc, 0.55);

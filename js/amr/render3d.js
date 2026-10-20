@@ -102,6 +102,7 @@
       if (key !== this.stockKey) { this.stockKey = key; this.buildStock(); }
       for (const r of sim.fleet) this.drawRobot(r, r.prx + (r.rx - r.prx) * alpha + 0.5, r.pry + (r.ry - r.pry) * alpha + 0.5, { kind: 'robot', id: r.id });
       for (const pk of sim.pickers) {
+        if (pk.state === 'BREAK') continue; // on a break, off the floor
         const x = pk.px + (pk.x - pk.px) * alpha, y = pk.py + (pk.y - pk.py) * alpha, h = pk.heading;
         this.operator(x, y, Math.atan2(-Math.cos(h), -Math.sin(h)), pk.state === 'PICKING', '#a3e635', 0, 'picker ' + pk.name);
       }
@@ -159,7 +160,7 @@
       D.lit.box(sx - 0.24, sy + 0.04, 3.4, sx + 0.24, sy + 0.05, 4.5, '#0b1220');
       this.screen('port' + p.idx, sx - 0.235, sx + 0.235, sy + 0.053, 3.42, 4.48, WS.AmrRenderer.prototype.amrStationScreen.call(this, p));
       const starving = !p.serving && p.recentStarve > 0.35;
-      [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.serving]].forEach(([c, on], k) => {
+      [['#ef4444', !!p.away], ['#f59e0b', starving && !p.away], ['#22c55e', !!p.serving && !p.away]].forEach(([c, on], k) => {
         const z = 4.75 + k * 0.42;
         (on ? D.litCyl : D.cyl).cyl(lx, ly, z, z + 0.4, 0.09, on ? c : WS.shade(c, -0.65));
       });

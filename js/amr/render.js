@@ -16,6 +16,7 @@
     amrStationScreen(p) {
       const r = p.serving, pick = p.kind === 'PICK', staged = p.slots.filter(Boolean).length;
       const title = `${p.code} · ${pick ? 'Induct & drop-off' : 'Goods-in'}`, info = pick ? [`${staged} empty tote${staged === 1 ? '' : 's'} staged`] : [];
+      if (p.away) return WS.awayScreen(p, title);
       if (!r) return { title, accent: '#64748b', big: 'No robot', name: pick ? 'Staging totes for the next robot' : 'Waiting for a robot', info };
       return { title, tag: r.name, accent: '#4ade80', big: pick ? (r.totes.length ? `Swap ${r.totes.length} totes` : 'Load totes') : `Load ${r.cases} cases`, name: `${r.name} at the station`, info };
     }
@@ -205,6 +206,7 @@
     }
     // A picker in a hi-vis vest; arms busy while picking.
     drawPicker(pk, x, y) {
+      if (pk.state === 'BREAK') return; // on a break, off the floor
       this.drawOperator(x, y, pk.state === 'PICKING', '#a3e635', 0, 'picker ' + pk.name);
       if (this.opts.labels && this.cam.zoom > 0.9) this.text(pk.name, x, y, 4.3, { size: 9, color: '#1a2e05', weight: 800, bg: 'rgba(217,249,157,0.9)' });
     }
@@ -223,7 +225,7 @@
         // stack light on top of the screen, clear of the lane behind the totes
         const lx = sx + 0.18, ly = sy - 0.01, starving = !p.serving && p.recentStarve > 0.35;
         this.box(lx - 0.03, ly - 0.03, 4.6, lx + 0.03, ly + 0.03, 4.75, '#64748b');
-        [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.serving]].forEach(([lc, on], k) => {
+        [['#ef4444', !!p.away], ['#f59e0b', starving && !p.away], ['#22c55e', !!p.serving && !p.away]].forEach(([lc, on], k) => {
           const z = 4.75 + k * 0.42;
           this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : WS.shade(lc, -0.65), on ? { top: WS.shade(lc, 0.4) } : {});
           if (on) this.glow(lx, ly, z + 0.2, 16, lc, 0.55);

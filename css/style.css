@@ -154,6 +154,7 @@ input[type=range] { width: 100%; accent-color: var(--accent-2); }
 .btn.ghost { background: transparent; border-color: var(--line-2); color: var(--muted); }
 .btn.sm { padding: 3px 8px; font-size: 11px; }
 .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.btns.dis { margin: 0 0 10px; }
 .lines { margin: 8px 0; display: grid; gap: 4px; }
 .lines .ln { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; background: #0b1322; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font-size: 12px; }
 .lines .ln .x { background: none; border: 0; color: var(--faint); padding: 0 2px; }

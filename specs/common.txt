@@ -82,6 +82,19 @@ Energy
     they get low. Machines on power rails (most shuttles, all cranes) skip
     this.
 
+Disruptions
+  - A bad day, from the Settings tab or at random, the same in every type:
+    an order (or parcel) surge, so many times as fast for a while; a robot or
+    machine that breaks down where it stands until it is repaired, in the
+    way of the others meanwhile (the tilt-tray loop stops as a whole); a
+    charger out of service, whose robot stops charging and goes to another;
+    an operator (or, in AisleMate, a picker) on a break, whose station stops
+    and gets no new orders meanwhile.
+  - Random breakdowns: a rate per hour over the whole fleet, 0 by default.
+  - The control room lists each disruption with the time left, the
+    throughput chart marks them, and the time split counts machines that are
+    down.
+
 4. Output
 
 Every type reports at least:
@@ -93,7 +106,7 @@ Every type reports at least:
 - Workstation utilization, and how long stations sit starved (nothing to
   work on) or blocked (nowhere to send the unit).
 - Bottleneck alerts: busy areas, starved stations, backorders, tote
-  shortage, low battery.
+  shortage, low battery, and the disruptions going on.
 
 5. Comparing types
 

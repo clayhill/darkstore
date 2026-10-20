@@ -58,7 +58,7 @@
     portsNote: 'Bar: operator busy (blue) vs. no parcels to induct (orange).',
     portCard(ui, p) {
       const busy = p.stats.t ? p.stats.busy / p.stats.t : 0, starve = p.stats.t ? p.stats.starved / p.stats.t : 0;
-      return `<div class="pcard" data-open="port:${p.idx}"><div class="row"><span class="name">${p.code} · ${esc(p.name)}</span>${p.cur ? '<span class="pill SHIPPED">INDUCTING</span>' : p.ready ? '<span class="pill PICKED">WAITING FOR SORTER</span>' : '<span class="pill">IDLE</span>'}</div>
+      return `<div class="pcard" data-open="port:${p.idx}"><div class="row"><span class="name">${p.code} · ${esc(p.name)}</span>${p.away ? '<span class="pill BACKORDER">ON BREAK</span>' : p.cur ? '<span class="pill SHIPPED">INDUCTING</span>' : p.ready ? '<span class="pill PICKED">WAITING FOR SORTER</span>' : '<span class="pill">IDLE</span>'}</div>
         <div class="row meta"><span>${p.queue.length} on the feed belt</span><span>${p.done} inducted</span></div>
         <div class="bar"><i style="width:${busy * 100}%;background:#3987e5"></i><i style="width:${starve * 100}%;background:#d95926"></i></div></div>`;
     },

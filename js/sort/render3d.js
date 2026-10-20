@@ -99,7 +99,7 @@
           for (let k = 0; k < n; k++) { const q = p.queue[k], s = 0.26 * q.size, yy = 1.4 + k * 0.62; D.box.box(x - s, yy - s * 0.8, TZ - 0.1, x + s, yy + s * 0.8, TZ + 0.35, CARTON(q)); }
           const r = p.ready || p.cur;
           if (r) { const s = 0.26 * r.size, yy = g.Yt - 1.0; D.box.box(x - s, yy - s * 0.8, TZ - 0.1, x + s, yy + s * 0.8, TZ + 0.35, CARTON(r)); }
-          this.operator(x + 0.8, g.Yt - 2.6, Math.PI / 2, !!p.cur, '#f97316');
+          if (!p.away) this.operator(x + 0.8, g.Yt - 2.6, Math.PI / 2, !!p.cur, '#f97316');
         }
       } else {
         for (const r of sim.fleet) this.sortRobot(r, r.prx + (r.rx - r.prx) * alpha + 0.5, r.pry + (r.ry - r.pry) * alpha + 0.5);
@@ -107,7 +107,7 @@
           const x = p.drop.x + 0.5, y0 = g.D, n = Math.min(4, p.queue.length);
           for (let k = 0; k < n; k++) { const q = p.queue[k], s = 0.24 * q.size, yy = y0 + 0.7 + k * 0.6; D.box.box(x + 1.2 - s, yy - s * 0.8, PZ + 0.1, x + 1.2 + s, yy + s * 0.8, PZ + 0.5, CARTON(q)); }
           if (p.ready) { const r = p.ready, s = 0.24 * r.size; D.box.box(x + 0.35 - s, y0 + 0.3 - s * 0.8, PZ + 0.2, x + 0.35 + s, y0 + 0.3 + s * 0.8, PZ + 0.6, CARTON(r)); }
-          this.operator(x - 0.2, y0 + 0.8, 0, !!p.cur, '#f97316', PZ);
+          if (!p.away) this.operator(x - 0.2, y0 + 0.8, 0, !!p.cur, '#f97316', PZ);
         }
         for (const ch of g.chargers) { const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING'; (on ? D.lit : D.box).box(ch.x + 0.35, 0.17, PZ + 1.2, ch.x + 0.65, 0.19, PZ + 1.5, on ? '#4ade80' : '#166534'); }
       }

@@ -28,6 +28,8 @@
     return L;
   };
 
+  // A station's screen while its operator is on a break (WS.Disruptions).
+  WS.awayScreen = (p, title) => ({ title, tag: 'BREAK', accent: '#ef4444', big: 'Operator on break', name: `Back at ${WS.U.fmtClock(p.away.until).slice(-8, -3)}`, info: ['Station stopped', 'No new orders meanwhile'] });
   // Paints what a screen shows (a model from IsoRenderer.portScreen and the
   // like) into a w × h canvas context: a header with the station and its
   // mode, the instruction in large type, the product, details, a progress bar.
@@ -162,6 +164,7 @@
     portScreen(p) {
       const sim = this.sim, inv = sim.inv, j = p.job, ln = p.currentLine, pick = p.kind === 'PICK', T = sim.terms;
       const title = `${p.code} · ${pick ? (p.arm ? 'Robot pick' : 'Pick') : p.decanter ? 'Auto goods-in' : 'Goods-in'}`, tag = p.mode === 'manual' ? 'MANUAL' : 'AUTO';
+      if (p.away) return WS.awayScreen(p, title);
       if (ln) {
         const prod = inv.byGtin.get(ln.gtin), n = j.lines.length, from = this.compName(p.pick, ln.comp);
         return pick
@@ -282,7 +285,7 @@
         // stack light on top of the screen, clear of the conveyors: green = working, amber = waiting for bins, off = idle
         const { x: lx, y: ly, z: lz } = this.stackLightPos(p);
         this.box(lx - 0.03, ly - 0.03, lz - 0.15, lx + 0.03, ly + 0.03, lz, '#64748b');
-        const starving = !p.job && !p.inQ.length && p.demand() > 0, lamps = [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]];
+        const starving = !p.job && !p.inQ.length && p.demand() > 0, lamps = [['#ef4444', !!p.away], ['#f59e0b', starving && !p.away], ['#22c55e', !!p.job && !p.away]];
         lamps.forEach(([lc, on], k) => {
           const z = lz + k * 0.42;
           this.box(lx - 0.09, ly - 0.09, z, lx + 0.09, ly + 0.09, z + 0.4, on ? lc : shade(lc, -0.65), on ? { top: shade(lc, 0.4) } : {});
@@ -446,7 +449,7 @@
           const a = this.armPose(p);
           add(op.x + op.y + 0.5, () => this.drawArm(a));
           if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, '#f97316'));
-        } else add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e'));
+        } else if (!p.away) add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e'));
         if (p.kind === 'PICK') {
           const s0 = L.slotPos(p, 0);
           add(s0.x + s0.y, () => {

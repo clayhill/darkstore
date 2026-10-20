@@ -820,7 +820,7 @@
     // red / amber (waiting for storage units) / green (working)
     stackLight(x, y, z, p) {
       const starving = !p.job && !p.inQ.length && p.demand() > 0;
-      [['#ef4444', false], ['#f59e0b', starving], ['#22c55e', !!p.job]].forEach(([c, on], k) => {
+      [['#ef4444', !!p.away], ['#f59e0b', starving && !p.away], ['#22c55e', !!p.job && !p.away]].forEach(([c, on], k) => {
         const zz = z + k * 0.42;
         (on ? this.dy.litCyl : this.dy.cyl).cyl(x, y, zz, zz + 0.4, 0.09, on ? c : WS.shade(c, -0.65));
       });
@@ -890,7 +890,7 @@
           const a = WS.IsoRenderer.prototype.armPose.call(this, p);
           this.arm(a);
           if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, '#f97316');
-        } else this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e');
+        } else if (!p.away) this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e');
         if (p.kind !== 'PICK') {
           // cartons on the supplier pallets
           const g = sim.grid, px = g.W + 3.4, py = p.drop.y - 0.6, open = oms.receipts.filter((r) => r.status !== 'RECEIVED').reduce((s, r) => s + r.lines.length, 0);

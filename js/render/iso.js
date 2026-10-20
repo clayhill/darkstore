@@ -12,7 +12,7 @@
   const STATE_COLORS = {
     IDLE: '#94a3b8', MOVING_TO_TARGET: '#38bdf8', HANDLING: '#f59e0b', TRANSPORTING_TO_PORT: '#22c55e',
     AT_PORT: '#2dd4bf', STORING: '#a78bfa', WAITING_IN_TRAFFIC: '#ef4444', WAITING_PORT: '#f472b6',
-    TO_CHARGER: '#facc15', CHARGING: '#fde047', YIELDING: '#cbd5e1',
+    TO_CHARGER: '#facc15', CHARGING: '#fde047', YIELDING: '#cbd5e1', DOWN: '#dc2626',
   };
   const CLASS_COLORS = { A: '#f2705f', B: '#f2b84b', C: '#5b8def', E: '#3a4658' };
 
@@ -374,7 +374,8 @@
     if (L.to !== to) { L.from = L.cur; L.to = to; L.at = t; }
     const u = Math.min(1, (t - L.at) / LED_FADE), e = u * u * (3 - 2 * u), b = hexRgb(to);
     L.cur = L.from.map((c, i) => c + (b[i] - c) * e);
-    const slow = /IDLE|WAIT|CHARG|YIELD/.test(s), k = slow ? 0.62 + 0.38 * (0.5 + 0.5 * Math.sin((2 * Math.PI * t) / (/CHARG/.test(s) ? 2.2 : 3.4) + L.phase)) : 1;
+    // broken down: a hard red flash; idle, waiting and charging: a slow breath
+    const slow = /IDLE|WAIT|CHARG|YIELD/.test(s), k = s === 'DOWN' ? (Math.sin(t * 7 + L.phase) > 0 ? 1 : 0.3) : slow ? 0.62 + 0.38 * (0.5 + 0.5 * Math.sin((2 * Math.PI * t) / (/CHARG/.test(s) ? 2.2 : 3.4) + L.phase)) : 1;
     return '#' + L.cur.map((c) => Math.min(255, Math.round((c * k) / 6) * 6).toString(16).padStart(2, '0')).join('');
   };
   WS.CLASS_COLORS = CLASS_COLORS;

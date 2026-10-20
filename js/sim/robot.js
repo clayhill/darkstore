@@ -35,6 +35,7 @@
     update(dt) {
       const sim = this.sim, cfg = sim.cfg;
       this.prx = this.rx; this.pry = this.ry;
+      if (this.down) { this.stateTime.DOWN += dt; return; } // broken down: stands where it is until repaired (WS.Disruptions)
       if (this.yieldCooldown > 0) this.yieldCooldown -= dt;
       if (this.gen && !this.op) this.advance();
       let drain = cfg.battIdle;
@@ -64,7 +65,7 @@
           case 'until': if (op.fn()) this.finishOp(); break;
           case 'charge': {
             drain = -cfg.chargeRate;
-            if (this.battery >= cfg.battTarget) this.finishOp();
+            if (this.battery >= cfg.battTarget || (this.task && this.task.charger && this.task.charger.down)) this.finishOp();
             break;
           }
         }

@@ -35,12 +35,13 @@
 
   class Machine extends WS.Mover {
     constructor(sim, id, name) { super(sim, id, name); this.vel = {}; } // speed per moving coordinate
-    get idle() { return !this.gen; }
+    get idle() { return !this.gen && !this.down; }
 
     run(gen, task) { this.gen = gen; this.task = task || null; this.op = null; this.idleTime = 0; this.advance(); }
 
     update(dt) {
       this.prx = this.rx; this.pry = this.ry;
+      if (this.down) { this.v = 0; this.stateTime.DOWN += dt; return; } // broken down (WS.Disruptions)
       const op = this.op;
       if (op) {
         op.t += dt;

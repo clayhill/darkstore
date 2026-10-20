@@ -6,7 +6,7 @@
   'use strict';
   const U = WS.U, BC = WS.Barcode, esc = U.esc;
   const $ = (s, r) => (r || document).querySelector(s);
-  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding' };
+  const STATE_LABEL = { IDLE: 'Idle', MOVING_TO_TARGET: 'To target', HANDLING: 'Handling', TRANSPORTING_TO_PORT: 'To port', AT_PORT: 'At port', STORING: 'Storing', WAITING_IN_TRAFFIC: 'Waiting (traffic)', WAITING_PORT: 'Waiting (port)', TO_CHARGER: 'To charger', CHARGING: 'Charging', YIELDING: 'Yielding', DOWN: 'Broken down' };
   const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
   const SEV_ICON = { critical: '⛔', warning: '⚠️', info: 'ℹ️' };
   const LOG_COL = { order: '#7dd3fc', release: '#93c5fd', pick: '#86efac', pack: '#c4b5fd', ship: '#4ade80', inbound: '#fde68a', warn: '#fca5a5', penalty: '#fb923c', robot: '#facc15', system: '#e2e8f0' };
@@ -58,7 +58,7 @@
         else if (k === 'label') this.showLabel(id); else if (k === 'asn') this.showReceipt(id);
         else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
       });
-      const legend = this.sim.legendStates || [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
+      const legend = this.sim.legendStates ? [...this.sim.legendStates, 'DOWN'] : [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
       $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') + (this.type.legendExtra ? this.type.legendExtra(this) :
         `<span class="faint">· ABC: <i style="background:${WS.CLASS_COLORS.A}"></i> A <i style="background:${WS.CLASS_COLORS.B}"></i> B <i style="background:${WS.CLASS_COLORS.C}"></i> C</span>`);
       this.setTab($('#tabs').children[0].dataset.tab);
@@ -144,7 +144,7 @@
         const busy = p.stats.t ? p.stats.busy / p.stats.t : 0, starve = p.stats.t ? p.stats.starved / p.stats.t : 0;
         const dots = [...p.inQ.map(() => '<i class="f"></i>'), p.pick ? '<i class="p"></i>' : '<i></i>', ...p.outQ.map(() => '<i class="f"></i>')].join('');
         const slots = p.kind === 'PICK' ? `${p.slots.filter(Boolean).length}/${p.slots.length} totes` : `${sim.oms.receipts.filter((r) => r.status !== 'RECEIVED').length} open ASN`;
-        const status = p.job ? (p.mode === 'manual' ? '<span class="pill PICKED">MANUAL — needs you</span>' : '<span class="pill SHIPPED">ACTIVE</span>') : p.recentStarve > 0.35 ? '<span class="pill BACKORDER">STARVED</span>' : '<span class="pill">WAITING</span>';
+        const status = p.away ? '<span class="pill BACKORDER">ON BREAK</span>' : p.job ? (p.mode === 'manual' ? '<span class="pill PICKED">MANUAL — needs you</span>' : '<span class="pill SHIPPED">ACTIVE</span>') : p.recentStarve > 0.35 ? '<span class="pill BACKORDER">STARVED</span>' : '<span class="pill">WAITING</span>';
         return `<div class="pcard" data-open="port:${p.idx}"><div class="row"><span class="name">${p.code} · ${esc(p.name)}</span>${status}</div>
           <div class="row meta"><span>${p.inbound} inbound · ${slots}</span><span class="qdots">${dots}</span></div>
           <div class="bar" title="busy ${Math.round(busy * 100)}% · starved ${Math.round(starve * 100)}%"><i style="width:${busy * 100}%;background:#3987e5"></i><i style="width:${starve * 100}%;background:#d95926"></i></div>
@@ -363,8 +363,8 @@
       const num = (k, label, step, min, max) => `<div class="field"><label>${label}</label><input type="number" data-cfg="${k}" value="${c[k]}" step="${step || 1}" min="${min ?? 0}" ${max ? `max="${max}"` : ''}></div>`;
       const sel = (k, label, opts) => `<div class="field"><label>${label}</label><select data-cfg="${k}">${opts.map(([v, t]) => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
       const t = this.type.settings(this, c, num, sel);
-      if (t.full) return t.full; // a type without orders brings its whole settings panel
-      return `<div class="sect"><h3>Live policies</h3><div class="card">
+      if (t.full) return this.disruptions(num) + t.full; // a type without orders brings its whole settings panel
+      return this.disruptions(num) + `<div class="sect"><h3>Live policies</h3><div class="card">
         ${t.live}
         <div class="row2">${num('pickPerUnit', 'Pick time / unit (s)', 0.1, 0.5)}${num('truckCapacity', 'Truck capacity', 1, 1)}</div>
         <div class="row2">${num('truckCutoff', 'Truck cut-off (s)', 60, 60)}${c.chargers ? num('battLow', 'Charge below (%)', 1, 5, 80) : ''}</div>
@@ -383,8 +383,26 @@
         ${t.note ? `<div class="note">${t.note}</div>` : ''}</div></div>
       <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">${t.about}</div></div>`;
     }
+    // A bad day (WS.Disruptions): buttons that hit the running simulation now,
+    // and how long each disruption lasts.
+    disruptions(num) {
+      const sim = this.sim, c = sim.cfg, tm = this.terms, parcels = tm.units === 'parcels';
+      const machine = sim.fleet.length ? (tm.machine || 'robot').toLowerCase() : null, chargers = (sim.grid.chargers || []).length;
+      const btn = (k, label, title) => `<button class="btn" data-disrupt="${k}" title="${title}">${label}</button>`;
+      return `<div class="sect"><h3>Disruptions <span class="sub">a bad day, now</span></h3><div class="card">
+        <div class="btns dis">${btn('surge', parcels ? 'Parcel surge' : 'Order surge', `${parcels ? 'Parcels' : 'Orders'} come in ${c.surgeFactor}× as fast for ${c.surgeMinutes} min`)}${btn('breakdown', machine ? 'Break down a ' + machine : 'Stop the loop', machine ? `A ${machine} at work stops where it is until it is repaired (${c.repairMinutes} min)` : `A drive fault stops the tray loop for ${c.repairMinutes} min`)}${chargers ? btn('charger', 'Charger fault', `A charger is out of service for ${c.chargerMinutes} min`) : ''}${btn('break', 'Operator break', `The busiest ${sim.pickers ? 'operator or picker' : 'operator'} takes a ${c.breakMinutes} min break`)}<button class="btn ghost" data-disrupt="clear" title="End every disruption now">All clear</button></div>
+        <div class="row2">${num('surgeFactor', 'Surge: times as fast', 0.5, 1, 10)}${num('surgeMinutes', 'Surge lasts (min)', 5, 1, 480)}</div>
+        <div class="row2">${num('repairMinutes', 'Repair takes (min)', 1, 1, 120)}${num('breakMinutes', 'Break lasts (min)', 1, 1, 60)}</div>
+        <div class="row2">${num('failRate', 'Random failures / h', 0.5, 0, 30)}${chargers ? num('chargerMinutes', 'Charger fault lasts (min)', 5, 1, 240) : '<div></div>'}</div>
+        <div class="note">The control room lists what is going on, the throughput chart marks it, and the time split shows ${machine ? machine + 's' : 'the trays'} that are down. A ${machine || 'stopped sorter'} stays where it is while it is repaired, in the way of the others.</div></div></div>`;
+    }
     bind_settings(b) {
-      const live = ['pickPerUnit', 'truckCapacity', 'truckCutoff', 'battLow', ...this.type.live]; // apply without a restart
+      b.querySelectorAll('[data-disrupt]').forEach((el) => (el.onclick = () => {
+        const d = this.sim.disrupt, k = el.dataset.disrupt;
+        const msg = k === 'surge' ? d.startSurge() : k === 'breakdown' ? d.breakdown() : k === 'charger' ? d.chargerFault() : k === 'break' ? d.operatorBreak() : (d.clear(), 'All clear');
+        this.toast(msg || 'Nothing to hit right now', !msg);
+      }));
+      const live = ['pickPerUnit', 'truckCapacity', 'truckCutoff', 'battLow', 'surgeFactor', 'surgeMinutes', 'repairMinutes', 'breakMinutes', 'failRate', 'chargerMinutes', ...this.type.live]; // apply without a restart
       b.querySelectorAll('[data-cfg]').forEach((el) => {
         const k = el.dataset.cfg;
         if (live.includes(k)) el.addEventListener('change', () => { this.sim.cfg[k] = el.tagName === 'SELECT' ? el.value : +el.value; this.toast('Applied: ' + k); });

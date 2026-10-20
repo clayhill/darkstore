@@ -14,8 +14,8 @@
       });
       this.win = { presented: [], lines: [], shipped: [], shuffles: [], productive: [] };
       this.series = [];
-      this.acc = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0 };
-      this.accTotal = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0 };
+      this.acc = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0, DOWN: 0 };
+      this.accTotal = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0, DOWN: 0 };
       this.sampleTimer = 0; this.alertTimer = 0; this.alerts = []; this.penaltyLog = [];
       this.sampleEvery = 30;
     }
@@ -52,8 +52,8 @@
     get recentDigRatio() { const p = this.rate('productive'); return p ? this.rate('shuffles') / p : 0; }
     utilization(total) {
       const a = total ? this.accTotal : this.acc;
-      const s = a.WORK + a.WAIT + a.IDLE + a.CHARGE;
-      return s ? { work: a.WORK / s, wait: a.WAIT / s, idle: a.IDLE / s, charge: a.CHARGE / s } : { work: 0, wait: 0, idle: 1, charge: 0 };
+      const s = a.WORK + a.WAIT + a.IDLE + a.CHARGE + a.DOWN;
+      return s ? { work: a.WORK / s, wait: a.WAIT / s, idle: a.IDLE / s, charge: a.CHARGE / s, down: a.DOWN / s } : { work: 0, wait: 0, idle: 1, charge: 0, down: 0 };
     }
 
     update(dt) {
@@ -68,12 +68,12 @@
         const open = sim.oms.orders.filter((o) => o.status !== 'SHIPPED').length;
         this.series.push({
           t: sim.time, bins: this.rate('presented'), lines: this.rate('lines'), shipped: this.rate('shipped'),
-          work: u.work, wait: u.wait, idle: u.idle, charge: u.charge, open,
+          work: u.work, wait: u.wait, idle: u.idle, charge: u.charge, down: u.down, open,
           batt: sim.cfg.chargers ? sim.fleet.reduce((s, r) => s + r.battery, 0) / sim.fleet.length : null, dig: this.recentDigRatio,
         });
         if (split) { const p = this.series[this.series.length - 1]; for (const k in this.splitAcc) p[k] = this.splitAcc[k] / this.splitT; this.splitAcc = {}; this.splitT = 0; }
         if (this.series.length > 720) this.series.shift();
-        this.acc = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0 };
+        this.acc = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0, DOWN: 0 };
       }
       this.alertTimer += dt;
       if (this.alertTimer >= 2) { this.alertTimer = 0; this.computeAlerts(); }
@@ -90,7 +90,7 @@
         out.push({ sev: v > 80 ? 'critical' : 'warning', key: 'hot' + i, title: 'Traffic hotspot', msg: `Cell ${g.cx(i)},${g.cy(i)} — ${v.toFixed(0)} s queued (5-min decay)`, cell: i });
       }
       for (const p of sim.ports) {
-        if (p.recentStarve > 0.35 && p.stats.t > 120)
+        if (p.recentStarve > 0.35 && p.stats.t > 120 && !p.away)
           out.push({ sev: p.recentStarve > 0.6 ? 'critical' : 'warning', key: 'starve' + p.idx, title: p.name + ' starved', msg: `Waiting for ${sim.terms.starve || sim.terms.units} ${(p.recentStarve * 100).toFixed(0)}% of recent time`, port: p.idx });
         if (p.outQ.length >= 2 && p.job && p.job.next >= p.job.lines.length && p.job.t >= p.job.total)
           out.push({ sev: 'warning', key: 'blocked' + p.idx, title: p.name + ' blocked', msg: 'Outgoing bins not collected — robot shortage', port: p.idx });
@@ -106,6 +106,7 @@
       if (recentPen >= 3) out.push({ sev: 'info', key: 'bury', title: 'Fast movers buried', msg: `${recentPen} burial penalties in the last 10 min` });
       const packers = sim.oms.packers, toPack = packers.reduce((s, p) => s + p.queue.length + p.incoming, 0);
       if (toPack > packers.length * 4) out.push({ sev: toPack > packers.length * 8 ? 'critical' : 'warning', key: 'pack', title: 'Packing backlog', msg: `${toPack} order totes waiting for ${packers.length} pack stations` });
+      out.unshift(...sim.disrupt.alerts());
       if (sim.extraAlerts) out.push(...sim.extraAlerts());
       this.alerts = out;
     }

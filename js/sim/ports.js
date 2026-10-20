@@ -131,6 +131,7 @@
     update(dt) {
       const cfg = this.sim.cfg;
       this.stats.t += dt;
+      if (this.away) { this.stats.away = (this.stats.away || 0) + dt; return; } // the operator is on a break (WS.Disruptions)
       // conveyor: entry → pick position
       const head = this.inQ[0];
       if (head) head.t += dt;

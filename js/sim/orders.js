@@ -99,7 +99,7 @@
         const manualOnly = route && !this.armCanPick(o);
         for (const p of picks) {
           const free = p.slots.indexOf(null);
-          if (free < 0 || !p.stack.length) continue;
+          if (free < 0 || !p.stack.length || p.away) continue;
           full = false;
           if (manualOnly && p.arm) continue;
           const load = p.slots.filter(Boolean).length * 3 + p.demand();
@@ -262,6 +262,8 @@
       const onLine = (j, cn, behind) => { const rx = at[j].x - cn.c.x, ry = at[j].y - cn.c.y, along = rx * cn.nx + ry * cn.ny; return Math.abs(rx * cn.ny - ry * cn.nx) < 0.3 && along > -1.0 && along < (behind ? 1e-6 : 0.5); };
       const cns = items.map(corner);
       const clears = items.map((it, i) => half(it, Math.abs(at[i].dx) > 0.5) + 0.24 + GAP);
+      // item a is joining at a corner ahead of item b coming along the line it joins
+      const joining = (a, b) => cns[a] && cns[a].d < clears[a] && onLine(b, cns[a], true);
       items.forEach((it, i) => {
         if (it.queued) return;
         let m = Math.min(v, it.len - it.s);
@@ -274,16 +276,16 @@
           if (r === Infinity) continue;
           // both in each other's way: the older one goes, unless the younger is already joining at a
           // corner: then items coming along the line it joins wait for it, and it ignores them
-          const joining = (a, b) => cns[a] && cns[a].d < clears[a] && onLine(b, cns[a], true);
           if (joining(i, j)) continue;
           if (j > i && !items[j].queued && room(j, i) !== Infinity && !joining(j, i)) continue;
           m = Math.min(m, r);
         }
         if (m > 0) {
           // where lines meet at a corner an item can come alongside one that has just turned:
-          // it does not move into an older item's footprint
+          // it does not move into an older item's footprint, unless that one is waiting for it to join
+          // (else each waits for the other and the line locks up)
           const s0 = it.s; it.s = Math.min(it.len, it.s + m);
-          const q = this.posOnPath(it), hit = items.some((o, j) => j < i && Math.abs(at[j].x - q.x) < 0.4 && Math.abs(at[j].y - q.y) < 0.4 && !(Math.abs(at[j].x - at[i].x) < 0.4 && Math.abs(at[j].y - at[i].y) < 0.4));
+          const q = this.posOnPath(it), hit = items.some((o, j) => j < i && !joining(i, j) && Math.abs(at[j].x - q.x) < 0.4 && Math.abs(at[j].y - q.y) < 0.4 && !(Math.abs(at[j].x - at[i].x) < 0.4 && Math.abs(at[j].y - at[i].y) < 0.4));
           if (hit) it.s = s0; else at[i] = q;
         }
       });
@@ -298,7 +300,7 @@
       const sim = this.sim, cfg = sim.cfg;
       // auto order generation (Poisson arrivals)
       if (cfg.autoOrders && cfg.orderRate > 0) {
-        this.orderAcc += dt;
+        this.orderAcc += dt * sim.disrupt.rateFactor; // a surge runs the arrival clock faster
         const rate = cfg.orderRate / 3600;
         if (this.nextGap === undefined) this.nextGap = -Math.log(1 - sim.rng()) / rate;
         while (this.orderAcc >= this.nextGap) {

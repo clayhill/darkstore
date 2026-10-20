@@ -64,13 +64,15 @@
     constructor(sim, k, x, y, zone) {
       Object.assign(this, { sim, id: k, name: NAMES[k % NAMES.length] + (k >= NAMES.length ? ' ' + (1 + Math.floor(k / NAMES.length)) : ''), x, y, px: x, py: y, zone });
       Object.assign(this, { path: [], stop: null, state: 'IDLE', t: 0, lines: 0, stops: 0, distance: 0, heading: -Math.PI / 2 });
-      this.stateTime = { IDLE: 0, WALKING: 0, WAITING: 0, PICKING: 0 };
+      this.stateTime = { IDLE: 0, WALKING: 0, WAITING: 0, PICKING: 0, BREAK: 0 };
     }
     // share of the time walking to robots or picking
     get utilization() { const s = this.stateTime, tot = s.IDLE + s.WALKING + s.WAITING + s.PICKING; return tot ? (s.WALKING + s.PICKING) / tot : 0; }
     update(dt) {
       const sim = this.sim, st = this.stop;
       this.px = this.x; this.py = this.y;
+      if (this.away && !st) { this.state = 'BREAK'; this.stateTime.BREAK += dt; return; } // on a break (WS.Disruptions), after the stop in hand
+      if (this.state === 'BREAK') this.state = 'IDLE';
       if (this.state === 'WALKING') {
         let m = (sim.cfg.walkSpeed / sim.cfg.cellSize) * dt;
         while (m > 1e-9 && this.path.length) {
@@ -103,9 +105,12 @@
     yield { op: 'until', fn: () => !port.serving, waitState: 'WAITING_PORT' };
     port.serving = r;
   }
+  // While the operator is on a break (WS.Disruptions) the robot waits.
+  function* attended(port) { if (port.away) yield { op: 'until', fn: () => !port.away, waitState: 'WAITING_PORT' }; }
   // The operator takes the full totes off, one by one, onto the takeaway spur.
   function* unload(sim, r, port) {
     while (r.totes.length) {
+      yield* attended(port);
       yield { op: 'wait', t: sim.cfg.toteHandle };
       sim.dropTote(port, r.totes.shift());
     }
@@ -113,10 +118,10 @@
   // The operator puts the batch on: an empty tote per order, or the cases to put away.
   function* load(sim, r, t, port) {
     if (t.kind === 'pick') {
-      for (const o of t.orders) { yield { op: 'wait', t: sim.cfg.toteHandle }; sim.loadTote(r, o, port); }
+      for (const o of t.orders) { yield* attended(port); yield { op: 'wait', t: sim.cfg.toteHandle }; sim.loadTote(r, o, port); }
       t.stops = sim.pickStops(t.orders, port);
     } else {
-      for (const st of t.stops) { yield { op: 'wait', t: sim.cfg.toteHandle * 0.6 }; r.cases += st.lines.length; }
+      for (const st of t.stops) { yield* attended(port); yield { op: 'wait', t: sim.cfg.toteHandle * 0.6 }; r.cases += st.lines.length; }
     }
     sim.route(t.stops);
   }
@@ -174,6 +179,8 @@
     createLayout() { return new AmrLayout(this); }
     createPort(k, def) { return new AmrStation(this, k, def); }
     get armsAllowed() { return false; } // pickers pick at the shelves: no pick station for an arm
+    // who can go on a break: the station operators and the pickers
+    breakTargets() { return [...this.ports, ...this.pickers]; }
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.bays} bays of shelving online · ${this.fleet.length} robots · ${this.pickers.length} pickers · ${this.ports.length} stations`; }
     storageCapacity() { return this.inv.bins.length; }
     compLabel(k) { const s = this.cfg.shelfSlots; return `level ${Math.floor(k / s) + 1} · slot ${(k % s) + 1}`; }
@@ -340,7 +347,7 @@
     // robots waiting.
     assignPickers() {
       for (const pk of this.pickers) {
-        if (pk.stop) continue;
+        if (pk.stop || pk.away) continue;
         let best = null, bs = Infinity;
         for (const st of this.stops) {
           if (st.picker) continue;
