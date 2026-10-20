@@ -14,7 +14,8 @@ feeds the workstations.
 
 A second variant has robots that climb the racking itself instead of using a
 mast. The model below works for both: the only difference is how vertical
-movement is timed and whether a robot blocks the aisle while it climbs.
+movement is timed and whether a robot blocks the aisle while it climbs. That
+variant is climb.txt (RackRider).
 
 2. Layout
 

@@ -112,7 +112,7 @@ With SortHub's tilt-tray loop the control room's fleet chart and table stay empt
 
 ### 17. Climbing robots in racking
 
-**Status:** Idea
+**Status:** Built as RackRider (`rackrider.html`): robots climb the racking, block their aisle cell while they climb, and present the tote at the station themselves
 
 Robots drive on the floor and climb straight up the racking to fetch a tote (Exotec Skypod style). Sits between StackPilot and RailRunner: the climb is fast, but a climbing robot blocks its column. Already noted as not modelled yet in StackPilot.
 
@@ -208,4 +208,4 @@ Not overshoot: real drives are tuned not to overshoot their position. What real 
 
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate), 6 (SortHub) and 8 (DeepLane). 10 (peak days and failures), 14 (shareable links), 16 and 23 (follow an order) are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate), 6 (SortHub), 8 (DeepLane) and 17 (RackRider). 10 (peak days and failures), 14 (shareable links), 16 and 23 (follow an order) are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 24, 26 and 27.

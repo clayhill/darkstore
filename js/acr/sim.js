@@ -521,5 +521,6 @@
   }
 
   WS.AcrSim = AcrSim;
+  WS.AcrFloor = AcrFloor;
   WS.AcrTasks = T;
 })((globalThis.WS = globalThis.WS || {}));

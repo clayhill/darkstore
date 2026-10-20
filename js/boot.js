@@ -43,6 +43,11 @@
       map: 'Levels × blocks', stations: 'Stations', flow: 'Pallets at stations', fleet: 'Machine',
       sim: ['js/sim/prezone.js', 'js/shuttle/sim.js', 'js/pallet/config.js', 'js/pallet/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/pallet/render.js', 'js/pallet/ui.js'],
     },
+    climb: {
+      name: 'RackRider', cut: true, three: ['js/render3d/rack3d.js', 'js/acr/render3d.js', 'js/climb/render3d.js'], sub: 'Climbing robots', scan: 'tote, order, robot', click: 'robots, rack columns, stations',
+      map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
+      sim: ['js/acr/config.js', 'js/acr/sim.js', 'js/climb/config.js', 'js/climb/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js', 'js/climb/render.js', 'js/climb/ui.js'],
+    },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',

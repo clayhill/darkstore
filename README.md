@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the eight simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the nine simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of eight
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of nine
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,7 +14,7 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Six of the eight systems work this way. AisleMate is the common first step towards it: people
+Seven of the nine systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. SortHub is not a store
 at all but a parcel sorter, the kind of hub parcels go through after the warehouse.
 
@@ -32,7 +32,7 @@ at all but a parcel sorter, the kind of hub parcels go through after the warehou
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The eight systems**
+**The nine systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -42,12 +42,13 @@ at all but a parcel sorter, the kind of hub parcels go through after the warehou
 | [**SkyStack**](https://clayhill.github.io/darkstore/skystack.html) | Stacker crane AS/RS | Totes in high racking | One crane per aisle | Cycle times against FEM 9.851 |
 | [**StackPilot**](https://clayhill.github.io/darkstore/stackpilot.html) | Case-handling robots (ACR) | Totes on shelving | Robots collecting batches of totes | Totes per trip, aisle traffic |
 | [**AisleMate**](https://clayhill.github.io/darkstore/aislemate.html) | Robots alongside pickers (collaborative AMRs) | Goods on ordinary shelving | Robots with order totes, pickers walking to them | Robot waits for pickers, picker utilization |
+| [**RackRider**](https://clayhill.github.io/darkstore/rackrider.html) | Climbing robots | Totes in tall racking | Robots that drive, climb the racking and present the tote at the station | Climbing blocks the aisle, the robot as the conveyor |
 | [**DeepLane**](https://clayhill.github.io/darkstore/deeplane.html) | Pallet shuttle AS/RS | Pallets in deep lanes, one SKU per lane | A carrier with a satellite per level, a lift per block | Last in, first out lanes, the lift as the bottleneck |
 | [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
-by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `pallet.txt`, `amr.txt` and
-`sort.txt` describe the eight systems.
+by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt` and
+`sort.txt` describe the nine systems.
 
 ## Run
 
@@ -58,7 +59,7 @@ To run it locally, open `index.html` in Safari (or any modern browser). It has n
 dependencies, so double-clicking the file works. Only the 3D view needs a network connection: it loads
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
-`skystack.html`, `stackpilot.html`, `deeplane.html`, `aislemate.html` and `sorthub.html`.
+`skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html` and `sorthub.html`.
 
 **In a simulation**
 
@@ -72,7 +73,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   machine breaking down, a charger fault or an operator going on a break, or let robots fail at
   random. See how each system copes, and how long it takes to catch up.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D**: a free 3D view of the whole warehouse, in all eight systems. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all nine systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
@@ -216,7 +217,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The eight systems in detail
+## The nine systems in detail
 
 ### CubeFlow — cube storage
 
@@ -412,7 +413,33 @@ station. With the velocity policy fast movers go to the fastest positions, close
 **KPIs.** Totes per trip (retrieved and stored) and how full the back shelves are, the trip time and
 how the fleet's working time splits into driving, mast travel, handling, handover and waiting, and
 aisle waits. A robot needs minutes to bring a batch, so each station keeps 12 orders open on a wide
-put wall. Not modelled yet: double-deep storage and robots that climb the racking.
+put wall. Not modelled yet: double-deep storage. Robots that climb the racking are RackRider.
+
+### RackRider — climbing robots
+
+![RackRider: tall racking with aisles one robot wide, robots climbing the rack faces, queue lanes and the station frames](docs/screenshots/climb-floor.png)
+
+| | |
+|---|---|
+| ![Close-up: a robot high up the racking taking a tote, others queueing for the stations](docs/screenshots/climb-closeup.png) | ![RackRider control room: robot cycles, the climb's share of a cycle and the floor map](docs/screenshots/climb-control.png) |
+| **Close-up:** a robot up the racking, its pinions lit while it climbs | **Control room:** cycles per hour, how a cycle splits, aisle waits |
+| ![RackRider in 3D: tall racking, robots on the floor and up the rack faces, and the stations](docs/screenshots/climb-3d.png) | ![Close-up in 3D: a climbing robot with its tote between the side towers](docs/screenshots/climb-3d-closeup.png) |
+| **3D:** the racking, the station frames and the robots | **3D close-up:** a robot on the rack face, its arm sliding a tote out |
+
+**Racking and robots.** StackPilot's racking, but taller (twenty levels, 8.4 m) and without masts:
+the robots climb it themselves, as Exotec's Skypods do. A robot carries one tote. It drives into the
+aisle beside the tote, grips the rack uprights and climbs straight up at 1.5 m/s, takes the tote
+with its telescopic arm and climbs down. While it climbs it blocks its cell of the aisle, so the
+robots behind it wait; neighbouring aisles run in opposite directions.
+
+**Stations without conveyors.** The robot queues in the station's lane, drives into the station's
+frame and climbs to working height to present the tote to the operator itself, and waits while the
+lines are picked; if another station wants the tote meanwhile, it goes there next. Then it puts the
+tote away in a free position (fast movers low and near the stations) and is free for the next one.
+
+**KPIs.** Robot cycles per hour, how a cycle splits into driving, climbing, the arm, presenting and
+waiting, aisle waits and how many robots are up the racking. The **robot cam** in 3D rides on top of
+a robot, up the racking and down again.
 
 ### DeepLane — pallet shuttle store
 
@@ -573,12 +600,14 @@ js/pod/     PodSwarm: config, floor, sim (dispatch, tasks, pod faces), render, u
 js/shuttle/ RailRunner: config, sim (shuttles, lifts, dispatch), render, ui
 js/crane/   SkyStack: config, sim (crane cycles, crane-time storage policy, FEM 9.851), render, ui
 js/acr/     StackPilot: config, sim (floor, trips, batching, aisle locking), render, ui
+js/climb/   RackRider: config, sim (climbing, presenting at the station, on StackPilot's floor
+            and racking), render, render3d, ui
 js/pallet/  DeepLane: config, sim (lanes, carriers and satellites on RailRunner's machines,
             receiving and empty pallets), render, render3d, ui
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
 js/sort/    SortHub: config, sim (parcels, inducts, chutes, tray loop, robot deck, bag workers),
             render, render3d, ui (its own tiles, tabs and settings)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|pallet|amr|sort] [settings JSON]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|sort] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,

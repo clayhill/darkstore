@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -39,8 +39,9 @@ function checkRacking() {
   at.forEach((p, i) => at.forEach((q, j) => {
     if (j > i && Math.abs(p.x - q.x) < 2 * T.w - 1e-6 && Math.abs(p.y - q.y) < 2 * T.d - 1e-6) throw new Error(`t=${sim.time.toFixed(1)} totes ${sim.conv[i].bin.id} and ${sim.conv[j].bin.id} overlap at ${p.x.toFixed(2)},${p.y.toFixed(2)}`);
   }));
-  if (kind === 'acr') {
-    for (const r of sim.fleet) r.load.forEach((id) => put(id, r.name));
+  if (kind === 'acr' || kind === 'climb') {
+    // a climbing robot holds the tote while it presents it: counted at the station
+    for (const r of sim.fleet) r.load.forEach((id) => { if (kind !== 'climb' || sim.inv.binById.get(id).loc !== 'port') put(id, r.name); });
     for (const p of sim.ports) p.back.forEach((b) => { if (!b.conv) put(b.id, p.code + ' return'); }); // still on the return conveyor: counted there
   }
   for (const p of sim.ports) { p.inQ.forEach((q) => put(q.bin.id, p.code)); if (p.pick) put(p.pick.id, p.code); p.outQ.forEach((b) => put(b.id, p.code)); }

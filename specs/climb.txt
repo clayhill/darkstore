@@ -1,0 +1,74 @@
+DarkStore - climbing robots
+===========================
+
+Read common.txt and acr.txt first. Implemented as RackRider.
+
+1. Overview
+
+The second variant of acr.txt (Exotec Skypod style). The racking is the same:
+totes single deep on both sides of aisles one robot wide. But the robot has
+no mast: it climbs the racking itself. It drives on the floor, into the
+aisle beside the tote, grips the rack uprights and climbs straight up to the
+tote's level, takes it with a telescopic arm and climbs down. A robot carries
+one tote, and brings it to the station itself: there are no conveyors, the
+robot is the conveyor.
+
+2. Layout
+
+- As acr.txt: aisles one robot wide between racks with totes single deep,
+  [aisle][level][side][bay]; cross aisles in front and behind; a corridor,
+  parking and chargers on the side. Aisles are one-way, neighbouring aisles
+  in opposite directions.
+- The racking is taller than StackPilot's shelving (climbing is fast).
+- Each station is a frame at the floor's front edge at the end of a short
+  queue lane. The robot drives into it and climbs to working height to
+  present its tote; the operator stands in front of the frame.
+
+3. Equipment
+
+Robot
+  - Drives at up to 4 m/s on the floor (acceleration and braking), and
+    changes direction by turning its wheels, not itself.
+  - Climbing: a fixed time to grip the uprights (and to let go again on the
+    floor), then up or down at climbing speed.
+  - While it climbs it blocks its cell of the aisle: robots behind it wait.
+  - A telescopic arm takes a tote from the rack or puts it back, either
+    side.
+  - Battery with charging trips; climbing drains more than driving.
+
+4. Retrieval
+
+1. A retrieval goes to the nearest idle robot, while its station has room
+   for more robots on their way.
+2. The robot drives to the aisle cell beside the tote, climbs to its level,
+   takes it and climbs down.
+3. It queues in the station's lane, drives into the frame, climbs to working
+   height and presents the tote until the operator has worked every line on
+   it. If another station wants the tote meanwhile, it goes there next.
+4. It puts the tote away in a free position (velocity-based, as acr.txt) and
+   climbs back down.
+
+5. Output
+
+On top of the common output:
+
+- Robot cycles per hour (fetch, present, put away).
+- How a cycle splits into driving, climbing, the arm, presenting and waiting.
+- Aisle waits, and how many robots are up the racking.
+
+6. Parameters
+
+These are the defaults in js/climb/config.js. A real system is larger (racking
+up to 12 m, hundreds of robots); these values keep the 3D view readable.
+
+  aisles               8, bays 14 per side
+  levels               20, 0.42 m apart (8.4 m)
+  robots               20, one tote each
+  floor                4 m/s, 2 m/s2
+  climbing             1.5 m/s, 1.2 s to grip or let go of the uprights
+  arm                  3 s per take or put
+  station              robot presents at 0.55 m, queue lane 3 cells
+  orders               320 per hour
+
+Not modelled yet: robots passing under a climbing robot, double-deep racking,
+several robots climbing the same rack face.

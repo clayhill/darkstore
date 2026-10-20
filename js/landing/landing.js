@@ -4,7 +4,7 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG, RC = WS.CLIMB_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
@@ -12,6 +12,7 @@
     crane: [`${KC.aisles} aisles`, `${KC.levels} levels`, `${KC.aisles} cranes`, `twin load handler`],
     acr: [`${AC.aisles} aisles`, `${AC.levels} levels`, `${AC.robots} robots`, `${AC.robotSlots} back shelves`],
     sort: [`${XC.parcelRate} parcels/h`, `${XC.robots} robots`, `${XC.chutes} chutes`, `or a tilt-tray loop`],
+    climb: [`${RC.aisles} aisles`, `${(RC.levels * RC.levelHeight).toFixed(1)} m high`, `${RC.robots} robots`, `climbs ${RC.climbSpeed} m/s`],
     pallet: [`${DC.aisles} blocks`, `lanes ${DC.laneDepth} pallets deep`, `${DC.aisles * DC.levels} carriers`, `${DC.aisles} lifts`],
     amr: [`${MC.aisles} aisles of shelving`, `${MC.robots} robots`, `${MC.pickers} pickers`, `${MC.robotTotes} totes per robot`],
   };
@@ -642,6 +643,61 @@
     });
   }
 
+  /* ---------- climbing robots preview ---------- */
+  // Tall racking; robots drive into an aisle, climb straight up the rack to
+  // a tote, climb down with it and bring it to the station themselves.
+  function climbPreview(canvas) {
+    const A = 4, B = 8, L = 9, LH = 0.5, Z0 = 0.3, TOP = Z0 + L * LH, GW = A * 3 + 2, GD = B + 3.2, FY = B + 0.9, ST = { x: GW - 1.4, y: B + 2.4 };
+    const kit = isoKit(canvas, GW, GD, TOP + 0.8, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(41), rack = racking(kit, A, B, L, LH, Z0, rand, 0.72);
+    const bots = [...Array(4)].map((_, k) => ({ x: ST.x - 1 - k * 1.2, y: FY, z: 0, path: [], climb: null, wait: k * 1.1, load: false }));
+    function plan(bot) {
+      const a = Math.floor(rand() * A), lx = a * 3 + 1.5, b = Math.floor(rand() * (B - 1));
+      bot.path = [{ x: lx, y: FY }, { x: lx, y: b + 0.5, climb: Z0 + Math.floor(rand() * L) * LH }, { x: lx, y: FY }, { x: ST.x, y: FY }, { x: ST.x, y: ST.y - 0.6, drop: true }];
+    }
+    let glow = 0;
+    function step(dt) {
+      for (const bot of bots) {
+        if (bot.wait > 0) { bot.wait -= dt; continue; }
+        if (bot.climb) {
+          const c = bot.climb, mz = 1.6 * dt;
+          if (c.up) { bot.z = Math.min(c.h, bot.z + mz); if (bot.z === c.h) { c.up = false; c.hold = 0.7; } }
+          else if (c.hold > 0) { c.hold -= dt; if (c.hold <= 0) bot.load = true; }
+          else { bot.z = Math.max(0, bot.z - mz); if (bot.z === 0) bot.climb = null; }
+          continue;
+        }
+        if (!bot.path.length) { plan(bot); continue; }
+        const w = bot.path[0], dx = w.x - bot.x, dy = w.y - bot.y, m = 3 * dt;
+        if (Math.abs(dx) > 1e-3) bot.x = Math.abs(dx) > m ? bot.x + Math.sign(dx) * m : w.x;
+        else if (Math.abs(dy) > 1e-3) bot.y = Math.abs(dy) > m ? bot.y + Math.sign(dy) * m : w.y;
+        else {
+          bot.path.shift();
+          if (w.climb) bot.climb = { h: w.climb, up: true };
+          if (w.drop) { bot.load = false; bot.wait = 1; glow = 1.2; bot.path.push({ x: ST.x, y: FY }); }
+        }
+      }
+      glow = Math.max(0, glow - dt);
+    }
+    function drawBot(bot) {
+      const { x, y, z } = bot, up = !!bot.climb, H = 0.62;
+      if (z > 0.05) quad([P(x - 0.3, y - 0.3, 0), P(x + 0.3, y - 0.3, 0), P(x + 0.3, y + 0.3, 0), P(x - 0.3, y + 0.3, 0)], 'rgba(0,0,0,.35)');
+      box(x - 0.38, y - 0.36, x + 0.38, y + 0.36, z, z + 0.18, '#0f172a', '#1f2937', '#111827', 'rgba(103,232,249,.6)');
+      ctx.save(); if (up || (bot.wait <= 0 && bot.path.length)) { ctx.shadowColor = up ? '#e879f9' : '#22d3ee'; ctx.shadowBlur = 10; }
+      for (const px of [x - 0.36, x + 0.36]) quad([P(px, y + 0.3, z + 0.18), P(px, y + 0.3, z + H)], null, up ? '#f0abfc' : '#a5f3fc', 1.6);
+      ctx.restore();
+      if (bot.load) box(x - 0.24, y - 0.22, x + 0.24, y + 0.22, z + 0.2, z + 0.5, 'rgba(56,189,248,.55)', 'rgba(56,189,248,.4)', 'rgba(56,189,248,.3)', '#38bdf8');
+      box(x - 0.38, y - 0.36, x + 0.38, y + 0.36, z + H, z + H + 0.07, 'rgba(34,211,238,.6)', 'rgba(34,211,238,.4)', 'rgba(34,211,238,.3)', '#22d3ee');
+    }
+    animate(canvas, kit, step, () => {
+      quad([P(0, B + 0.3, 0), P(GW, B + 0.3, 0), P(GW, B + 1.5, 0), P(0, B + 1.5, 0)], 'rgba(250,204,21,.04)', 'rgba(250,204,21,.25)');
+      box(ST.x - 0.6, ST.y, ST.x + 0.6, ST.y + 0.9, 0, 0.9, glow ? 'rgba(74,222,128,.55)' : 'rgba(74,222,128,.15)', 'rgba(74,222,128,.25)', 'rgba(74,222,128,.15)', '#4ade80');
+      const items = [];
+      for (let a = 0; a < A; a++) { items.push({ d: a * 3, fn: () => rack(a, 0) }); items.push({ d: a * 3 + 2.4, fn: () => rack(a, 1) }); }
+      for (const bot of bots) items.push({ d: bot.y > B ? 100 + bot.x : bot.x + 0.5, fn: () => drawBot(bot) });
+      items.sort((p, q) => p.d - q.d).forEach((it) => it.fn());
+    });
+  }
+
   /* ---------- robots alongside pickers preview ---------- */
   // Ordinary shelving; in each aisle a robot drives from stop to stop with its
   // order totes and the aisle's picker walks over to pick into them.
@@ -775,6 +831,6 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview };
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

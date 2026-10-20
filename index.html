@@ -106,6 +106,19 @@
             <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </a>
+        <a class="card" href="rackrider.html">
+          <div class="preview">
+            <canvas data-preview="climb" role="img" aria-label="Animated preview: robots driving into the aisles of tall racking, climbing straight up the rack to a tote and bringing it to a station"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Climbing robots</p>
+            <h3>RackRider</h3>
+            <p class="desc">Tall racking with aisles one robot wide. Robots drive into an aisle, climb straight up the rack to fetch a tote and bring it to the station themselves, where they present it to the operator.</p>
+            <ul class="specs" data-specs="climb"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
         <a class="card" href="aislemate.html">
           <div class="preview">
             <canvas data-preview="amr" role="img" aria-label="Animated preview: robots carrying order totes stop beside shelves in the aisles while pickers walk over and pick into them"></canvas>
@@ -140,7 +153,7 @@
 
   <script>
     // load fresh copies, so the cards always match the current simulations
-    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
+    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/climb/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
   </script>
 </body>
 </html>

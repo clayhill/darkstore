@@ -99,7 +99,7 @@
           const k = port.slots.indexOf(o), q = k >= 0 ? this.slotTote(port, k, o) : L.pickPos(port);
           if (sim.kind === 'amr') return at(q, q.z ?? this.CZ, `The order tote is staged at ${port.name}, waiting for a robot to take it round the aisles`, 1);
           const waiting = bins.find((b) => b.loc === 'grid');
-          return at(q, q.z ?? this.CZ, waiting ? `${U} ${waiting.id} waits in storage for a machine` : `The order tote waits on the put wall of ${port.name}`, 1);
+          return at(q, q.z ?? this.CZ, waiting ? `${U} ${waiting.id} waits in storage for a ${(sim.terms.machine || 'machine').toLowerCase()}` : `The order tote waits on the put wall of ${port.name}`, 1);
         }
         return at(L.pickPos(sim.ports[0]), this.CZ, 'Released', 1);
       }

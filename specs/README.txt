@@ -18,6 +18,9 @@ output) are written down once, in common.txt.
                 (implemented as StackPilot)
   crane.txt     stacker crane AS/RS: one crane per aisle, mini-load (totes)
                 or unit-load (pallets) (mini-load implemented as SkyStack)
+  climb.txt     climbing robots: the second variant of acr.txt, robots that
+                climb the racking and present the tote themselves
+                (implemented as RackRider)
   pallet.txt    pallet shuttle store: deep lanes, a carrier with a satellite
                 per level, lifts (implemented as DeepLane)
   sort.txt      parcel sorter: a tilt-tray loop or a robot sorter sorting a
