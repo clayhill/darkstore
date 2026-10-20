@@ -92,7 +92,7 @@ Short challenges with a goal, such as "the pick stations are starving: fix it wi
 
 ### 14. Save and share a scenario
 
-**Status:** Idea
+**Status:** Done: every changed setting and the view are in the page URL, kept up to date as you change them; Copy link in Settings
 
 The settings encoded in the page URL, so a link opens exactly the setup you are looking at. Small, and makes comparisons easy to share.
 
@@ -208,4 +208,4 @@ Not overshoot: real drives are tuned not to overshoot their position. What real 
 
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). 10 (peak days and failures) and 16 are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate) and 6 (SortHub). 10 (peak days and failures), 14 (shareable links) and 16 are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.

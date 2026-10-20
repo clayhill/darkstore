@@ -64,6 +64,9 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
 - Drag to pan, scroll or pinch to zoom, **Shift-drag** (or right-drag) to tilt the view from almost level
   to nearly top-down, **space** to pause, **Esc** to close panels.
 - Switch between the **Floor** view, the **Control room** and a **Split** of both; run at 1× to 120×.
+- **Share a setup:** the page address holds every setting you changed and the view, so a link opens
+  exactly the setup you are looking at (same settings and seed, so the same run). **Copy link** in
+  the Settings tab copies it; for example `podswarm.html?robots=20&pickPorts=4&view=control`.
 - **Disruptions** (top of the Settings tab): hit the running warehouse with an order surge, a robot or
   machine breaking down, a charger fault or an operator going on a break, or let robots fail at
   random. See how each system copes, and how long it takes to catch up.

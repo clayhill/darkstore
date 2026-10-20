@@ -14,7 +14,7 @@
         return;
       }
       this.Kind = K;
-      this.sim = new this.Kind.Sim();
+      this.sim = new this.Kind.Sim(WS.Share.read(this.Kind.Sim.prototype.defaults())); // settings from a shared link (js/ui/share.js)
       this.iso = new this.Kind.Renderer(document.getElementById('iso'), this);
       this.cr = new WS.ControlRoom(this, document.getElementById('crmap'), document.getElementById('chT'), document.getElementById('chU'));
       this.ui = new WS.UI(this);

@@ -90,6 +90,7 @@
     refresh() {
       const sim = this.sim;
       $('#clock').textContent = U.fmtClock(sim.time);
+      WS.Share.sync(this.app); // the address bar holds the scenario
       if (this.app.view !== 'floor') { this.renderKPIs(); this.renderPorts(); this.renderAlerts(); this.renderFleet(); this.renderLog(); }
       this.refreshTab();
       if (this.selection) this.renderInspector();
@@ -379,7 +380,7 @@
         <div class="row2">${num('packBaggers', 'Auto-baggers', 1, 0, 4)}${num('packBoxers', 'Box-making machines', 1, 0, 3)}</div>
         <div class="note">Packing machines take the orders they fit and are faster than a person: an auto-bagger up to ${c.bagMaxUnits} units, ${c.bagMaxVol} L and ${c.bagMaxWeight} kg; a box-making machine up to ${c.boxMaxUnits} units and ${c.boxMaxVol} L. Every order goes to the station that will be done with it first.</div>
         ${num('seed', 'Random seed', 1, 1)}
-        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
+        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button><button class="btn ghost" id="cfg-share" title="Copy a link that opens exactly this setup: the settings above, the seed and the view">Copy link</button></div>
         ${t.note ? `<div class="note">${t.note}</div>` : ''}</div></div>
       <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">${t.about}</div></div>`;
     }
@@ -414,6 +415,10 @@
         this.app.restart(Object.assign({}, this.sim.cfg, cfg, keep));
       };
       $('#cfg-reset', b).onclick = () => this.app.restart({});
+      $('#cfg-share', b).onclick = async () => {
+        const n = WS.Share.changed(this.app), copied = await WS.Share.copy(this.app);
+        if (copied) this.toast(`Link copied: ${n ? n + ' setting' + (n > 1 ? 's' : '') + ' changed' : 'the defaults'}${this.app.view !== 'floor' ? ', the ' + { split: 'split', '3d': '3D', control: 'control room' }[this.app.view] + ' view' : ''}. It opens this exact setup.`);
+      };
     }
 
     // ---------------------------------------------------------------- inspector

@@ -46,7 +46,7 @@
         ${robots ? `<div class="row2">${num('robots', 'Robots', 1, 1, 70)}${num('vmax', 'Robot top speed (m/s)', 0.1, 0.5, 3.5)}</div>
         <div class="row2">${num('chargers', 'Chargers', 1, 1, 20)}${num('stationLane', 'Queue per induct (cells)', 1, 1, 5)}</div>` : `<div class="row2">${num('loopSpeed', 'Loop speed (m/s)', 0.1, 0.5, 3)}${num('trayPitch', 'Tray pitch (m)', 0.1, 0.6, 2)}</div>`}
         ${num('seed', 'Random seed', 1, 1)}
-        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button></div>
+        <div class="btns"><button class="btn primary" id="cfg-restart">Apply &amp; restart</button><button class="btn ghost" id="cfg-reset">Defaults</button><button class="btn ghost" id="cfg-share" title="Copy a link that opens exactly this setup: the settings above, the seed and the view">Copy link</button></div>
         <div class="note">Chutes are shared out one per destination, the busiest destinations get a second (and third …) chute, and the last one is the reject chute. With fewer chutes than destinations the rest go to the reject chute. Change the sorter and press Apply to compare both on the same parcel stream.</div></div></div>
       <div class="sect"><h3>About the model</h3><div class="card" style="font-size:12px;color:var(--muted)">${this.about(c)}</div></div>`,
       };
