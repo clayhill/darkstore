@@ -314,6 +314,7 @@
       const cam = this.cam;
       if (cam.walk) { cam.walk = false; this.syncWalkButton(); }
       cam.mode = mode; cam.follow = null;
+      if (mode !== 'order') { this.follow = null; if (this.hud) this.hud(false); }
       if (mode === 'tour') { this.tourK = -1; this.nextShot(); } else if (mode !== 'free') this.startShot(mode);
       this.syncCamMode();
     }
@@ -324,8 +325,13 @@
       // hand over where the preset was: following the robot it rode, or looking where it looked
       if ((this.shot === 'robot' || this.shot === 'chase') && this.ride) Object.assign(cam, { follow: this.ride.id, dist: 7, pitch: 0.5 });
       cam.mode = 'free'; this.fade(1); this.syncCamMode();
+      this.follow = null; if (this.hud) this.hud(false);
     }
-    nextSubject() { if (this.shot === 'station') this.startShot('station'); else if (this.ride) this.ride = { id: this.pickRider(this.ride.id) }; }
+    nextSubject() {
+      if (this.shot === 'station') this.startShot('station');
+      else if (this.shot === 'order') { const F = this.follow, t = this.pickFollow(F && (F.order || F.parcel)); if (t) this.follow = t; }
+      else if (this.ride) this.ride = { id: this.pickRider(this.ride.id) };
+    }
     startShot(shot) {
       const cam = this.cam;
       this.shot = shot; this.shotT = 0;
@@ -337,6 +343,9 @@
         this.stationK = ((this.stationK ?? -1) + 1) % ls.length;
         const p = ls[this.stationK];
         Object.assign(cam, { tx: p.x, ty: p.y - 0.6, tz: 2.0, dist: 5.5, pitch: 0.38, yaw: 0.55 });
+      } else if (shot === 'order') {
+        // an order of its own in the tour; one asked for (Follow in 3D) is kept
+        if (!this.follow || cam.mode === 'tour') this.follow = this.pickFollow();
       } else if (shot === 'orbit') {
         const keepYaw = cam.yaw;
         this.fit(); cam.yaw = keepYaw; cam.dist *= 0.85; cam.pitch = 0.55;
@@ -344,7 +353,7 @@
     }
     // the tour: robot cam, orbit, chase, a station, … with a short fade between shots
     nextShot() {
-      const order = ['robot', 'orbit', 'chase', 'station'];
+      const order = ['robot', 'orbit', 'order', 'chase', 'station'];
       this.tourK = (this.tourK + 1) % order.length;
       this.fade(0);
       setTimeout(() => { if (this.cam.mode !== 'tour') return; this.startShot(order[this.tourK]); this.fade(1); }, 380);
@@ -365,7 +374,8 @@
     presetCamera(dt, alpha) {
       const cam = this.cam, shot = this.shot;
       this.shotT = (this.shotT || 0) + dt;
-      if (cam.mode === 'tour' && this.shotT > { robot: 24, chase: 20, orbit: 18, station: 12 }[shot] && !this.fading) { this.fading = true; this.nextShot(); setTimeout(() => (this.fading = false), 400); }
+      if (cam.mode === 'tour' && this.shotT > { robot: 24, chase: 20, orbit: 18, station: 12, order: 40 }[shot] && !this.fading) { this.fading = true; this.nextShot(); setTimeout(() => (this.fading = false), 400); }
+      if (shot === 'order') return this.followCamera(dt);
       if (shot === 'orbit') { cam.yaw += dt * 0.06; return false; }
       if (shot === 'station') { cam.yaw += dt * 0.025; return false; }
       const R = this.ride, p = R && this.followPos(R.id, alpha);

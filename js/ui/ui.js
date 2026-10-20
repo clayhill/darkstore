@@ -55,7 +55,7 @@
         e.preventDefault();
         const [k, id] = a.dataset.open.split(':');
         if (k === 'bin') this.showBin(id); else if (k === 'prod') this.showProduct(id); else if (k === 'order') this.showOrder(id);
-        else if (k === 'label') this.showLabel(id); else if (k === 'asn') this.showReceipt(id);
+        else if (k === 'label') this.showLabel(id); else if (k === 'asn') this.showReceipt(id); else if (k === 'follow') this.follow3d(id);
         else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
       });
       const legend = this.sim.legendStates ? [...this.sim.legendStates, 'DOWN'] : [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
@@ -581,7 +581,15 @@
         <table class="tbl"><tr><th>GTIN</th><th>Product</th><th class="r">Qty</th><th class="r">Picked</th></tr>${o.lines.map((l) => `<tr class="click" data-open="prod:${l.gtin}"><td class="mono">${l.gtin}</td><td>${esc(inv.byGtin.get(l.gtin).name)}</td><td class="r">${l.qty}</td><td class="r">${l.picked}</td></tr>`).join('')}</table>
         <h3 style="margin-top:12px">Timeline</h3><dl class="kv">${steps.map(([k, t]) => `<dt>${k}</dt><dd>${t != null ? U.fmtClock(t) + (k !== 'Received' ? ` <span class="faint">+${U.fmtDur(t - tl.created)}</span>` : '') : '<span class="faint">—</span>'}</dd>`).join('')}</dl>
         ${o.tote ? `<div class="bcwrap">${BC.gs1SVG([['8003', o.tote.grai]], { height: 40 })}</div><div class="note">Order tote ${o.tote.id} · GS1-128 GRAI</div>` : ''}
-        ${o.sscc ? `<div class="btns"><button class="btn primary" data-open="label:${o.id}">Show shipping label</button></div>` : ''}`);
+        <div class="btns">${this.app.Kind.Renderer3D && o.status !== 'SHIPPED' ? `<button class="btn primary" data-open="follow:${o.id}" title="The 3D camera follows this order to the truck">Follow in 3D</button>` : ''}${o.sscc ? `<button class="btn${this.app.Kind.Renderer3D && o.status !== 'SHIPPED' ? '' : ' primary'}" data-open="label:${o.id}">Show shipping label</button>` : ''}</div>`);
+    }
+    // the 3D view's camera follows order id from here (js/render3d/follow.js)
+    follow3d(id) {
+      const o = this.sim.oms.byId.get(id), app = this.app;
+      if (!o) return;
+      this.closeModal();
+      const go = () => app.gl.followOrder(o);
+      if (app.gl) { app.setView('3d'); go(); } else { const p = app.open3d(); if (p) p.then(go); }
     }
     showLabel(id) {
       const o = this.sim.oms.byId.get(id); if (!o || !o.sscc) return;

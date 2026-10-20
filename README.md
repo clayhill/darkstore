@@ -83,7 +83,13 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   cam** sits on the front of a robot and looks where it drives (across the grid top, under a pod, on a
   crane's carriage), **Chase** follows just behind one, **Stations** visits the work places, **Orbit**
   turns slowly round the warehouse, and **Ambient tour** cycles through them all like a screensaver.
-  **N** picks the next robot or station; any drag, scroll or key gives the camera back. Up close the
+  **Follow an order** stays with one order from release to the truck: the robot or machine fetching
+  its stock, the storage unit on its way to the station, the pick into the order tote, the tote on the
+  conveyor, the pack bench, the labelled parcel and the truck, with a panel that says what is
+  happening and how far the order is; then it moves on to the next order. **Follow in 3D** on any
+  order starts it with that order. In SortHub it follows a parcel from the feed belt through the
+  induct, on a tray or a robot, into its chute.
+  **N** picks the next robot, station or order; any drag, scroll or key gives the camera back. Up close the
   machines behave like real ones: status lights fade between states and breathe while a robot waits,
   a crane's mast sways after braking (the forks wait for it to settle), PodSwarm pods rock when their
   robot starts, stops or turns, and cranes, shuttles and lifts ramp their speed up and down smoothly.

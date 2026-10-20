@@ -238,3 +238,18 @@ input[type=range] { width: 100%; accent-color: var(--accent-2); }
   .scan { width: 100%; }
   .brand { min-width: 0; }
 }
+
+/* Follow an order in 3D (js/render3d/follow.js) */
+.follow-hud { position: absolute; left: 16px; top: 62px; width: min(380px, calc(100% - 32px)); padding: 10px 12px; border-radius: 10px; background: rgba(8, 13, 24, 0.88); border: 1px solid #2b3a52; color: var(--text, #e6edf7); font-size: 13px; display: none; z-index: 5; backdrop-filter: blur(4px); }
+.layout.view-3d .follow-hud.on { display: block; }
+.follow-hud .fh-top { display: flex; align-items: center; gap: 6px; }
+.follow-hud .fh-top b { font-size: 15px; letter-spacing: 0.02em; margin-right: auto; }
+.follow-hud button { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 6px; padding: 2px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+.follow-hud button:hover { background: #273449; }
+.follow-hud .fh-meta { color: #8a9ab3; font-size: 12px; margin: 2px 0 8px; }
+.follow-hud .fh-steps { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+.follow-hud .fh-steps span { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: #1e293b; color: #64748b; }
+.follow-hud .fh-steps span.done { background: #14532d; color: #86efac; }
+.follow-hud .fh-steps span.now { background: #facc15; color: #0f172a; }
+.follow-hud .fh-steps i { width: 8px; height: 1px; background: #334155; }
+.follow-hud .fh-text { line-height: 1.4; }

@@ -92,7 +92,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
           <button id="btn-sound" title="Sound made live from what the machines do: motors, forks, rollers, scanners. Louder near where you look.">Sound</button>
-${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">Robot cam</option><option value="chase">Chase a robot</option><option value="station">Stations</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">Robot cam</option><option value="chase">Chase a robot</option><option value="station">Stations</option><option value="order">' + (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order') + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
@@ -128,7 +128,7 @@ ${(k.tabs || [['inbound', 'Inbound'], ['orders', 'Orders'], ['inventory', 'Inven
   <div class="modal hidden" id="modal"><div class="modal-card" id="modal-card"></div></div>
   <div class="toast" id="toast"></div>
 `);
-  for (const src of [...SHARED, ...k.sim, 'js/render/iso.js', 'js/render/stations.js', 'js/render/control.js', 'js/render/sound.js', ...k.view, ...(k.three ? ['js/render3d/view3d.js', ...k.three] : []), 'js/ui/share.js', 'js/ui/ui.js', 'js/main.js']) {
+  for (const src of [...SHARED, ...k.sim, 'js/render/iso.js', 'js/render/stations.js', 'js/render/control.js', 'js/render/sound.js', ...k.view, ...(k.three ? ['js/render3d/view3d.js', 'js/render3d/follow.js', ...k.three] : []), 'js/ui/share.js', 'js/ui/ui.js', 'js/main.js']) {
     const s = document.createElement('script');
     s.src = src + '?t=' + T; s.async = false; // run in this order
     document.body.appendChild(s);

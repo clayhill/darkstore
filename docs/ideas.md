@@ -150,7 +150,7 @@ Day and night lighting: in lights-out mode only the robots' status lights and th
 
 ### 23. Follow an order or a parcel
 
-**Status:** Idea
+**Status:** Done: Follow an order (a parcel in SortHub) in the 3D Camera menu and the tour, Follow in 3D on an order, a panel with the stage and what is happening
 
 Click an order and the camera follows it from release through picking, packing and the truck, or a parcel through the sorter. Good for demos and teaching.
 
@@ -208,4 +208,4 @@ Not overshoot: real drives are tuned not to overshoot their position. What real 
 
 ## Suggested order
 
-Built so far: 1, 2 (packing machines), 3, 5 (AisleMate), 6 (SortHub) and 8 (DeepLane). 10 (peak days and failures), 14 (shareable links) and 16 are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.
+Built so far: 1, 2 (packing machines), 3, 5 (AisleMate), 6 (SortHub) and 8 (DeepLane). 10 (peak days and failures), 14 (shareable links), 16 and 23 (follow an order) are done. Next: 9 with 12, which together answer "which system, and is it worth it?". 9 is on hold for now. 22 (lights-out mode) is done, and 25 partly. 28 to 31 are done too. The open visual items are 23 (follow an order), 24, 26 and 27; 17 (climbing robots) is the most interesting new type.
