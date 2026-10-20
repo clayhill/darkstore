@@ -128,20 +128,6 @@
     }
     // the robot takes the tote back itself (present)
     onPortOut() {}
-    // A free parking spot no other robot is heading for: many robots can go
-    // idle at once (after a breakdown), and all of them driving to the same
-    // spot would lock up the corridor.
-    parkingCell(r) {
-      const g = this.grid, taken = new Set(this.fleet.filter((o) => o !== r && o.task && o.task.type === 'PARK').map((o) => g.idx(o.task.x, o.task.y)));
-      let best = -1, bd = Infinity;
-      for (let y = g.Y0; y < g.frontY; y++) {
-        const i = g.idx(g.parkX, y);
-        if (g.type[i] !== CELL.PARK || taken.has(i) || (g.claim[i] >= 0 && g.claim[i] !== r.id)) continue;
-        const d = WS.U.manhattan(r.x, r.y, g.parkX, y);
-        if (d < bd) { bd = d; best = i; }
-      }
-      return best;
-    }
     // Each retrieval goes to the nearest idle robot, while its station has room.
     dispatch() {
       this.createRetrievals();

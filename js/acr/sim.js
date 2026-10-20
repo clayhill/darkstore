@@ -482,11 +482,15 @@
       this.parkIdle(this.fleet.filter((r) => !r.task));
     }
     needsParking(r) { const t = this.grid.type[this.grid.idx(r.x, r.y)]; return t !== CELL.PARK && t !== CELL.CHARGER; }
+    // A free parking spot no other robot is heading for: robots that go idle
+    // together (after a breakdown) would otherwise all drive to the same spot
+    // and lock up the corridor.
     parkingCell(r) {
-      const g = this.grid; let best = -1, bd = Infinity;
+      const g = this.grid, taken = new Set(this.fleet.filter((o) => o !== r && o.task && o.task.type === 'PARK').map((o) => g.idx(o.task.x, o.task.y)));
+      let best = -1, bd = Infinity;
       for (let y = g.Y0; y < g.frontY; y++) {
         const i = g.idx(g.parkX, y);
-        if (g.type[i] !== CELL.PARK || g.claim[i] >= 0) continue;
+        if (g.type[i] !== CELL.PARK || taken.has(i) || (g.claim[i] >= 0 && g.claim[i] !== r.id)) continue;
         const d = WS.U.manhattan(r.x, r.y, g.parkX, y);
         if (d < bd) { bd = d; best = i; }
       }
