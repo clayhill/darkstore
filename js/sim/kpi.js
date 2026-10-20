@@ -59,6 +59,8 @@
     update(dt) {
       const sim = this.sim;
       for (const r of sim.fleet) { const b = r.bucket; this.acc[b] += dt; this.accTotal[b] += dt; }
+      const split = sim.timeSplit; // a type without a fleet (the tray loop) brings its own time split
+      if (split) { const f = split.sample(); this.splitT = (this.splitT || 0) + dt; this.splitAcc = this.splitAcc || {}; for (const k in f) this.splitAcc[k] = (this.splitAcc[k] || 0) + f[k] * dt; }
       this.sampleTimer += dt;
       if (this.sampleTimer >= this.sampleEvery) {
         this.sampleTimer = 0;
@@ -69,6 +71,7 @@
           work: u.work, wait: u.wait, idle: u.idle, charge: u.charge, open,
           batt: sim.cfg.chargers ? sim.fleet.reduce((s, r) => s + r.battery, 0) / sim.fleet.length : null, dig: this.recentDigRatio,
         });
+        if (split) { const p = this.series[this.series.length - 1]; for (const k in this.splitAcc) p[k] = this.splitAcc[k] / this.splitT; this.splitAcc = {}; this.splitT = 0; }
         if (this.series.length > 720) this.series.shift();
         this.acc = { WORK: 0, WAIT: 0, IDLE: 0, CHARGE: 0 };
       }

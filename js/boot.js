@@ -101,11 +101,11 @@ ${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through 
           <div class="panel chart-panel"><h3>Throughput <span class="sub">rolling 1 h rate</span></h3>
             <div class="clegend"><span><i style="background:#3987e5"></i>${k.flow} /h</span><span><i style="background:#d95926"></i>${k.flow2 || 'Order lines'} /h</span></div>
             <canvas id="chT"></canvas></div>
-          <div class="panel chart-panel"><h3>${k.fleet} time split <span class="sub">per 30 s sample</span></h3>
-            <div class="clegend"><span><i style="background:#3987e5"></i>Working</span><span><i style="background:#d95926"></i>Waiting</span><span><i style="background:#199e70"></i>Idle</span><span><i style="background:#c98500"></i>Charging</span></div>
+          <div class="panel chart-panel"><h3><span id="chU-title">${k.fleet} time split</span> <span class="sub">per 30 s sample</span></h3>
+            <div class="clegend" id="chU-legend"><span><i style="background:#3987e5"></i>Working</span><span><i style="background:#d95926"></i>Waiting</span><span><i style="background:#199e70"></i>Idle</span><span><i style="background:#c98500"></i>Charging</span></div>
             <canvas id="chU"></canvas></div>
           <div class="panel alerts-panel"><h3>Bottleneck alerts</h3><div id="alerts" class="alerts"></div></div>
-          <div class="panel fleet-panel"><h3>Fleet</h3><div class="scroll"><table class="tbl" id="fleet"></table></div></div>
+          <div class="panel fleet-panel"><h3 id="fleet-title">Fleet</h3><div class="scroll"><table class="tbl" id="fleet"></table></div></div>
           <div class="panel log-panel"><h3>Event log</h3><div id="log" class="log"></div></div>
         </div>
       </div>

@@ -475,7 +475,9 @@ runs at any load. Up to about 70 robots fit the default deck.
 
 **KPIs.** Sort and induct rates, parcels waiting to be inducted, recirculation (tray) or overflow
 (robots), rejects, bags changed and full chutes, induct utilization, and tray occupancy or the
-robots' time split. With the defaults both sorters keep up with 3600 parcels per hour; the
+robots' time split. With the tilt-tray loop the control room shows the trays where the other systems
+show their fleet: a chart of trays carrying, going round again, heading for the reject chute and
+empty, the loaded trays in the table, and every tray on the map. With the defaults both sorters keep up with 3600 parcels per hour; the
 tilt-tray recirculates about 2–3 % of parcels, and the robot sorter keeps up with 45 robots
 spending about a third of their time waiting at the inducts. Above that, two bag workers become the
 limit for both.

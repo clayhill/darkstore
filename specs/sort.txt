@@ -77,7 +77,9 @@ its chutes the tray passes with room (tilt-tray).
 - Sort rate and induction rate per hour, parcels waiting to be inducted.
 - Recirculation (tilt-tray) or overflow (robots), rejects and no-reads.
 - Bags changed, chutes full now, bag workers' utilization.
-- Tray occupancy, or the robots' time split and battery.
+- Tray occupancy, or the robots' time split and battery. With the tilt-tray
+  loop the control room's fleet chart, table and map show the trays: carrying,
+  going round again, to the reject chute, or empty.
 
 8. Parameters
 

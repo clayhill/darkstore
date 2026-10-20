@@ -56,7 +56,7 @@
       const t = performance.now() / 1000;
       c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
       c.font = '600 11px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.fillStyle = C.muted; c.textAlign = 'left';
-      c.fillText(g.mapTitle + (this.heat ? ' · red = traffic wait' : ''), m.ox, m.oy - 10);
+      c.fillText(g.mapTitle + (this.heat && sim.fleet.length ? ' · red = traffic wait' : ''), m.ox, m.oy - 10);
       for (let y = 0; y < g.D; y++) for (let x = 0; x < g.W; x++) {
         const i = g.idx(x, y), px = m.ox + x * s, py = m.oy + y * s, ty = g.type[i];
         c.fillStyle = g.mapFill(i, mix);
@@ -95,6 +95,15 @@
           c.stroke();
         }
         c.globalAlpha = 1;
+      }
+      // things that are not robots, such as the trays of a tilt-tray loop, in the time split's colours
+      const split = sim.timeSplit;
+      if (sim.mapMarks && split) {
+        const col = Object.fromEntries(split.series.map((q) => [q.k, C[q.slot]]));
+        for (const mk of sim.mapMarks(alpha)) {
+          c.fillStyle = mk.state === 'empty' ? '#334155' : col[mk.state];
+          c.beginPath(); c.arc(m.ox + (mk.x + 0.5) * s, m.oy + (mk.y + 0.5) * s, Math.max(1.5, s * 0.32), 0, Math.PI * 2); c.fill();
+        }
       }
       // robots
       const sel = this.app.ui.selection;
@@ -172,8 +181,10 @@
     drawUtil() {
       const { c, w, h } = setup(this.chartU), S = this.sim.kpi.series;
       c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
-      const pad = { l: 40, r: 64, t: 12, b: 20 };
-      const series = [{ k: 'work', col: C.s1, label: 'Working' }, { k: 'wait', col: C.s2, label: 'Waiting (traffic/port)' }, { k: 'idle', col: C.s3, label: 'Idle' }, { k: 'charge', col: C.s4, label: 'Charging' }];
+      const pad = { l: 40, r: 64, t: 12, b: 20 }, split = this.sim.timeSplit;
+      const series = split ? split.series.map((q) => ({ k: q.k, col: C[q.slot], label: q.label }))
+        : [{ k: 'work', col: C.s1, label: 'Working' }, { k: 'wait', col: C.s2, label: 'Waiting (traffic/port)' }, { k: 'idle', col: C.s3, label: 'Idle' }, { k: 'charge', col: C.s4, label: 'Charging' }];
+      this.splitLabels(split, series);
       if (S.length < 2) { c.fillStyle = C.muted; c.font = '500 12px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.textAlign = 'center'; c.fillText('Collecting samples…', w / 2, h / 2); return; }
       this.axes(c, w, h, 1, pad, '%');
       const t0 = S[0].t, t1 = S[S.length - 1].t, X = (t) => pad.l + ((w - pad.l - pad.r) * (t - t0)) / (t1 - t0 || 1), Y = (v) => pad.t + (h - pad.t - pad.b) * (1 - v);
@@ -188,10 +199,22 @@
         // 2px surface gap between stacked bands
         c.beginPath(); S.forEach((p, k) => (k ? c.lineTo(X(p.t), Y(top[k])) : c.moveTo(X(p.t), Y(top[k])))); c.strokeStyle = C.surface; c.lineWidth = 2; c.stroke();
         const lk = S.length - 1, mid = (top[lk] + base[lk]) / 2;
-        if (top[lk] - base[lk] > 0.07) { c.fillStyle = C.text; c.font = '600 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(s.label.split(' ')[0], X(S[lk].t) + 6, Y(mid)); }
+        if (top[lk] - base[lk] > 0.07) { c.fillStyle = C.text; c.font = '600 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(split ? s.label : s.label.split(' ')[0], X(S[lk].t) + 6, Y(mid)); }
         top.forEach((v, k) => (base[k] = v));
       }
       this.hoverLayer(c, w, h, pad, S, X, Y, this.hoverU, (p) => series.map((s) => [s.col, s.label, Math.round(p[s.k] * 100) + '%']), []);
+    }
+    // The time split panel's title and legend, and the fleet table's title,
+    // follow the simulation: a type without robots brings its own.
+    splitLabels(split, series) {
+      if (this.labelsFor === this.sim) return;
+      this.labelsFor = this.sim;
+      const title = document.getElementById('chU-title'), leg = document.getElementById('chU-legend'), ft = document.getElementById('fleet-title');
+      if (!title) return;
+      title.dataset.base = title.dataset.base || title.textContent; ft.dataset.base = ft.dataset.base || ft.textContent;
+      title.textContent = split ? split.title : title.dataset.base;
+      ft.textContent = split ? split.table : ft.dataset.base;
+      leg.innerHTML = series.map((s) => `<span><i style="background:${s.col}"></i>${WS.U.esc(s.label.split(' (')[0])}</span>`).join('');
     }
     hoverLayer(c, w, h, pad, S, X, Y, hx, rowsFn, dots) {
       if (hx == null || hx < pad.l || hx > w - pad.r) return;

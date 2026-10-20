@@ -168,6 +168,7 @@
     }
     battBar(b) { const c = b < 15 ? '#ef4444' : b < 30 ? '#facc15' : '#4ade80'; return `<span class="batt"><i style="width:${b}%;background:${c}"></i></span>${Math.round(b)}%`; }
     renderFleet() {
+      if (this.type.fleetTable) { const html = this.type.fleetTable(this); if (html != null) { $('#fleet').innerHTML = html; return; } } // a type without robots (the tray loop)
       const batt = this.sim.cfg.chargers > 0;
       $('#fleet').innerHTML = `<tr><th>${this.terms.machine || 'Robot'}</th><th>State</th>${batt ? '<th>Battery</th>' : ''}<th>Task</th><th class="r">Util</th></tr>` + this.sim.fleet.map((r) => {
         const st = r.displayState;

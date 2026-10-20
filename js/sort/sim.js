@@ -144,7 +144,7 @@
       if (k >= 0) { const ch = this.sim.chutes[k]; return ch.swapping ? '#a16207' : mix('#16324f', '#dc2626', Math.min(1, ch.count / this.cfg.bagCapacity)); }
       return { [C.HIGHWAY]: '#1b2536', [C.PORT]: '#3a2a0a', [C.LANE]: '#2a2208', [C.CHARGER]: '#0f3321' }[t] || '#070b12';
     }
-    get mapTitle() { return this.cfg.mechanism === 'robots' ? 'DECK · chutes by bag fill, red = full' : 'LOOP · chutes by bag fill, red = full'; }
+    get mapTitle() { return this.cfg.mechanism === 'robots' ? 'DECK · chutes by bag fill, red = full' : 'LOOP · chutes by bag fill, red = full · dots: trays, coloured as in Tray occupancy'; }
   }
 
   // ---------------------------------------------------------------- induct
@@ -405,6 +405,26 @@
       }
     }
     trayAt(tr, alpha = 1) { const g = this.grid; return g.loopAt(this.offset + tr.id * this.trayPitch - (1 - alpha) * (this.cfg.loopSpeed / this.cfg.cellSize) * this.cfg.tick); }
+    trayState(tr) { const p = tr.parcel; return !p ? 'empty' : p.target === this.reject ? 'reject' : p.laps ? 'round' : 'carry'; }
+    // The control room has no robots to show for the tray loop: its time
+    // split chart, table and map show the trays instead.
+    get timeSplit() {
+      if (!this.tray) return null;
+      return (this._split = this._split || {
+        title: 'Tray occupancy', table: 'Loaded trays',
+        series: [{ k: 'carry', label: 'Carrying', slot: 's1' }, { k: 'round', label: 'Going round', slot: 's2' }, { k: 'reject', label: 'To reject', slot: 's4' }, { k: 'empty', label: 'Empty', slot: 's3' }],
+        sample: () => {
+          const n = { carry: 0, round: 0, reject: 0, empty: 0 };
+          for (const tr of this.trays) n[this.trayState(tr)]++;
+          for (const k in n) n[k] /= this.trays.length || 1;
+          return n;
+        },
+      });
+    }
+    mapMarks(alpha) {
+      if (!this.tray) return [];
+      return this.trays.map((tr) => { const q = this.trayAt(tr, alpha); return { x: q.x, y: q.y, state: this.trayState(tr) }; });
+    }
 
     // ---------------------------------------------------------------- bag workers
     // Each full bag gets the nearest free bag worker. On the tray sorter they

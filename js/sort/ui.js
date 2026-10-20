@@ -62,6 +62,20 @@
         <div class="row meta"><span>${p.queue.length} on the feed belt</span><span>${p.done} inducted</span></div>
         <div class="bar"><i style="width:${busy * 100}%;background:#3987e5"></i><i style="width:${starve * 100}%;background:#d95926"></i></div></div>`;
     },
+    // Tilt-tray loop: the control room's table lists the loaded trays, those
+    // going round longest first, with the chute each one is heading for.
+    fleetTable(ui) {
+      const sim = ui.sim;
+      if (!sim.tray) return null;
+      const C = WS.CHART_COLORS, col = Object.fromEntries(sim.timeSplit.series.map((q) => [q.k, [C[q.slot], q.label]]));
+      const loaded = sim.trays.filter((t) => t.parcel).sort((a, b) => b.parcel.laps - a.parcel.laps || a.parcel.t0 - b.parcel.t0);
+      const head = `<tr><th>Tray</th><th>State</th><th>Parcel</th><th>To</th><th class="r">Laps</th></tr>`;
+      if (!loaded.length) return head + '<tr><td colspan="5" class="faint">All trays empty</td></tr>';
+      return head + loaded.map((t) => {
+        const p = t.parcel, [c, label] = col[sim.trayState(t)];
+        return `<tr><td><b>Tray ${t.id + 1}</b></td><td><span class="sdot" style="background:${c}"></span>${label}</td><td class="mono">${p.sscc.slice(-8)}</td><td>${p.target === sim.reject ? 'reject' : esc(p.dest.name)}</td><td class="r">${p.laps}</td></tr>`;
+      }).join('');
+    },
     legendExtra(ui) { return `<span class="faint">· bags: <i style="background:#e5e7eb"></i> filling <i style="background:#ef4444"></i> full <i style="background:#f59e0b"></i> being changed</span>`; },
 
     // ---------- side tabs
