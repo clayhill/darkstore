@@ -213,6 +213,11 @@ new orders. The control room lists each disruption with the time left, shades a 
 throughput chart and marks the others along its bottom, and the time split shows the machines that
 are down. With the defaults every system works off the backlog once the disruptions are over.
 
+| | |
+|---|---|
+| ![PodSwarm's control room on a bad day: an order surge shaded on the throughput chart, robots broken down, a charger out of service and an operator on a break in the alerts](docs/screenshots/disruptions.png) | ![Follow an order in CubeFlow's 3D view: the panel with the order's stages and the robot carrying its bin, marked with a yellow pin](docs/screenshots/follow-order.png) |
+| **Disruptions:** a surge, two robots down, a charger fault and an operator break | **Follow an order:** the 3D camera stays with one order from release to the truck |
+
 **Time model.** The simulation advances in fixed 100 ms ticks and also has a small discrete-event
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
