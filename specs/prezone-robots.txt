@@ -1,0 +1,183 @@
+DarkStore - mobile robots between the racking and the stations
+===============================================================
+
+Read common.txt first, then shuttle.txt, crane.txt and pallet.txt: this is
+a variant of those three types (RailRunner, SkyStack, DeepLane), not a type
+of its own. Roadmap item 32. Status: planned, not built.
+
+1. Overview
+
+In RailRunner, SkyStack and DeepLane the totes (or pallets) travel between
+the aisle fronts and the stations on the pre-zone conveyor loop. Many real
+systems use small mobile robots for that leg instead: the lift or crane
+puts the tote on a stand at its aisle front, a robot with a roller top
+takes it and drives it to the station's infeed, and on the way back it
+brings a finished tote to an aisle.
+
+A setting in each of the three types:
+
+  Transport to the stations: conveyor loop (as now) | mobile robots
+
+The storage, its machines and the stations stay exactly as they are; only
+the leg between them changes. Loop against robots on the same store is the
+comparison this is for, as SortHub's tilt-tray against its robot sorter:
+which needs fewer metres of conveyor or fewer machines, which copes with a
+peak, what a breakdown does to each.
+
+2. Layout
+
+The pre-zone loop (js/sim/prezone.js, Racking) is replaced by a robot
+floor of whole cells between the aisle fronts and the stations. Today the
+aisle fronts are at y = B, the loop's near line at B + 2.9, its far line at
+B + 3.8 and the stations' conveyors at D - 1 = B + 4. With robots:
+
+- y = B: a stand per aisle side, at the front of each aisle. The outfeed
+  stand (x = 3a, in front of the left rack) holds totes the machines send
+  out; the infeed stand (x = 3a + 2, in front of the right rack) holds
+  totes coming back. Each holds standCap totes, one behind the other on a
+  short conveyor from the I/O point; the robot takes or leaves the front
+  one. These cells are blocked for driving.
+- y = B + 1: the handover row. A robot stops in front of a stand, facing
+  it, to take or leave a tote. Not a through route.
+- y = B + 2 and B + 3: two one-way highways, the first running left, the
+  second running right (as the loop's lines do now), joined at both ends.
+- y = B + 4: the stations' handover row. Each station keeps its conveyor
+  infeed and outfeed stubs (Layout.portPath); a robot stops at the end of
+  the infeed stub to leave a tote and at the end of the outfeed stub to
+  take one. Short queue lanes in front of each station, as on the other
+  robot floors (RobotFloor's station lanes).
+- Chargers at both ends of the highways, beyond the last aisle and the
+  last station.
+
+So D grows by about two rows against the loop. The racking itself, the
+I/O point and ioEnd() do not move.
+
+Racking becomes a WS.RobotFloor (js/sim/floor.js) when transport is
+robots: the router (js/sim/router.js) works on sim.grid and needs type,
+claim, passable(), enterGoal() and canPark(). StackPilot's AcrFloor
+(js/acr/sim.js) is the precedent for racking and a robot floor in one
+grid. With the loop, Racking stays as it is.
+
+3. Equipment
+
+Roller-top mobile robot (generic, not a vendor's design): a low robot with
+a powered roller deck at conveyor height, carrying one tote (in DeepLane
+one pallet, on a larger robot: see 10). It drives the grid like the other
+floor robots: same Robot class (js/sim/robot.js), speeds, braking and
+battery model, its own tasks. Transfer onto or off a stand or a station
+stub takes transferTime.
+
+The machines (shuttles, lifts, cranes, carriers) are unchanged. Where they
+now check sim.loopRoom() before sending a tote out (shuttle liftOut,
+js/shuttle/sim.js; the crane and carrier likewise), they check that the
+aisle's outfeed stand has room instead.
+
+4. Retrieval
+
+1. A machine brings the tote to the I/O point as now and puts it on the
+   outfeed stand's conveyor (RackSim.convey with a short path; its arrive
+   callback holds the tote at the front until a robot takes it).
+2. The dispatcher gives the job (stand → station) to a robot: the nearest
+   idle one, or one about to finish a drop nearby. A tote is not sent out
+   for a station whose queue (in the infeed stub and in robots heading
+   there) is full: the same portFull/portRoom rules as on the loop.
+3. The robot drives to the handover cell in front of the stand, takes the
+   tote, drives along the highway to the station's queue lane and leaves
+   the tote on its infeed stub. The station works as now.
+4. A tote leaving a station waits on its outfeed stub. The storage policy
+   picks its aisle (chooseSlot, unchanged); a robot that has just left a
+   tote at that station takes it, if it is free, and drives it to that
+   aisle's infeed stand. With the stand full it picks another aisle with
+   room (the loop's routeBack rule, at the moment of pickup) or waits.
+5. A tote that goes on to another station (stationPath today) goes by
+   robot from the outfeed stub straight to the next station's infeed.
+
+Pairing a drop at a station with a pickup there is the main gain of robots
+over the loop: no tote goes round empty-handed. The dispatcher should
+prefer it, then the oldest waiting tote.
+
+5. Traffic
+
+- One robot per cell, moving-block reservation (the router, unchanged).
+- The handover rows are entered only for a handover; robots that wait for
+  work park at the ends of the highways or in front of the chargers, not
+  on the highways.
+- A full infeed stand at an aisle or a full queue lane at a station is the
+  robot's equivalent of a full spur: the robot does not stand on the
+  highway waiting; it takes another aisle (returning totes) or waits in
+  the queue lane's entry (stations, which never send more than they
+  can take).
+- The loop's late routing (routeConveyors, lap, recirculation) does not
+  apply.
+
+6. Storage policy
+
+Unchanged (PreZoneSim.chooseSlot): fast movers in the fastest positions,
+spread over the aisles with the least work queued. aisleLoad counts the
+totes on robots heading for the aisle instead of those on the loop.
+
+7. Output
+
+On top of the type's own output:
+- Robot utilization, waiting, charging (the shared fleet KPIs).
+- Empty trips: share of robot trips without a tote.
+- Paired trips: share of drops at a station followed by a pickup there.
+- Stand waits: time totes wait on an outfeed stand for a robot, and
+  machines waiting for room on a full stand (the robots are the limit).
+- Distance driven per tote.
+The control room's conveyor map becomes a floor map of the robots; the
+fleet table lists machines and robots together (both are in sim.fleet).
+
+8. Parameters
+
+  transport            'loop' (default) | 'robots'
+  transportRobots      3 per pick station to start with; step 2 tunes it
+                       against the loop's lines/h on the default site
+  robot speed          1.5 m/s, 0.5 m/s² (the shared robot defaults)
+  transferTime         3 s onto or off a stand or a station stub
+  standCap             2 totes per stand
+  chargers             1 per 6 robots, at the highways' ends
+  battery              as the other floor robots
+
+9. Build plan
+
+Each step ends in something that runs, and in a commit. The loop stays the
+default, so the golden runs of the existing types must not change in any
+step; new golden runs are added for the robot variants.
+
+1. RailRunner with robots, plain: the setting; Racking as a RobotFloor
+   with stands, handover rows, highways and chargers when transport is
+   robots; roller-top robots and their tasks (take at a stand, leave at a
+   station, take at a station, leave at a stand); dispatch without
+   pairing; machines checking stand room instead of loop room; a plain 2D
+   view of the floor and the robots. Golden run 'shuttle-robots', soak
+   invariants (every tote somewhere, no robot on a blocked cell).
+2. Dispatch and tuning: pairing drops with pickups, stations going on to
+   the next station by robot, parking, charging, the storage policy's
+   aisle load; tune transportRobots so the default site picks as many
+   lines/h as with the loop, and note where each is the limit.
+3. Views: the 2D floor in detail (stands, lanes, highways, chargers), the
+   robots in 3D with their roller deck and a tote or pallet on it, the
+   control room's floor map, the fleet table, inspectors for stands and
+   robots, disruptions (robot breakdowns and charger faults are shared).
+4. SkyStack and DeepLane: they share PreZoneSim, so most carries over.
+   SkyStack needs only its crane's outfeed check; DeepLane needs the
+   larger pallet robot (10). Golden runs 'crane-robots', 'pallet-robots'.
+5. README (a paragraph per type and a screenshot pair, loop against
+   robots), spec status, roadmap item 32.
+
+10. Open questions to settle before or during step 1
+
+- DeepLane carries pallets: a pallet robot is about 1.2 × 1.0 m, more than
+  one cell. Either its floor uses larger cells for the robot leg, or the
+  pallet robot claims two cells (the router knows one cell per robot).
+  Decide in step 4; if it is costly, the setting comes to RailRunner and
+  SkyStack only and DeepLane keeps its loop.
+- Racking's x layout (three cells per aisle) gives one stand column per
+  rack side; check that two robots can stand at neighbouring stands
+  without blocking the highway, or put the handover row's cells only in
+  front of the stands.
+- The stations' conveyor stubs come from Layout.portPath; check they reach
+  the new handover row, or let the stub start one row further down.
+- StackPilot's short handover conveyors could get the same option later;
+  out of scope here.

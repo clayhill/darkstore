@@ -31,6 +31,10 @@ output) are written down once, in common.txt.
   amr.txt       robots alongside pickers: people still pick from ordinary
                 shelving, robots carry the order totes to them (not
                 goods-to-person; implemented as AisleMate)
+  prezone-robots.txt
+                a variant of shuttle.txt, crane.txt and pallet.txt: mobile
+                robots instead of the pre-zone conveyor loop between the
+                racking and the stations (planned, roadmap item 32)
 
 Each type spec follows the same outline:
 
