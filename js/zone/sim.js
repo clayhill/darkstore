@@ -24,7 +24,8 @@
     fault: { button: 'Jam a channel', title: 'One of the busiest A-frame channels jams and dispenses nothing until a technician has freed it', note: 'The control room lists what is going on and the throughput chart marks it. A jammed channel dispenses nothing: every line for its product goes short and the tote goes to the completion zone. A refill operator on a break leaves the channels emptying; the busiest operator goes first.' },
   };
   const TIP = 1.0, PUT = 2.0, CHANNEL_PITCH = 0.1; // s the window takes to tip into the tote; s an RF picker takes to put a tote on the belt; m per A-frame channel
-  const CARO_PITCH = 0.4; // m of carousel ring per shelf
+  const CARO_PITCH = 0.4; // m of carousel ring per carrier (one product each)
+  const FETCH = 6; // s of a refill the operator takes to get the carton from the reserve rack
 
   // ---------------------------------------------------------------- catalogue
   const BASES = ['Paracetamol 500 mg', 'Paracetamol 1 g', 'Ibuprofen 200 mg', 'Ibuprofen 400 mg', 'Acetylsalicylic acid 100 mg', 'Naproxen 250 mg', 'Diclofenac gel 1%', 'Omeprazole 20 mg', 'Pantoprazole 40 mg', 'Esomeprazole 20 mg',
@@ -43,9 +44,10 @@
 
   // ---------------------------------------------------------------- floor
   // The floor in cells, as a map for the control room and the views. Rows
-  // from the back: the tote return conveyor, the A-frame with a walkway on
-  // each side for the refill operators, the tote conveyor from order start
-  // along the A-frame, the loop with the zone spurs below it; to its right
+  // from the back: the tote return conveyor, the A-frame with the tote
+  // conveyor from order start running under its belt, a walkway on each side
+  // for the refill operators and behind it a carton flow rack with the
+  // reserve stock, the loop with the zone spurs below it; to its right
   // the merge, the closing line and the shipping sorter with the route
   // lanes, the RF shelving below the merge and the vans at the far wall.
   class ZoneFloor extends WS.RobotFloor {
@@ -57,14 +59,15 @@
       const W = Math.ceil(SX + 20), D = Math.ceil(Math.max(laneY(cfg.routes - 1) + 3, RFY + bays + 5, LB + SD + 9, cfg.carousels > 0 ? caroEnd + 1.5 : 0));
       super(W, D, M.FLOOR);
       Object.assign(this, { cfg, AX, afLen, tipX, nz, LX, RX, LT, LB, SD, SX, RFX, RFY, na, rfLevels, bays, laneY, caroEnd });
-      this.AY = 2.2; this.SY = 4.3; // A-frame belt; tote conveyor from order start
+      this.AY = 3.5; this.SY = 5.6; // A-frame belt; the feed from the tip position to the loop
+      this.WK = 1.05; this.RK = 2.1; // the walkways and the reserve racks, either side of the A-frame
       this.what = new Int16Array(W * D).fill(-1); // what a map cell shows: index into sim.things
       // the zones on the loop, then the other places where people or machines work, as stations
       const box = (x0, y0, x1, y1) => [{ x: Math.floor(x0), y: Math.floor(y0) }, { x: Math.floor(x1), y: Math.floor(y1) }];
       const st = (code, name, cells, o = {}) => this.ports.push(Object.assign({ kind: 'ZONE', code, name, face: 'front', drop: cells[0], lift: cells[0], cells, person: true }, o));
       for (let z = 0; z < cfg.ptlZones; z++) { const dx = RX - 5 - 8 * z; st('P' + (z + 1), z === 0 ? 'Pick-to-light 1 · completion' : 'Pick-to-light ' + (z + 1), box(dx - 4, LB + 1, dx + 0.9, LB + SD + 1.9), { zone: 'P' + (z + 1) }); }
       if (cfg.carousels > 0) { const dx = RX - 5 - 8 * cfg.ptlZones; st('CA', 'Carousels', box(dx - 4, LB + 1, dx + 0.9, caroEnd), { zone: 'CA' }); }
-      st('AF', 'A-frame', box(AX - 0.5, 1.5, AX + afLen + 0.4, 2.9), { person: false, zone: 'AF' });
+      st('AF', 'A-frame', box(AX - 0.5, 2.8, AX + afLen + 0.4, 4.2), { person: false, zone: 'AF' });
       st('RF', 'RF shelving', box(RFX, RFY, RFX + 3 * na - 0.1, RFY + bays + 1.9), { person: false, zone: 'RF' });
       st('MG', 'Merge', box(RX + 2.6, LT - 2, RX + 7.4, LT + 2.9));
       st('QC', 'Manual check', box(RX + 9.4, LT - 3.4, RX + 10.6, LT - 1.6));
@@ -207,7 +210,7 @@
       for (const p of this.inv.products) p.hits = p.loc ? (cfg.orderRate * ((cfg.minLines + cfg.maxLines) / 2) * p.demand) / dTot : 0;
       this.inv.classify();
       this.pickers = []; this.refillers = [];
-      for (let k = 0; k < cfg.refillOps; k++) this.refillers.push(new Walker(this, k, 'refill', g.AX + 2 + k * 4, g.AY - 1.0));
+      for (let k = 0; k < cfg.refillOps; k++) this.refillers.push(new Walker(this, k, 'refill', g.AX + 2 + k * 4, g.AY - g.WK));
       for (let k = 0; k < cfg.rfPickers; k++) { const d = this.rfDepot(); this.pickers.push(new Walker(this, k, 'rf', d.x - 0.5 - k * 0.7, d.y)); }
       this.rfQueue = []; // orders whose RF lines wait for a picker
       this.startT = 0; this.startNext = []; // totes of the order being started, still to go
@@ -254,10 +257,10 @@
     buildBelts() {
       const cfg = this.cfg, g = this.grid, net = (this.net = new WS.BeltNet(this, cfg.conveyorSpeed / cfg.cellSize, cfg.totePitch / cfg.cellSize));
       const { LX, RX, LT, LB, SD, SX, SY } = g, J = LX + 4;
-      // order start along the A-frame to the tip position under the end of its belt, then into the loop
+      // order start under the A-frame's belt to the tip position below its end, then up to the loop
       const B = (this.belts = {});
-      B.start = net.belt('start', [{ x: 2.2, y: SY }, { x: g.tipX, y: SY }], { exit: (t) => this.atTip(t) });
-      B.feed = net.belt('feed', [{ x: g.tipX, y: SY }, { x: J, y: SY }, { x: J, y: LT }]);
+      B.start = net.belt('start', [{ x: 2.2, y: g.AY }, { x: g.tipX, y: g.AY }], { exit: (t) => this.atTip(t) });
+      B.feed = net.belt('feed', [{ x: g.tipX, y: g.AY }, { x: g.tipX, y: SY }, { x: J, y: SY }, { x: J, y: LT }]);
       // the loop, east along the top: segments between the entry (J), the exit (X) and the zone spurs
       const loopLen = 2 * (RX - LX) + 2 * (LB - LT), X = RX - LX, U = (x, side) => (side ? X + (LB - LT) + (RX - x) : x - LX);
       const at = (u) => {
@@ -351,7 +354,9 @@
     // the cells of the map: belts, machines, zones, lanes
     markFloor() {
       const g = this.grid, B = this.belts, thing = (o) => { this.things.push(o); return this.things.length - 1; };
-      g.mark(g.AX - 0.5, g.AY - 0.7, g.AX + g.afLen + 0.5, g.AY + 0.8, M.AFRAME, thing({ kind: 'aframe', fill: (mix) => this.afFill(mix) }));
+      const af = thing({ kind: 'aframe', fill: (mix) => this.afFill(mix) });
+      g.mark(g.AX - 0.5, g.AY - 0.7, g.AX + g.afLen + 0.5, g.AY + 0.8, M.AFRAME, af);
+      for (const s of [-1, 1]) g.mark(g.AX - 0.3, g.AY + s * g.RK - 0.35, g.AX + g.afLen + 0.3, g.AY + s * g.RK + 0.35, M.SHELF, af);
       for (const b of this.net.belts) g.markBelt(b, b.kind === 'loop' ? M.LOOP : b.kind === 'lane' ? M.LANE : M.BELT);
       for (const z of this.zones) {
         const k = thing({ kind: 'zone', zone: z, fill: (mix) => this.zoneFill(z, mix) });
@@ -362,7 +367,7 @@
       g.mark(g.RX + 2.6, g.LT - 2, g.RX + 7.4, g.LT + 3, M.MERGE, thing({ kind: 'merge', fill: (mix) => mix('#26203a', '#dc2626', Math.min(1, this.merge.totes.length / this.cfg.mergeBuffer)) }));
       g.mark(g.RFX, g.RFY, g.RFX + 3 * g.na + 1, g.RFY + g.bays + 2, M.SHELF, thing({ kind: 'rf' }));
       for (const lane of this.lanes) g.mark(g.SX + 0.5, lane.y - 0.8, g.SX + 11, lane.y + 1.2, M.LANE, thing({ kind: 'lane', lane, fill: (mix) => mix('#2a2208', '#f59e0b', Math.min(1, lane.stack.length / this.cfg.vanCapacity)) }));
-      g.mark(0, 1.6, 2.6, 5.4, M.STACK, thing({ kind: 'start' }));
+      g.mark(0, g.AY - 1, 2.6, g.AY + 1, M.STACK, thing({ kind: 'start' }));
       g.mark(g.SX + 11.2, 0, g.W, g.D, M.DOCK);
     }
 
@@ -541,7 +546,9 @@
       return this.belts.feed;
     }
     // A channel at or below its refill level asks for a refill; refill
-    // operators work the one that will run out first.
+    // operators work the one that will run out first. At the channel the
+    // operator turns round to the reserve rack behind the walkway, takes the
+    // product's carton from it and empties it into the channel.
     requestRefill(ch) { ch.req = { t: this.time, op: null }; }
     channelUrgency(ch) { const p = this.inv.byGtin.get(ch.comps[0].gtin); return ch.comps[0].qty / Math.max(0.05, p.hits); }
     dispatchRefills() {
@@ -559,7 +566,7 @@
     }
     // along the walkway on the channel's side, round the end of the frame to change sides
     refillPath(op, ch) {
-      const g = this.grid, yb = g.AY - 1.0, yf = g.AY + 1.0, y = ch.side ? yf : yb, onBack = op.y < g.AY;
+      const g = this.grid, yb = g.AY - g.WK, yf = g.AY + g.WK, y = ch.side ? yf : yb, onBack = op.y < g.AY;
       if (onBack === !ch.side) return [{ x: ch.wx, y }];
       const ends = [g.AX - 1.2, g.AX + g.afLen + 1.2], ex = Math.abs(op.x - ends[0]) + Math.abs(ch.wx - ends[0]) < Math.abs(op.x - ends[1]) + Math.abs(ch.wx - ends[1]) ? ends[0] : ends[1];
       return [{ x: ex, y: op.y }, { x: ex, y }, { x: ch.wx, y }];
@@ -579,6 +586,7 @@
             ch.req = null; ch.refills++; op.done++; op.job = null; op.state = 'IDLE';
           }
         }
+        op.fetch = op.state === 'WORKING' && op.t > c.refillTime - FETCH; // taking the carton from the reserve rack
         op.stateTime[op.state] += dt;
       }
     }
@@ -1014,7 +1022,7 @@
     soundEvents(t0, t1) {
       const out = [];
       for (const e of this.ejects) if (e.t > t0 && e.t <= t1) out.push({ kind: 'beep', p: { x: e.ch.wx, y: e.ch.wy }, w: 0.35 });
-      for (const e of this.tips) if (e.t > t0 && e.t <= t1) out.push({ kind: 'slide', p: { x: this.grid.tipX, y: this.grid.SY }, w: 0.9 });
+      for (const e of this.tips) if (e.t > t0 && e.t <= t1) out.push({ kind: 'slide', p: { x: this.grid.tipX, y: this.grid.AY }, w: 0.9 });
       return out;
     }
 

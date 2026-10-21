@@ -27,7 +27,7 @@
     afChannels: 240, // 120 per side, 0.1 m apart
     beltSpeed: 0.5, windowLength: 1.2, unitTime: 0.25, // m/s, m per order window, s per unit ejected
     channelCap: 80, refillLevel: 20, // units a channel holds; a channel at or below this asks for a refill
-    refillTime: 30, refillOps: 2, // s to refill a channel from a supplier carton; refill operators
+    refillTime: 30, refillOps: 2, // s to take a supplier carton from the reserve rack and empty it into a channel; refill operators
     walkSpeed: 1.1, // m/s
 
     // Order start: the de-stacker feeds an empty tote and a printer labels it

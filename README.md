@@ -542,7 +542,7 @@ following a robot through the aisle, pick carts, picker breaks.
 |---|---|
 | ![Close-up: the A-frame, the loop and the pick-to-light zones with their operators](docs/screenshots/zone-closeup.png) | ![ZoneHop control room: totes out, lines per hour, the A-frame's share, recirculation, merge wait, vans and the zone cards](docs/screenshots/zone-control.png) |
 | **Close-up:** totes leave the A-frame and turn off the loop into the zones they need | **Control room:** the conveyor map with every tote, zone cards with how often each is skipped |
-| ![ZoneHop in 3D: the loop, the zones, the carousels, the RF shelving and the vans at their doors](docs/screenshots/zone-3d.png) | ![The A-frame in 3D: the channels' stacks of boxes on the sloping faces, the belt underneath](docs/screenshots/zone-3d-closeup.png) |
+| ![ZoneHop in 3D: the loop, the zones, the carousels, the RF shelving and the vans at their doors](docs/screenshots/zone-3d.png) | ![The A-frame in 3D: the channels' stacks of boxes on the sloping faces, the belt and the hopper over the tote at its end, the reserve rack with its cartons](docs/screenshots/zone-3d-closeup.png) |
 | **3D:** the whole system, from the A-frame to the vans | **3D close-up:** the A-frame, each channel's stack going down as it dispenses |
 
 ZoneHop is not goods-to-person: nothing travels to a picker, the order tote travels past the stock.
@@ -555,11 +555,13 @@ An order is due on the first van of its route that leaves at least 20 minutes af
 
 **Order start and the A-frame.** The de-stacker feeds an empty tote and a printer labels it (4 s),
 the order due first first. The A-frame has 240 channels on two sloping faces, each holding one fast
-mover, and a belt underneath with a 1.2 m window per order. As the window passes a channel holding
-one of its products, the dispenser ejects the units into it (0.25 s each); at the end of the belt
-the window tips into the order's tote, which waits there, and without its tote the belt stops. Two
-refill operators walk the frame and refill channels at 20 units (30 s), the one that runs out first
-first. A line whose channel is empty goes short, and the tote goes to the completion zone.
+mover, and a belt underneath with a 1.2 m window per order. The tote conveyor from order start runs
+under the belt. As the window passes a channel holding one of its products, the dispenser ejects
+the units into it (0.25 s each). At the end of the belt the window slides through a hopper into the
+order's tote, which waits below it, and without its tote the belt stops. Two refill operators walk
+the walkways either side of the frame and refill channels at 20 units, the one that runs out first
+first: they take the product's carton from the carton flow rack behind them and empty it into the
+channel (30 s). A line whose channel is empty goes short, and the tote goes to the completion zone.
 
 **The loop and the zones.** The tote rides a loop and turns into every zone its order has lines
 in, and only those: three pick-to-light zones with a flow rack wall behind the operator (2 s a line,

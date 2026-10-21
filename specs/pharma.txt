@@ -51,7 +51,8 @@ A-frame
   - At the end of the belt the window tips into the order tote waiting
     there. The belt only moves on when that tote is in place.
   - Channels empty as they dispense. An operator behind the frame refills
-    them from supplier cartons (a fixed time per refill, units per refill).
+    them from supplier cartons, taken from a carton flow rack behind the
+    walkway (a fixed time per refill, units per refill).
     A channel below its refill level raises a refill request; refill
     operators work the most urgent first. A line whose channel is empty when
     its window passes is short: the tote is sent to the completion zone
@@ -191,3 +192,11 @@ Each step ends in something that runs, and in a commit.
   about as many lines. The first pick-to-light zone is the completion
   zone, picking short A-frame lines from its reserve. A breakdown jams one
   of the busiest A-frame channels. The robot cam rides an order tote.
+- Made after the first release: the tote conveyor from order start runs
+  under the A-frame's belt, and the window slides through a hopper into
+  the tote below the belt's end; a feed conveyor climbs from there to the
+  loop. Behind each walkway a carton flow rack holds a carton of every
+  channel's product (its own stock not modelled): the refill operator
+  takes it from there (6 s of the 30 s refill) and empties it into the
+  channel. The carousels are drawn as carriers of six shelves with a bin
+  on each, hanging from an overhead track, one product per carrier.

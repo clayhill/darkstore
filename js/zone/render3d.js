@@ -1,16 +1,20 @@
 /* ZoneHop in the free 3D view (WS.View3D). The A-frame is the centrepiece:
  * two sloping faces of channels over its belt, each channel's stack of
  * boxes going down as it dispenses and back up when it is refilled, the
- * windows on the belt filling as they pass and tipping into the tote at the
- * end. Around it the conveyors with the totes, the pick-to-light flow racks
- * lighting the location to pick, the carousels turning, the RF shelving with
+ * windows on the belt filling as they pass and sliding off its end through
+ * a hopper into the order tote below; the refill operators taking cartons
+ * from the reserve racks behind their walkways. Around it the conveyors with
+ * the totes, the pick-to-light flow racks lighting the location to pick, the
+ * carousels' carriers turning round their track, the RF shelving with
  * the pickers and their carts, the merge, the closing line's machines, the
  * route lanes with the stacked totes and the vans at their doors. The tote
  * cam rides an order tote through all of it; Follow an order follows an
  * order's window, totes and van. */
 (function (WS) {
   'use strict';
-  const CZ = 2.2, AZ = 2.3, RZ = 2.6, TOP = 6.2, FOOT = 2.9, HALF = 0.75, STEPS = 6; // as in the isometric view; the A-frame's faces in steps
+  const CZ = 2.2, AZ = 2.3, RZ = 2.6, TZ = 0.95, TOP = 6.2, FOOT = 2.9, HALF = 0.75, STEPS = 6; // as in the isometric view; the A-frame's faces in steps
+  const RACK = [0.5, 1.4, 2.3, 3.2]; // the reserve racks' levels, as in the isometric view
+  const CL = 6, CLZ = (l) => 0.45 + l * 0.62, CTOP = 4.3, CRAIL = 4.75; // carousel carriers: levels, shelf level, top of a carrier, the overhead track
   const TOTE = { order: '#2563eb', rf: '#f59e0b', empty: '#64748b' };
   const hue = (gtin) => (parseInt(gtin.slice(7, 12), 10) * 47) % 360;
   const prodCol = (gtin, l = 58) => `hsl(${hue(gtin)},50%,${l}%)`;
@@ -32,7 +36,7 @@
     }
     workLights() {
       const sim = this.sim, g = sim.grid, out = sim.zones.map((z) => ({ x: z.pick.x, y: z.pick.y + 0.9 }));
-      out.push({ x: g.AX + g.afLen / 2, y: g.AY }, { x: g.RX + 5.2, y: g.LT + 2.6 }, { x: sim.machines[0].x - 0.9, y: g.LT - 2.4 }, sim.rfDepot(), { x: 1.4, y: g.SY });
+      out.push({ x: g.AX + g.afLen / 2, y: g.AY }, { x: g.RX + 5.2, y: g.LT + 2.6 }, { x: sim.machines[0].x - 0.9, y: g.LT - 2.4 }, sim.rfDepot(), { x: 1.4, y: g.AY }, { x: g.tipX, y: g.AY });
       return out;
     }
 
@@ -44,7 +48,11 @@
         this.ground.rotation.x = -Math.PI / 2; this.ground.receiveShadow = true; this.scene.add(this.ground);
       }
       this.ground.scale.set(b.x1 - b.x0 + 30, b.y1 - b.y0 + 20, 1); this.ground.position.set((b.x0 + b.x1) / 2 + 6, -0.002, (b.y0 + b.y1) / 2);
-      for (const bt of sim.net.belts) this.conveyor(S, bt.pts, 0.7, bt.kind === 'return' ? RZ : CZ, bt.kind === 'loop' ? '#2f3d52' : bt.kind === 'lane' ? '#3a3420' : '#334155');
+      for (const bt of sim.net.belts) {
+        const col = bt.kind === 'loop' ? '#2f3d52' : bt.kind === 'lane' ? '#3a3420' : '#334155';
+        if (bt === sim.belts.feed) { this.incline(S, bt.pts[0], bt.pts[1], TZ, CZ, col); this.conveyor(S, bt.pts.slice(1), 0.7, CZ, col); }
+        else this.conveyor(S, bt.pts, 0.7, this.beltZ(bt, 0), col);
+      }
       this.aframeStatic(S);
       for (const z of sim.zones) this.zoneStatic(S, z);
       this.rfStatic(S);
@@ -52,11 +60,23 @@
       this.startStatic(S);
       // the zones' floor marking and the walkways along the A-frame
       for (const z of sim.zones) S.box.box(z.dx - 4.4, g.LB + 1, 0, z.dx + 1.4, z.kind === 'carousel' ? g.caroEnd + 0.3 : g.LB + g.SD + 2.3, 0.01, '#1f3a2c', { kind: 'port', id: z.port.idx });
-      for (const y of [g.AY - 1.0, g.AY + 1.0]) S.box.box(g.AX - 1.4, y - 0.04, 0, g.AX + g.afLen + 1.4, y + 0.04, 0.015, '#a16207');
-      if (!this.chan) this.chan = this.newBatch('box', 'std', 2048);
+      for (const s of [-1, 1]) for (const d of [-0.42, 0.42]) S.box.box(g.AX - 1.4, g.AY + s * g.WK + d - 0.04, 0, g.AX + g.afLen + 1.4, g.AY + s * g.WK + d + 0.04, 0.015, '#a16207');
+      if (!this.chan) { this.chan = this.newBatch('box', 'std', 2048); this.res = this.newBatch('box', 'std', 2048); }
       this.chan.slots(sim.channels.length, STEPS);
+      this.res.slots(sim.channels.length, 5);
     }
-    extraBatches() { return [this.chan]; }
+    extraBatches() { return [this.chan, this.res]; }
+    beltZ(b, s) { return WS.ZoneRenderer.prototype.beltZ.call(this, b, s); }
+    // an inclined conveyor from a (level z0) to b (level z1): side frames and rollers in steps, legs
+    incline(S, a, b, z0, z1, color) {
+      const len = Math.hypot(b.x - a.x, b.y - a.y), ux = (b.x - a.x) / len, uy = (b.y - a.y) / len, n = Math.ceil(len / 0.25);
+      for (let k = 0; k < n; k++) {
+        const f = (k + 0.5) / n, x = a.x + ux * len * f, y = a.y + uy * len * f, z = z0 + (z1 - z0) * f, h = len / n / 2 + 0.01;
+        for (const s of [-1, 1]) S.box.box(x - h * Math.abs(ux) + s * 0.36 * Math.abs(uy) - 0.03, y - h * Math.abs(uy) + s * 0.36 * Math.abs(ux) - 0.03, z - 0.35, x + h * Math.abs(ux) + s * 0.36 * Math.abs(uy) + 0.03, y + h * Math.abs(uy) + s * 0.36 * Math.abs(ux) + 0.03, z + 0.05, color);
+        if (Math.abs(uy) > 0.5) S.cyl.cylX(x - 0.33, x + 0.33, y, z - 0.07, 0.04, '#64748b'); else S.cyl.cylY(x, y - 0.33, y + 0.33, z - 0.07, 0.04, '#64748b');
+        if (k % 3 === 1) for (const s of [-1, 1]) S.box.box(x + s * 0.33 * Math.abs(uy) - 0.03, y + s * 0.33 * Math.abs(ux) - 0.03, 0, x + s * 0.33 * Math.abs(uy) + 0.03, y + s * 0.33 * Math.abs(ux) + 0.03, z - 0.35, '#475569');
+      }
+    }
     // The A-frame: posts, the apex beam and the two sloping faces in steps; the belt underneath; the tip chute.
     aframeStatic(S) {
       const sim = this.sim, g = sim.grid, x0 = g.AX, x1 = g.AX + g.afLen, y = g.AY, pick = { kind: 'port', id: sim.afPort.idx };
@@ -66,15 +86,53 @@
         for (const s of [-1, 1]) S.box.box(x0, y + s * dy - 0.07, z - 0.08, x1, y + s * dy + 0.07, z, '#334155', pick);
       }
       S.box.box(x0 - 0.1, y - 0.08, TOP - 0.05, x1 + 0.1, y + 0.08, TOP + 0.15, '#64748b', pick);
-      S.box.box(x0 - 0.3, y - 0.32, AZ - 0.35, x1 + 0.3, y + 0.32, AZ, '#1f2937', pick);
-      for (let x = x0; x <= x1; x += 2) S.box.box(x - 0.05, y - 0.05, 0, x + 0.05, y + 0.05, AZ - 0.35, '#475569');
+      // the belt: its frame hung from cross beams between the posts, so the
+      // order start conveyor runs underneath; the rubber belt over its end drum
+      S.box.box(x0 - 0.3, y - 0.32, AZ - 0.3, x1 + 0.3, y + 0.32, AZ - 0.05, '#1f2937', pick);
+      S.box.box(x0 - 0.3, y - 0.27, AZ - 0.05, x1 + 0.3, y + 0.27, AZ, '#0b0f17', pick);
+      for (const s of [-1, 1]) S.box.box(x0 - 0.3, y + s * 0.3 - 0.025, AZ - 0.05, x1 + 0.3, y + s * 0.3 + 0.025, AZ + 0.12, '#475569', pick);
+      for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / 6) S.box.box(x - 0.05, y - HALF, AZ - 0.42, x + 0.05, y + HALF, AZ - 0.3, '#475569');
+      S.cyl.cylY(x1 + 0.3, y - 0.29, y + 0.29, AZ - 0.15, 0.15, '#94a3b8');
+      S.cyl.cylY(x0 - 0.3, y - 0.29, y + 0.29, AZ - 0.15, 0.15, '#94a3b8');
+      S.box.box(x0 - 0.75, y + 0.32, AZ - 0.4, x0 - 0.35, y + 0.6, AZ + 0.05, '#1e3a8a'); // drive motor
       // the dispensers along the foot of each face
       for (const s of [-1, 1]) S.box.box(x0, y + s * HALF * 0.55 - 0.08, FOOT - 0.4, x1, y + s * HALF * 0.55 + 0.08, FOOT - 0.1, '#0f172a', pick);
-      // tip chute: from the end of the belt down to the tote at the tip position
-      const n = 4;
+      this.hopperStatic(S);
+      this.reserveStatic(S);
+    }
+    // The hopper past the end of the belt: a stainless funnel in rings,
+    // narrowing from under the belt's end to the tote below; its flap at the
+    // bottom; a stand on the floor and a photo eye for the tote.
+    hopperStatic(S) {
+      const g = this.sim.grid, y = g.AY, hx = g.tipX - 0.08, zt = AZ + 0.25, zb = TZ + 1.05, n = 5, steel = '#a3acb9';
       for (let k = 0; k < n; k++) {
-        const f = k / n, f1 = (k + 1) / n, xa = x1 + 0.3 + (g.tipX - x1 - 0.3) * f, xb = x1 + 0.3 + (g.tipX - x1 - 0.3) * f1, ya = y + (g.SY - y) * f, yb = y + (g.SY - y) * f1, z = AZ + (CZ + 1.4 - AZ) * f1;
-        S.box.box(Math.min(xa, xb) - 0.3, Math.min(ya, yb) - 0.3, z - 0.08, Math.max(xa, xb) + 0.3, Math.max(ya, yb) + 0.3, z, '#475569');
+        const f = k / (n - 1), z = zt - (zt - zb) * f, wx = 0.55 - 0.27 * f, wy = 0.45 - 0.18 * f, cx = hx - 0.1 * (1 - f), t = 0.03, h = (zt - zb) / (n - 1) + 0.02;
+        S.box.box(cx - wx, y - wy, z - h, cx + wx, y - wy + t, z, steel);
+        S.box.box(cx - wx, y + wy - t, z - h, cx + wx, y + wy, z, steel);
+        S.box.box(cx + wx - t, y - wy, z - h, cx + wx, y + wy, z, WS.shade(steel, -0.12));
+        if (f > 0.3) S.box.box(cx - wx, y - wy, z - h, cx - wx + t, y + wy, z, WS.shade(steel, -0.12));
+      }
+      // the rim, open towards the belt
+      for (const s of [-1, 1]) S.box.box(hx - 0.68, y + s * 0.47 - 0.04, zt - 0.02, hx + 0.48, y + s * 0.47 + 0.04, zt + 0.06, '#64748b');
+      S.box.box(hx + 0.42, y - 0.47, zt - 0.02, hx + 0.5, y + 0.47, zt + 0.06, '#64748b');
+      for (const s of [-1, 1]) {
+        S.box.box(hx + 0.55, y + s * 0.5 - 0.04, 0, hx + 0.63, y + s * 0.5 + 0.04, zt, '#475569');
+        S.box.box(hx - 0.3, y + s * 0.42 - 0.03, TZ + 0.4, hx - 0.24, y + s * 0.42 + 0.03, TZ + 0.55, '#0f172a'); // photo eye
+      }
+    }
+    // The reserve racks behind the walkways: carton flow racks, four levels
+    // sloping down towards the walkway, a carton lane for every channel.
+    reserveStatic(S) {
+      const sim = this.sim, g = sim.grid, x0 = g.AX - 0.3, x1 = g.AX + g.afLen + 0.3, pick = { kind: 'port', id: sim.afPort.idx };
+      for (const s of [-1, 1]) {
+        const ry = g.AY + s * g.RK, near = ry - s * 0.35, far = ry + s * 0.35;
+        for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / Math.ceil((x1 - x0) / 2.2)) for (const yy of [near, far]) S.box.box(x - 0.04, yy - 0.04, 0, x + 0.04, yy + 0.04, 3.95, '#1d4ed8', pick);
+        for (const z of RACK) {
+          S.box.box(x0, ry - 0.35, z - 0.1, x1, ry + 0.35, z - 0.04, '#64748b', pick);
+          S.box.box(x0, near - 0.03, z - 0.12, x1, near + 0.03, z + 0.02, '#f97316', pick);
+          S.box.box(x0, far - 0.03, z - 0.06, x1, far + 0.03, z + 0.04, '#f97316', pick);
+          for (let k = 0; k < 6; k++) S.box.box(x0, ry - 0.3 + k * 0.12, z - 0.04, x1, ry - 0.28 + k * 0.12, z - 0.02, '#94a3b8', pick); // roller tracks
+        }
       }
     }
     zoneStatic(S, z) {
@@ -89,15 +147,45 @@
         const ry = py + 1.8, x0 = z.dx - 4.2, x1 = z.dx + 1.2;
         for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / 4) S.box.box(x - 0.04, ry - 0.35, 0, x + 0.04, ry + 0.45, 5.6, '#1d4ed8', pick);
         for (let lv = 0; lv < 5; lv++) S.box.box(x0, ry - 0.35, 0.5 + lv, x1, ry + 0.45, 0.6 + lv, '#64748b', pick);
-      } else {
-        // carousels: an oval track on the floor, posts and a top rail
-        for (const cr of z.carousels) {
-          const N = 48, R = 2 * cr.len + 2 * Math.PI * cr.r;
-          for (let k = 0; k < N; k++) { const p = sim.caroAt(cr, (k * R) / N); S.box.box(p.x - 0.12, p.y - 0.12, 0, p.x + 0.12, p.y + 0.12, 0.25, '#1f2937', pick); }
-          for (const yy of [cr.y + cr.r, cr.y + cr.r + cr.len]) S.box.box(cr.x - 0.08, yy - 0.08, 0, cr.x + 0.08, yy + 0.08, 4.6, '#475569', pick);
-          S.box.box(cr.x - 0.06, cr.y + cr.r, 4.4, cr.x + 0.06, cr.y + cr.r + cr.len, 4.6, '#475569', pick);
-        }
+      } else for (const cr of z.carousels) this.carouselStatic(S, z, cr, pick);
+    }
+    // A horizontal carousel: the carriers hang from a chain in an overhead
+    // oval track carried by a frame of posts and cross beams down the middle,
+    // with the drive at the far end; a guide rail on the floor keeps them
+    // from swinging. At the pick face a light tree with a light per level, a
+    // light curtain post either side, a mat for the operator.
+    carouselStatic(S, z, cr, pick) {
+      const sim = this.sim, R = 2 * cr.len + 2 * Math.PI * cr.r, N = Math.ceil(R / 0.35), ya = cr.y + cr.r, yb = cr.y + cr.r + cr.len;
+      for (let k = 0; k < N; k++) {
+        const u = (k + 0.5) * R / N, p = sim.caroAt(cr, u), q = sim.caroAt(cr, u + 0.2), h = 0.2;
+        const ax = Math.abs(q.x - p.x) > Math.abs(q.y - p.y);
+        S.box.box(p.x - (ax ? h : 0.05), p.y - (ax ? 0.05 : h), 0, p.x + (ax ? h : 0.05), p.y + (ax ? 0.05 : h), 0.1, '#52525b', pick); // floor guide
+        S.box.box(p.x - (ax ? h : 0.09), p.y - (ax ? 0.09 : h), CRAIL - 0.05, p.x + (ax ? h : 0.09), p.y + (ax ? 0.09 : h), CRAIL + 0.2, '#64748b', pick); // overhead track
       }
+      // the frame: posts down the middle, a spine beam and arms out to the track
+      const nPost = Math.max(2, Math.round(cr.len / 3) + 1);
+      for (let k = 0; k < nPost; k++) {
+        const yy = ya + (cr.len * k) / (nPost - 1);
+        S.box.box(cr.x - 0.07, yy - 0.07, 0, cr.x + 0.07, yy + 0.07, CRAIL + 0.35, '#475569', pick);
+        S.box.box(cr.x - cr.r, yy - 0.05, CRAIL + 0.2, cr.x + cr.r, yy + 0.05, CRAIL + 0.3, '#475569', pick);
+      }
+      S.box.box(cr.x - 0.08, ya, CRAIL + 0.25, cr.x + 0.08, yb, CRAIL + 0.4, '#475569', pick);
+      S.box.box(cr.x - 0.2, ya, 0, cr.x + 0.2, yb, 0.12, '#334155', pick); // base rail in the middle
+      // the drive at the far end: gearbox and motor on top, a guard round the sprocket
+      S.box.box(cr.x - 0.32, yb - 0.3, CRAIL + 0.4, cr.x + 0.32, yb + 0.3, CRAIL + 0.95, '#1e3a8a', pick);
+      S.cyl.cylY(cr.x + 0.12, yb - 0.6, yb - 0.3, CRAIL + 0.68, 0.17, '#1e40af', pick);
+      S.cyl.cyl(cr.x, yb, CRAIL + 0.2, CRAIL + 0.4, cr.r * 0.55, '#facc15', pick);
+      S.cyl.cyl(cr.x, ya, CRAIL + 0.2, CRAIL + 0.4, cr.r * 0.55, '#334155', pick);
+      // pick face: light tree on the outer side, light curtain posts, the mat
+      const out = cr.x < z.pick.x ? -1 : 1, tx = cr.x + out * (cr.r + 0.42), ty = cr.y - 0.15;
+      S.box.box(tx - 0.05, ty - 0.05, 0, tx + 0.05, ty + 0.05, CTOP + 0.6, '#1f2937', pick);
+      S.box.box(tx - 0.16, ty - 0.12, CTOP + 0.6, tx + 0.16, ty + 0.06, CTOP + 1.05, '#0f172a', pick);
+      for (const s of [-1, 1]) {
+        const px = cr.x + s * (cr.r + 0.18);
+        if (s === out) continue;
+        S.box.box(px - 0.05, ty - 0.05, 0, px + 0.05, ty + 0.05, CTOP, '#facc15', pick);
+      }
+      S.box.box(cr.x - 0.55, cr.y - 1.5, 0, cr.x + 0.55, cr.y - 0.55, 0.03, '#10161f');
     }
     rfStatic(S) {
       const sim = this.sim, g = sim.grid, pick = { kind: 'port', id: sim.rfPort.idx };
@@ -126,10 +214,10 @@
       for (const lane of sim.lanes) S.box.box(g.SX + 5.4, lane.y - 0.75, 0, g.SX + 11, lane.y + 0.75, 0.02, '#1f2937', { kind: 'cell', id: g.idx(Math.floor(g.SX + 7), Math.floor(lane.y)) });
     }
     startStatic(S) {
-      const sim = this.sim, g = sim.grid, sx = 1.2, sy = g.SY, e = sim.emptier, pick = { kind: 'cell', id: g.idx(1, Math.floor(sy)) };
-      S.box.box(sx - 0.55, sy - 0.6, 0, sx + 0.55, sy + 0.6, CZ, '#334155', pick);
-      for (const xx of [sx - 0.6, sx + 0.52]) S.box.box(xx, sy - 0.65, 0, xx + 0.08, sy + 0.65, CZ + 4.6, '#64748b');
-      S.box.box(2.4, sy - 0.75, CZ, 3.2, sy - 0.45, CZ + 2.0, '#e2e8f0', pick);
+      const sim = this.sim, g = sim.grid, sx = 1.2, sy = g.AY, e = sim.emptier, pick = { kind: 'cell', id: g.idx(1, Math.floor(sy)) };
+      S.box.box(sx - 0.55, sy - 0.6, 0, sx + 0.55, sy + 0.6, TZ, '#334155', pick);
+      for (const xx of [sx - 0.6, sx + 0.52]) S.box.box(xx, sy - 0.65, 0, xx + 0.08, sy + 0.65, TZ + 5.4, '#64748b');
+      S.box.box(2.4, sy - 0.75, 0, 3.2, sy - 0.45, TZ + 2.0, '#e2e8f0', pick);
       S.box.box(e.x - 0.7, e.y - 0.6, 0, e.x + 0.6, e.y + 0.6, RZ + 2.2, '#4c1d95', pick);
     }
 
@@ -145,7 +233,7 @@
       this.startLive();
       for (const b of sim.net.belts) for (const t of b.totes) {
         const x = t.px + (t.x - t.px) * alpha, y = t.py + (t.y - t.py) * alpha;
-        this.zoneTote(D, t, x, y, b.kind === 'return' ? RZ : CZ, Math.abs(t.dx) > 0.5);
+        this.zoneTote(D, t, x, y, this.beltZ(b, t.s), Math.abs(t.dx) > 0.5);
       }
     }
     // an order tote (blue), RF tote (amber) or empty one back from a van (grey); a lid and a label once closed
@@ -195,11 +283,79 @@
         D.box.box(ch.wx - 0.06, yy - 0.05, zz, ch.wx + 0.06, yy + 0.05, zz + 0.15, prodCol(ch.comps[0].gtin || '0000000000000'));
       }
       if (!sim.afRunning && sim.windows.length) D.litCyl.cyl(g.AX + g.afLen + 0.3, y, TOP + 0.2, TOP + 0.5, 0.1, '#f59e0b');
+      this.tipLive();
+      this.reserveLive();
+      // refill operators: walking the walkway; at the channel, turned round to
+      // the reserve rack to take the carton, then emptying it into the channel
       for (const op of sim.refillers) {
         if (op.state === 'BREAK') continue;
-        this.operator(op.x, op.y, op.y < y ? Math.PI : 0, op.state === 'WORKING', '#a3e635', 0, 'refill ' + op.name);
-        if (op.job) { const z = op.state === 'WORKING' ? 3.2 : 2.4, dir = op.y < y ? 1 : -1; this.parcel(D.box, op.x - 0.18, op.y + dir * 0.15 - 0.15, op.x + 0.18, op.y + dir * 0.15 + 0.15, z, 0.45); }
+        const toFrame = op.y < y ? Math.PI : 0, working = op.state === 'WORKING', a = working ? (op.fetch ? toFrame + Math.PI : toFrame) : op.state === 'WALKING' ? -op.heading - Math.PI / 2 : toFrame;
+        this.operator(op.x, op.y, a, working, '#a3e635', 0, 'refill ' + op.name);
+        if (!working || !op.job) continue;
+        const dir = op.y < y ? 1 : -1, ch = op.job;
+        if (op.fetch) {
+          // from the rack's level to the arms
+          const f = Math.min(1, Math.max(0, (sim.cfg.refillTime - op.t) / 6)), zr = RACK[ch.slot % 4] + 0.05, z = zr + (2.0 - zr) * Math.min(1, f * 1.6), dy = -dir * (0.62 - 0.35 * Math.min(1, f * 1.6));
+          this.carton(D, op.x, op.y + dy, z, ch);
+        } else {
+          // held up against the face, open, its units sliding into the channel
+          this.carton(D, op.x, op.y + dir * 0.3, 2.9, ch, true);
+          const u = (this.t * 2.2) % 1, zz = 3.4 + u * 0.5, yy = op.y + dir * (0.32 + u * 0.25);
+          D.box.box(op.x - 0.05, yy - 0.04, zz, op.x + 0.05, yy + 0.04, zz + 0.12, prodCol(ch.comps[0].gtin));
+        }
       }
+    }
+    // a supplier carton with the product's label, closed or with its flaps open
+    carton(D, x, y, z, ch, open) {
+      const col = '#b8875a';
+      if (open) {
+        D.box.box(x - 0.22, y - 0.16, z, x + 0.22, y + 0.16, z + 0.5, col);
+        D.box.box(x - 0.18, y - 0.12, z + 0.5, x + 0.18, y + 0.12, z + 0.51, prodCol(ch.comps[0].gtin, 45));
+        for (const s of [-1, 1]) D.box.box(x - 0.22, y + s * 0.16 - 0.01, z + 0.5, x + 0.22, y + s * 0.16 + 0.01, z + 0.78, '#a5764c');
+      } else this.parcel(D.box, x - 0.22, y - 0.16, x + 0.22, y + 0.16, z, 0.5);
+      D.box.box(x - 0.12, y - 0.165, z + 0.12, x + 0.12, y - 0.16, z + 0.32, prodCol(ch.comps[0].gtin, 62));
+    }
+    // A carton of each channel's product in the reserve rack, two deep in
+    // its lane; the front one goes while its operator takes it.
+    reserveLive() {
+      const sim = this.sim, g = sim.grid, B = this.res, pick = { kind: 'port', id: sim.afPort.idx };
+      sim.channels.forEach((ch, k) => {
+        const op = ch.req && ch.req.op, gone = op && op.job === ch && op.state === 'WORKING' ? 1 : 0;
+        if (!B.open(k, gone)) return;
+        const s = ch.side ? 1 : -1, ry = g.AY + s * g.RK, near = ry - s * 0.35, z = RACK[ch.slot % 4], col = prodCol(ch.comps[0].gtin, 62);
+        for (let d = gone; d < 2; d++) {
+          const ya = near + s * (0.03 + d * 0.33), yb = ya + s * 0.3, zz = z + d * 0.04;
+          B.box(ch.wx - 0.2, Math.min(ya, yb), zz, ch.wx + 0.2, Math.max(ya, yb), zz + 0.5, d ? '#a5764c' : '#b8875a', pick);
+          if (d === gone) B.box(ch.wx - 0.11, ya - s * 0.006, zz + 0.12, ch.wx + 0.11, ya - s * 0.001, zz + 0.32, col, pick);
+        }
+        B.close(k);
+      });
+      B.flush();
+    }
+    // The window tipping: its units slide off the end of the belt into the
+    // hopper and drop into the tote; the flap stands open while they fall.
+    tipLive() {
+      const sim = this.sim, g = sim.grid, D = this.dy, y = g.AY, x1 = g.AX + g.afLen + 0.3, hx = g.tipX - 0.08, zt = AZ + 0.25, zb = TZ + 1.05;
+      let open = false;
+      for (const e of sim.tips) {
+        const age = sim.time - e.t;
+        if (age < 0 || age > 1.0) continue;
+        open = true;
+        let k = 0;
+        for (const ln of e.w.lines) for (let u = 0; u < ln.got && k < 18; u++, k++) {
+          const f = Math.min(1, Math.max(0, (age - k * 0.025) / 0.6));
+          if (f <= 0 || f >= 1) continue;
+          const ox = ((k % 4) - 1.5) * 0.08, oy = ((k >> 2) % 3 - 1) * 0.1;
+          // over the drum (a short arc), then a fall through the hopper into the tote
+          const x = f < 0.25 ? x1 - 0.2 + f * 2.4 + ox * f * 4 : hx + ox, z = f < 0.25 ? AZ + 0.05 - f * 0.6 : AZ - 0.1 - (f - 0.25) / 0.75 * (AZ - 0.1 - TZ - 0.25);
+          D.box.box(x - 0.06, y + oy - 0.05, z, x + 0.06, y + oy + 0.05, z + 0.15, prodCol(ln.line.gtin));
+        }
+      }
+      // the flap at the bottom of the hopper: closed, or both halves hanging open
+      if (open) for (const s of [-1, 1]) D.box.box(hx - 0.28, y + s * 0.27 - 0.02, zb - 0.3, hx + 0.28, y + s * 0.27 + 0.02, zb, '#64748b');
+      else D.box.box(hx - 0.28, y - 0.27, zb - 0.03, hx + 0.28, y + 0.27, zb, '#64748b');
+      const ready = sim.belts.start.front && sim.belts.start.front.s >= sim.belts.start.len - 1e-6;
+      (ready ? D.litCyl : D.cyl).cyl(hx + 0.59, y - 0.5, zt + 0.05, zt + 0.25, 0.06, ready ? '#22c55e' : '#334155');
     }
     zoneScreen(z) { return WS.ZoneRenderer.prototype.zoneScreen.call(this, z); }
     zoneLive(z) {
@@ -207,15 +363,16 @@
       D.lit.box(sx - 0.26, sy + 0.04, 3.4, sx + 0.26, sy + 0.05, 4.5, '#0b1220');
       this.screen('zone' + z.id, sx - 0.255, sx + 0.255, sy + 0.053, 3.42, 4.48, this.zoneScreen(z));
       if (z.port.away) return;
-      let x = z.pick.x;
+      let x = z.pick.x, y = py + 0.95, u = 0;
       const j = z.job;
-      if (j && j.cur && j.cur.bin && z.kind === 'ptl') {
-        const tot = sim.cfg.ptlLine + sim.cfg.ptlUnit * j.cur.qty, f = 1 - j.t / tot, u = f < 0.5 ? Math.min(1, f / 0.2) : Math.max(0, 1 - (f - 0.5) / 0.2);
-        x = z.pick.x + (j.cur.bin.wx - z.pick.x) * u;
+      if (j && j.cur && (j.cur.bin || z.kind === 'carousel')) {
+        const c = sim.cfg, tot = z.kind === 'ptl' ? c.ptlLine + c.ptlUnit * j.cur.qty : c.carouselLine + c.carouselUnit * j.cur.qty, f = 1 - j.t / tot;
+        u = f < 0.5 ? Math.min(1, f / 0.2) : Math.max(0, 1 - (f - 0.5) / 0.2);
+        if (z.kind === 'ptl') x = z.pick.x + (j.cur.bin.wx - z.pick.x) * u;
+        else { const cr = z.carousels[j.cur.car]; x = z.pick.x + (cr.x - z.pick.x) * 0.7 * u; y += 0.35 * u; }
       }
-      // facing the rack (behind her) while she takes the units, the tote otherwise
-      const atRack = j && j.cur && z.kind === 'ptl' && Math.abs(x - z.pick.x) > 0.1;
-      this.operator(x, py + 0.95, atRack ? Math.PI : 0, !!(j && j.cur), '#f97316', 0, 'zone ' + z.id);
+      // facing the rack or the carousel (behind her) while she takes the units, the tote otherwise
+      this.operator(x, y, u > 0.3 ? Math.PI : 0, !!(j && j.cur), '#f97316', 0, 'zone ' + z.id);
     }
     ptlLive(z) {
       const sim = this.sim, g = sim.grid, D = this.dy, ry = g.LB + g.SD + 1.8, j = z.job, cur = j && j.cur, pick = { kind: 'port', id: z.port.idx };
@@ -226,15 +383,44 @@
       }
       this.zoneLive(z);
     }
+    // The carriers: one per product, hanging from the track and turned along
+    // it, open to the outside; wire sides and back, six shelves with a
+    // plastic bin each, as many of them holding the product as its stock
+    // fills (the top one is picked from). The carrier at the pick face with the line to pick
+    // lights its bin and the light tree its level.
     carouselLive(z) {
       const sim = this.sim, D = this.dy, j = z.job, cur = j && j.cur, pick = { kind: 'port', id: z.port.idx };
+      const hw = (WS.ZONE_CARO_PITCH / sim.cfg.cellSize) / 2 - 0.025, dp = 0.29, wire = '#6b7280';
+      const lit = z.carousels.map(() => -1);
       for (const b of z.bins) {
-        const cr = z.carousels[b.caro], p = sim.shelfAt(cr, b.shelf), s = 0.24, on = cur && cur.bin === b;
-        D.box.box(p.x - s, p.y - s, 0.3, p.x + s, p.y + s, 0.42, on ? '#166534' : '#334155', pick);
-        for (let lv = 0; lv < 3; lv++) D.box.box(p.x - s + 0.04, p.y - s + 0.04, 0.6 + lv * 1.2, p.x + s - 0.04, p.y + s - 0.04, 1.0 + lv * 1.2, `hsl(${(hue(b.comps[0].gtin) + lv * 40) % 360},45%,58%)`, pick);
-        D.box.box(p.x - s, p.y - s, 4.1, p.x + s, p.y + s, 4.2, on ? '#166534' : '#334155', pick);
-        if (on) D.litCyl.cyl(p.x, p.y, 4.2, 4.35, 0.08, '#4ade80');
+        const cr = z.carousels[b.caro], u = (b.shelf * WS.ZONE_CARO_PITCH - cr.pos) / sim.cfg.cellSize, p = sim.caroAt(cr, u), q = sim.caroAt(cr, u + 0.05), o = sim.caroAt(cr, u - 0.05);
+        const a = Math.atan2(-(q.y - o.y), q.x - o.x), sy = Math.max(cr.y + cr.r, Math.min(cr.y + cr.r + cr.len, p.y));
+        const out = Math.sign((p.x - cr.x) * Math.sin(a) + (p.y - sy) * Math.cos(a)) || 1, v = (x) => x * out;
+        const box = (u0, v0, z0, u1, v1, z1, c) => D.box.rbox(p.x, p.y, a, u0, Math.min(v(v0), v(v1)), z0, u1, Math.max(v(v0), v(v1)), z1, c, pick);
+        // frame: hanger up to the track, top, sides and back of wire mesh
+        box(-0.03, -0.03, CTOP, 0.03, 0.03, CRAIL, '#475569');
+        for (const e of [-hw, hw - 0.04]) { box(e, -dp, CTOP - 0.05, e + 0.04, dp, CTOP, wire); box(e, dp - 0.04, 0.3, e + 0.04, dp, CTOP, wire); box(e, -dp, 0.3, e + 0.04, -dp + 0.04, CTOP, wire); box(e + 0.015, -dp, 0.3, e + 0.025, dp, CTOP, '#3f4652'); }
+        box(-hw, -0.03, CTOP - 0.05, hw, 0.03, CTOP, wire);
+        box(-hw, -dp, 0.3, hw, -dp + 0.02, CTOP, '#2f3540');
+        const qf = b.comps[0].qty / b.cap, n = b.comps[0].qty > 0 ? Math.max(1, Math.ceil(qf * CL)) : 0, on = cur && cur.bin === b;
+        for (let l = 0; l < CL; l++) {
+          const zl = CLZ(l);
+          box(-hw, -dp, zl - 0.04, hw, dp, zl, wire);
+          // a bin on every shelf: the product's colour while it holds stock, grey once empty
+          const c = l < n ? prodCol(b.comps[0].gtin, 52 + (l % 2) * 6) : '#3b4252', top = on && l === n - 1;
+          box(-hw + 0.04, -dp + 0.04, zl, hw - 0.04, dp - 0.02, zl + 0.36, c);
+          (top ? D.lit : D.box).rbox(p.x, p.y, a, -hw + 0.08, Math.min(v(dp - 0.02), v(dp + 0.005)), zl + 0.08, hw - 0.08, Math.max(v(dp - 0.02), v(dp + 0.005)), zl + (l < n ? 0.3 : 0.14), top ? '#4ade80' : prodCol(b.comps[0].gtin, l < n ? 74 : 40), pick);
+        }
+        if (on) lit[b.caro] = Math.max(0, n - 1);
       }
+      // the light trees: a light per level, the one to pick from lit, the quantity on top
+      z.carousels.forEach((cr, k) => {
+        const out = cr.x < z.pick.x ? -1 : 1, tx = cr.x + out * (cr.r + 0.42), ty = cr.y - 0.15;
+        for (let l = 0; l < CL; l++) (lit[k] === l ? D.litCyl : D.cyl).cyl(tx, ty - 0.06, CLZ(l) + 0.1, CLZ(l) + 0.32, 0.07, lit[k] === l ? '#4ade80' : '#14532d');
+        if (lit[k] >= 0) D.lit.box(tx - 0.12, ty - 0.125, CTOP + 0.7, tx + 0.12, ty - 0.12, CTOP + 0.95, '#ef4444');
+        // the carousel turning: an amber beacon on the drive
+        if (cr.target != null && Math.abs(sim.ringDelta(cr, cr.target)) > 1e-6) D.litCyl.cyl(cr.x, cr.y + cr.r + cr.len, CRAIL + 0.95, CRAIL + 1.15, 0.08, '#f59e0b');
+      });
       this.zoneLive(z);
     }
     rfLive(alpha) {
@@ -299,9 +485,9 @@
       D.box.box(x + 0.4, y + w, hz * 0.2, x + 0.4 + (L * 0.68 - 0.4) * fill, y + w + 0.01, hz * 0.28, '#2563eb');
     }
     startLive() {
-      const sim = this.sim, g = sim.grid, D = this.dy, sx = 1.2, sy = g.SY, h = Math.min(14, Math.ceil(sim.oms.freeTotes.length / 40));
-      for (let k = 0; k < h; k++) D.box.box(sx - 0.3, sy - 0.4, CZ + k * 0.28, sx + 0.3, sy + 0.4, CZ + k * 0.28 + 0.26, k % 2 ? '#1d4ed8' : '#2563eb');
-      if (sim.startT > sim.cfg.startTime - 1) D.litCyl.cyl(2.8, sy - 0.42, CZ + 1.4, CZ + 1.6, 0.06, '#38bdf8');
+      const sim = this.sim, g = sim.grid, D = this.dy, sx = 1.2, sy = g.AY, h = Math.min(18, Math.ceil(sim.oms.freeTotes.length / 40));
+      for (let k = 0; k < h; k++) D.box.box(sx - 0.3, sy - 0.4, TZ + k * 0.28, sx + 0.3, sy + 0.4, TZ + k * 0.28 + 0.26, k % 2 ? '#1d4ed8' : '#2563eb');
+      if (sim.startT > sim.cfg.startTime - 1) D.litCyl.cyl(2.8, sy - 0.42, TZ + 1.4, TZ + 1.6, 0.06, '#38bdf8');
       const e = sim.emptier;
       if (e.tote) D.litCyl.cyl(e.x, e.y, RZ + 2.2, RZ + 2.45, 0.08, '#22c55e');
       const r = sim.returnDock.length, rx = g.SX + 9.8, ry = 0.6;
@@ -319,7 +505,7 @@
     }
     selectionBox(s, alpha) {
       const sim = this.sim, g = sim.grid;
-      if (s.tote) { const t = s.tote; if (t.x == null) return null; return [t.x - 0.45, t.y - 0.45, t.x + 0.45, t.y + 0.45, (t.belt && t.belt.kind === 'return' ? RZ : CZ) + 1.05]; }
+      if (s.tote) { const t = s.tote; if (t.x == null) return null; return [t.x - 0.45, t.y - 0.45, t.x + 0.45, t.y + 0.45, (t.belt ? this.beltZ(t.belt, t.s) : CZ) + 1.05]; }
       if (s.kind === 'port') {
         const p = sim.ports[s.id], z = p.zoneRef;
         if (z) return [z.dx - 4.4, g.LB + 1, z.dx + 1.4, z.kind === 'carousel' ? g.caroEnd + 0.3 : g.LB + g.SD + 2.3, 0.03];
@@ -335,7 +521,7 @@
     followPos(id, alpha) {
       const t = this.sim.oms.totes[id];
       if (!t || !t.belt) return null;
-      return { x: t.px + (t.x - t.px) * alpha, y: t.py + (t.y - t.py) * alpha, z: (t.belt.kind === 'return' ? RZ : CZ) };
+      return { x: t.px + (t.x - t.px) * alpha, y: t.py + (t.y - t.py) * alpha, z: this.beltZ(t.belt, t.s) };
     }
     pickRider(not) {
       const sim = this.sim, totes = sim.oms.totes, start = sim.belts.start.totes.filter((t) => t.kind === 'order');
@@ -355,7 +541,7 @@
       switch (o.status) {
         case 'NEW': {
           const ahead = sim.waiting.filter((x) => x.due < o.due || (x.due === o.due && x.created < o.created)).length;
-          return at(1.4, g.SY, CZ, `Waiting for order start${ahead ? `: ${ahead} order${ahead > 1 ? 's' : ''} go first` : ''}. Its van (${o.route.name}) leaves at ${U.fmtClock(o.due).slice(-8, -3)}`, 0);
+          return at(1.4, g.AY, TZ, `Waiting for order start${ahead ? `: ${ahead} order${ahead > 1 ? 's' : ''} go first` : ''}. Its van (${o.route.name}) leaves at ${U.fmtClock(o.due).slice(-8, -3)}`, 0);
         }
         case 'RELEASED': case 'PICKING': {
           // the A-frame window first, as long as it has not tipped
@@ -406,7 +592,7 @@
       for (const z of sim.zones) this.label(`${z.port.code} · ${z.kind === 'carousel' ? 'CAROUSELS' : 'PICK-TO-LIGHT'} · ${z.in.totes.length}/${sim.cfg.spurTotes}`, z.dx - 1.5, g.LB + 1.2, 5.5, { size: 10, bg, color: '#fdba74' });
       this.label(`MERGE · ${sim.merge.totes.length}`, g.RX + 5.2, g.LT - 2.2, 4.4, { size: 10, bg, color: '#c4b5fd' });
       this.label('RF SHELVING', g.RFX + 1.5 * g.na, g.RFY + 0.2, 6.5, { size: 10, bg, color: '#fde68a' });
-      this.label('ORDER START', 1.6, g.SY + 1.2, 1, { size: 10, bg, color: '#86efac' });
+      this.label('ORDER START', 1.6, g.AY + 1.2, 1, { size: 10, bg, color: '#86efac' });
       if (this.cam.dist > 45 && !this.cam.walk) return;
       for (const lane of sim.lanes) { const r = lane.route; this.label(`${r.name} · ${lane.stack.length}`, g.SX + 3, lane.y + 0.9, 1, { size: 9, bg, color: r.color }); }
     }

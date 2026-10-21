@@ -6,7 +6,8 @@
  * the vans, and the tote return with the emptier and the de-stacker. */
 (function (WS) {
   'use strict';
-  const CZ = 2.2, AZ = 2.3, RZ = 2.6; // conveyor height, A-frame belt, tote return (render levels)
+  const CZ = 2.2, AZ = 2.3, RZ = 2.6, TZ = 0.95; // conveyor height, A-frame belt, tote return, order start under the A-frame (render levels)
+  const RACK = [0.5, 1.4, 2.3, 3.2]; // the reserve racks' levels
   const TOTE = { order: '#2563eb', rf: '#f59e0b', empty: '#64748b' };
   const hue = (gtin) => (parseInt(gtin.slice(7, 12), 10) * 47) % 360;
 
@@ -35,7 +36,7 @@
       this.addStart(add);
       // order totes on the belts
       for (const b of sim.net.belts) for (const t of b.totes) {
-        const x = t.px + (t.x - t.px) * alpha, y = t.py + (t.y - t.py) * alpha, z = b.kind === 'return' ? RZ : b === sim.belts.check ? CZ : CZ;
+        const x = t.px + (t.x - t.px) * alpha, y = t.py + (t.y - t.py) * alpha, z = this.beltZ(b, t.s);
         add(x + y + 0.35, () => this.drawTote(t, x, y, z, Math.abs(t.dx) > 0.5));
       }
       items.sort((a, b) => a.d - b.d);
@@ -50,15 +51,25 @@
       for (const z of sim.zones) this.quadTop(z.dx - 4.4, g.LB + 1, z.dx + 1.4, z.kind === 'carousel' ? g.caroEnd + 0.3 : g.LB + g.SD + 2.3, 'rgba(34,197,94,0.05)', 'rgba(34,197,94,0.25)', 1);
       this.quadTop(g.SX + 11.1, -0.5, g.W + 0.6, g.D + 0.5, 'rgba(15,23,42,0.6)');
     }
-    // A belt in short pieces, so totes and machines sort in between.
+    // The level a tote rides at s along a belt: the order start runs low,
+    // under the A-frame's belt, and the feed climbs from there to the loop.
+    beltZ(b, s) {
+      const sim = this.sim, g = sim.grid;
+      if (b === sim.belts.start) return TZ;
+      if (b === sim.belts.feed) return TZ + (CZ - TZ) * Math.min(1, Math.max(0, s / (g.SY - g.AY)));
+      return b.kind === 'return' ? RZ : CZ;
+    }
+    // A belt in short pieces, so totes and machines sort in between; the feed's incline in steps.
     addBelt(b, add) {
-      const z = b.kind === 'return' ? RZ : CZ, col = b.kind === 'loop' ? '#2f3d52' : b.kind === 'lane' ? '#3a3420' : '#334155';
+      const col = b.kind === 'loop' ? '#2f3d52' : b.kind === 'lane' ? '#3a3420' : '#334155';
+      let s0 = 0;
       for (let k = 1; k < b.pts.length; k++) {
-        const a = b.pts[k - 1], e = b.pts[k], n = Math.max(1, Math.ceil(Math.hypot(e.x - a.x, e.y - a.y) / 2));
+        const a = b.pts[k - 1], e = b.pts[k], len = Math.hypot(e.x - a.x, e.y - a.y), n = Math.max(1, Math.ceil(len / (b === this.sim.belts.feed && k === 1 ? 0.4 : 2)));
         for (let j = 0; j < n; j++) {
-          const p0 = { x: a.x + ((e.x - a.x) * j) / n, y: a.y + ((e.y - a.y) * j) / n }, p1 = { x: a.x + ((e.x - a.x) * (j + 1)) / n, y: a.y + ((e.y - a.y) * (j + 1)) / n };
+          const p0 = { x: a.x + ((e.x - a.x) * j) / n, y: a.y + ((e.y - a.y) * j) / n }, p1 = { x: a.x + ((e.x - a.x) * (j + 1)) / n, y: a.y + ((e.y - a.y) * (j + 1)) / n }, z = this.beltZ(b, s0 + (len * (j + 0.5)) / n);
           add(Math.min(p0.x + p0.y, p1.x + p1.y) - 0.3, () => this.conveyor([p0, p1], 0.7, z, col, { legs: true }));
         }
+        s0 += len;
       }
     }
     // An order tote: blue, an RF tote amber, an empty one back from a van grey;
@@ -109,10 +120,33 @@
           const ch = e.ch, sy = ch.side ? y + half * 0.4 : y - half * 0.4, zz = foot + 1.2 - f * (foot + 1.2 - AZ), hh = hue(ch.comps[0].gtin || '0000000000000');
           this.box(ch.wx - 0.06, sy + (y - sy) * f - 0.05, zz, ch.wx + 0.06, sy + (y - sy) * f + 0.05, zz + 0.15, '#888', { top: `hsl(${hh},55%,62%)`, left: `hsl(${hh},50%,50%)`, right: `hsl(${hh},45%,38%)` });
         }
-        // the tip chute from the end of the belt down to the tote
-        this.poly([P(x1 + 0.3, y - 0.3, AZ), P(x1 + 0.3, y + 0.3, AZ), P(g.tipX + 0.3, g.SY - 0.3, CZ + 1.4), P(g.tipX - 0.3, g.SY - 0.3, CZ + 1.4)], '#475569', '#64748b', 1);
         if (!sim.afRunning && sim.windows.length) this.glow(x1, y, AZ + 1, 20, '#f59e0b', 0.6);
       });
+      // the hopper at the end of the belt: the window slides off into it and drops into the tote below
+      add(g.tipX + y + 0.6, () => {
+        const hx = g.tipX, zt = AZ + 0.05, zb = TZ + 1.0;
+        this.poly([P(hx - 0.55, y + 0.45, zt), P(hx + 0.45, y + 0.45, zt), P(hx + 0.28, y + 0.3, zb), P(hx - 0.28, y + 0.3, zb)], '#64748b', '#94a3b8', 1);
+        this.poly([P(hx + 0.45, y - 0.45, zt), P(hx + 0.45, y + 0.45, zt), P(hx + 0.28, y + 0.3, zb), P(hx + 0.28, y - 0.3, zb)], '#475569', '#94a3b8', 1);
+        for (const e of sim.tips) {
+          const f = (sim.time - e.t) / 0.8;
+          if (f < 0 || f > 1) continue;
+          for (let k = 0; k < Math.min(6, e.w.units); k++) { const ff = Math.min(1, f * 1.3 - k * 0.05), hh = (k * 53 + 20) % 360; if (ff > 0) this.box(hx - 0.25 + k * 0.08, y - 0.1, zt - ff * (zt - zb - 0.3), hx - 0.15 + k * 0.08, y + 0.02, zt - ff * (zt - zb - 0.3) + 0.15, '#888', { top: `hsl(${hh},55%,62%)` }); }
+        }
+      });
+      // the reserve racks behind the walkways: a carton of each channel's product
+      const bay = 2;
+      for (const s of [-1, 1]) for (let bx = x0 - 0.3; bx < x1 + 0.3 - 1e-6; bx += bay) {
+        const ry = y + s * g.RK, xa = bx, xb = Math.min(x1 + 0.3, bx + bay);
+        add(xa + ry + (s < 0 ? -0.2 : 0.4), () => {
+          for (const xx of [xa, xb - 0.07]) this.box(xx, ry - 0.35, 0, xx + 0.07, ry + 0.35, 3.9, '#1d4ed8');
+          for (const zz of RACK) this.box(xa, ry - 0.35, zz - 0.08, xb, ry + 0.35, zz, '#64748b', { top: '#475569' });
+          for (const ch of sim.channels) {
+            if (ch.side !== (s > 0 ? 1 : 0) || ch.wx < xa || ch.wx >= xb) continue;
+            const zz = RACK[ch.slot % 4], hh = hue(ch.comps[0].gtin), taken = ch.req && ch.req.op && ch.req.op.state === 'WORKING' && !ch.req.op.fetch;
+            this.box(ch.wx - 0.22, ry - 0.3, zz, ch.wx + 0.22, taken ? ry : ry + 0.3, zz + 0.55, '#b8875a', { top: '#c99a6b', left: `hsl(${hh},45%,55%)` });
+          }
+        });
+      }
       // front face (side 1), in front of the belt
       add(x0 + y + 0.9, () => {
         this.poly([P(x0, y + half, foot), P(x1, y + half, foot), P(x1, y, top), P(x0, y, top)], '#24476f', '#334155', 1);
@@ -126,7 +160,8 @@
         const x = op.px + (op.x - op.px) * 1, yy = op.y;
         add(x + yy + (yy > y ? 0.95 : -0.95), () => {
           this.drawOperator(x, yy, op.state === 'WORKING', '#a3e635', 0, 'refill ' + op.name);
-          if (op.job) this.parcel(x + 0.2, yy - 0.2, x + 0.55, yy + 0.15, op.state === 'WORKING' ? 3.2 : 2.4, 0.5);
+          // the carton: from the reserve rack behind, then held up to the channel
+          if (op.state === 'WORKING') { const d = (yy > y ? 1 : -1) * (op.fetch ? 0.35 : -0.3); this.parcel(x - 0.2, yy + d - 0.17, x + 0.2, yy + d + 0.17, op.fetch ? 2.4 : 3.3, 0.5); }
         });
       }
     }
@@ -334,15 +369,15 @@
     // the tote-emptying machine at the end of the return conveyor.
     addStart(add) {
       const sim = this.sim, g = sim.grid, n = sim.oms.freeTotes.length, e = sim.emptier;
-      const sx = 1.2, sy = g.SY;
+      const sx = 1.2, sy = g.AY;
       add(sx + sy - 0.4, () => {
-        this.box(sx - 0.55, sy - 0.6, 0, sx + 0.55, sy + 0.6, CZ, '#334155', { top: '#1f2937' });
-        const h = Math.min(14, Math.ceil(n / 40));
-        for (let k = 0; k < h; k++) this.box(sx - 0.3, sy - 0.4, CZ + k * 0.28, sx + 0.3, sy + 0.4, CZ + k * 0.28 + 0.26, '#1d4ed8', { top: '#2563eb' });
-        for (const xx of [sx - 0.6, sx + 0.52]) this.box(xx, sy - 0.65, 0, xx + 0.08, sy + 0.65, CZ + 4.6, '#64748b');
-        this.text(`${n} empty`, sx, sy, CZ + 5.2, { size: 9, color: '#bfdbfe', bg: 'rgba(15,23,42,0.85)' });
+        this.box(sx - 0.55, sy - 0.6, 0, sx + 0.55, sy + 0.6, TZ, '#334155', { top: '#1f2937' });
+        const h = Math.min(18, Math.ceil(n / 40));
+        for (let k = 0; k < h; k++) this.box(sx - 0.3, sy - 0.4, TZ + k * 0.28, sx + 0.3, sy + 0.4, TZ + k * 0.28 + 0.26, '#1d4ed8', { top: '#2563eb' });
+        for (const xx of [sx - 0.6, sx + 0.52]) this.box(xx, sy - 0.65, 0, xx + 0.08, sy + 0.65, TZ + 5.4, '#64748b');
+        this.text(`${n} empty`, sx, sy, TZ + 6, { size: 9, color: '#bfdbfe', bg: 'rgba(15,23,42,0.85)' });
       });
-      add(2.6 + sy + 0.2, () => { this.box(2.4, sy - 0.75, CZ, 3.2, sy - 0.45, CZ + 2.0, '#e2e8f0'); if (sim.startT > sim.cfg.startTime - 1) this.glow(2.8, sy - 0.4, CZ + 1.4, 12, '#38bdf8', 0.7); });
+      add(2.6 + sy + 0.2, () => { this.box(2.4, sy - 0.75, TZ, 3.2, sy - 0.45, TZ + 2.0, '#e2e8f0'); if (sim.startT > sim.cfg.startTime - 1) this.glow(2.8, sy - 0.4, TZ + 1.4, 12, '#38bdf8', 0.7); });
       add(e.x + e.y + 0.3, () => {
         this.box(e.x - 0.7, e.y - 0.6, 0, e.x + 0.6, e.y + 0.6, RZ + 2.2, '#4c1d95', { top: '#5b21b6' });
         if (e.tote) this.glow(e.x, e.y, RZ + 2.4, 16, '#22c55e', 0.6);
@@ -355,7 +390,7 @@
     drawLabels() {
       const sim = this.sim, g = sim.grid, bg = 'rgba(15,23,42,0.82)';
       this.text(`A-FRAME · ${sim.channels.length} channels${sim.afRunning || !sim.windows.length ? '' : ' · BELT WAITING'}`, g.AX + g.afLen / 2, g.AY, 7.4, { size: 10, bg, color: '#7dd3fc' });
-      this.text('ORDER START', 1.6, g.SY + 1.2, 0.5, { size: 10, bg, color: '#86efac' });
+      this.text('ORDER START', 1.6, g.AY + 1.2, 0.5, { size: 10, bg, color: '#86efac' });
       for (const z of sim.zones) this.text(`${z.port.code} · ${z.kind === 'carousel' ? 'CAROUSELS' : z.idx === 0 ? 'PICK-TO-LIGHT · COMPLETION' : 'PICK-TO-LIGHT'} · ${z.in.totes.length}/${sim.cfg.spurTotes}${z.port.away ? ' · BREAK' : ''}`, z.dx - 1.5, g.LB + 1.2, 3.8, { size: 10, bg, color: '#fdba74' });
       this.text(`LOOP ${Math.round(sim.loopFill() * 100)}%`, g.LX + 2, g.LB - 0.5, 3.2, { size: 10, bg, color: '#e2e8f0' });
       this.text(`MERGE · ${sim.merge.totes.length} waiting`, g.RX + 5.2, g.LT - 2.2, 3.4, { size: 10, bg, color: '#c4b5fd' });
