@@ -307,13 +307,84 @@
     }
 
     // ---------------------------------------------------------------- merge & closing
-    mergeSpot(k) { const g = this.sim.grid; return { x: g.RX + 3.3 + (k % 7) * 0.62, y: g.LT - 1.5 + Math.floor(k / 7) * 0.95 }; }
+    // ---------------------------------------------------------------- merge
+    // The merge station (shared with the 3D view): north of the line a
+    // put-to-light rack, three levels of roller lanes, an order tote in each
+    // with a light on the beam below it; on the line the merge position in
+    // front of the operator and the outlet beyond it; south of the operator
+    // the accumulation lane where the RF totes wait, a shelf over it for more.
+    mergeGeo() {
+      const g = this.sim.grid, cols = Math.ceil(this.sim.cfg.mergeBuffer / 3);
+      return { x0: g.RX + 2.8, x1: g.RX + 2.8 + cols * 0.62, cols, y0: g.LT - 2.05, y1: g.LT - 0.5, levels: [0.9, 2.2, 3.5], px: g.RX + 3.7, opy: g.LT + 1.1, rfy: g.LT + 2, rfx: g.RX + 2.9, stack: { x: g.RX + 2.45, y: g.LT + 1.15 } };
+    }
+    // the tote being merged: the order tote the RF tote goes into
+    mergeTarget() { const j = this.sim.merge.job; return j ? j.into || j.o.totes.find((t) => t.at === 'merge') : null; }
+    // where an order tote at the merge is: at the merge position, on the outlet, in its lane of the rack or beside it
+    mergePos(t) {
+      const sim = this.sim, g = sim.grid, m = sim.merge, G = this.mergeGeo(), i = m.out.indexOf(t);
+      if (t === this.mergeTarget()) return { x: G.px, y: g.LT, z: CZ, alongX: true };
+      if (i >= 0 && i < 4) return { x: G.px + 0.95 + i * 0.85, y: g.LT, z: CZ, alongX: true };
+      if (t.lane >= 0) return { x: G.x0 + ((t.lane % G.cols) + 0.5) * 0.62, y: G.y1 - 0.45, z: G.levels[Math.floor(t.lane / G.cols)] + 0.04, alongX: false };
+      const k = m.totes.filter((x) => !(x.lane >= 0)).indexOf(t);
+      return { x: G.x1 + 0.45, y: G.y0 + 0.45 + (k % 2) * 0.8, z: Math.floor(k / 2) * 0.95, alongX: false };
+    }
+    // where an RF tote waits: along its lane from the end of the RF conveyor, then on the shelf over it
+    rfPos(k) { const G = this.mergeGeo(); return { x: G.rfx - (k % 4) * 0.68, y: G.rfy, z: k < 4 ? CZ : CZ + 1.35 }; }
+    // the merge light of an order tote's lane: green when its order is complete, blue while it is merged, amber while it waits for its RF tote
+    mergeLight(t) {
+      const sim = this.sim, j = sim.merge.job, o = t.order;
+      if (j && j.o === o) return '#38bdf8';
+      if (t.ready || sim.orderReady(o)) return '#22c55e';
+      if (o.rf && o.rf.state !== 'MERGE' && o.rf.state !== 'DONE') return '#f59e0b';
+      return '#e2e8f0';
+    }
+    mergeScreen() {
+      const sim = this.sim, m = sim.merge, p = sim.mergePort, j = m.job, title = 'MG · Merge';
+      if (p.away) return WS.awayScreen(p, title);
+      if (!j) { const ready = m.totes.filter((t) => sim.orderReady(t.order)).length; return { title, accent: '#64748b', big: 'Waiting', name: `${m.totes.length} order totes · ${m.rf.length} RF totes`, info: [ready ? `${ready} ready` : 'no order complete yet'] }; }
+      const o = j.o, into = this.mergeTarget();
+      if (!j.rf) return { title, tag: o.id, accent: '#4ade80', big: 'Complete', name: o.customer, info: [`${o.ntotes} tote${o.ntotes > 1 ? 's' : ''} to closing`] };
+      return { title, tag: o.id, accent: '#38bdf8', big: j.into ? 'Tip RF tote' : 'Add RF tote', name: `${j.rf.id} → ${(into || j.rf).id}`, info: [o.customer, `${j.rf.lines.length} lines · ${j.rf.units} units`], bar: 1 - j.t / sim.cfg.mergeTime, foot: o.route.name };
+    }
+    // the RF tote being merged, where the operator holds it: from its lane up over the order tote (it tips there), then onto the stack of empties
+    mergeLift() {
+      const sim = this.sim, g = sim.grid, j = sim.merge.job, G = this.mergeGeo();
+      if (!j || !j.rf) return null;
+      const f = 1 - j.t / sim.cfg.mergeTime, k = sim.merge.rf.indexOf(j.rf), a = this.rfPos(Math.max(0, k)), over = { x: G.px, y: g.LT + 0.1, z: CZ + 1.25 }, st = { x: G.stack.x, y: G.stack.y, z: 0.15 + 0.95 * Math.min(5, sim.recycling.length) };
+      const mix = (p, q, u) => ({ x: p.x + (q.x - p.x) * u, y: p.y + (q.y - p.y) * u, z: p.z + (q.z - p.z) * u + Math.sin(u * Math.PI) * 0.5 });
+      if (f < 0.3) return { ...mix(a, over, f / 0.3), f, phase: 'lift' };
+      if (f < 0.75) return { ...over, f, phase: 'tip', u: (f - 0.3) / 0.45 };
+      return { ...(j.into ? mix(over, st, (f - 0.75) / 0.25) : mix(over, { x: G.px + 0.95, y: g.LT, z: CZ }, (f - 0.75) / 0.25)), f, phase: 'away' };
+    }
     addMerge(add) {
-      const sim = this.sim, g = sim.grid, m = sim.merge, x0 = g.RX + 2.8, x1 = g.RX + 7.6, y0 = g.LT - 2, y1 = g.LT + 1.9;
-      add(x0 + y0, () => this.box(x0, y0, 0, x1, y1, CZ - 0.05, '#2b2440', { top: '#1f1a33' }));
-      m.totes.forEach((t, k) => { const q = this.mergeSpot(k); add(q.x + q.y + 0.3, () => this.drawTote(t, q.x, q.y, CZ, false)); });
-      m.rf.forEach((t, k) => { const x = g.RX + 3.3 + k * 0.62, y = g.LT + 2.0; add(x + y + 0.3, () => this.drawTote(t, Math.min(x, x1 + 2), y, CZ, false)); });
-      if (!sim.mergePort.away) { const x = g.RX + 5.2, y = g.LT + 2.9; add(x + y + 0.3, () => this.drawOperator(x, y, !!m.job, '#f97316', 0, 'merge')); }
+      const sim = this.sim, g = sim.grid, m = sim.merge, G = this.mergeGeo(), j = m.job;
+      // the line through the station, the RF totes' accumulation lane
+      for (let x = g.RX + 2.6; x < g.RX + 8 - 1e-6; x += 1.35) add(x + g.LT - 0.3, () => this.conveyor([{ x, y: g.LT }, { x: Math.min(g.RX + 8, x + 1.35), y: g.LT }], 0.7, CZ, '#334155', { legs: true }));
+      add(G.rfx - 2.9 + G.rfy - 0.3, () => this.conveyor([{ x: G.rfx - 2.6, y: G.rfy }, { x: G.rfx + 0.3, y: G.rfy }], 0.7, CZ, '#334155', { legs: true }));
+      // the rack: frame and lanes, a tote and its light in each
+      add(G.x0 + G.y0, () => {
+        for (const x of [G.x0, G.x1 - 0.08]) this.box(x, G.y0, 0, x + 0.08, G.y0 + 0.08, G.levels[2] + 1.5, '#cbd5e1');
+        for (const z of G.levels) this.box(G.x0, G.y0, z - 0.08, G.x1, G.y1, z, '#94a3b8', { top: '#64748b', left: '#2563eb', right: '#1d4ed8' });
+      });
+      for (const t of m.totes) {
+        const q = this.mergePos(t);
+        add(q.x + q.y + 0.3, () => {
+          this.drawTote(t, q.x, q.y, q.z, q.alongX);
+          if (t.lane >= 0) this.box(q.x - 0.12, G.y1 - 0.02, q.z - 0.3, q.x + 0.12, G.y1 + 0.02, q.z - 0.12, this.mergeLight(t));
+        });
+      }
+      add(G.x1 + G.y1, () => { for (const x of [G.x0, G.x1 - 0.08]) this.box(x, G.y1 - 0.08, 0, x + 0.08, G.y1, G.levels[2] + 1.5, '#cbd5e1'); });
+      // the RF totes waiting, the one being tipped, the stack of empties
+      const lift = this.mergeLift();
+      m.rf.forEach((t, k) => { if (lift && t === j.rf) return; const q = this.rfPos(k); add(q.x + q.y + 0.3, () => this.drawTote(t, q.x, q.y, q.z, true)); });
+      add(G.rfx + G.rfy + 0.4, () => { for (const s of [-1, 1]) this.box(G.rfx - 2.6, G.rfy + s * 0.4 - 0.04, CZ + 1.18, G.rfx + 0.3, G.rfy + s * 0.4 + 0.04, CZ + 1.4, '#94a3b8'); });
+      const n = Math.min(5, sim.recycling.length);
+      add(G.stack.x + G.stack.y + 0.3, () => { this.box(G.stack.x - 0.4, G.stack.y - 0.3, 0, G.stack.x + 0.4, G.stack.y + 0.3, 0.15, '#334155'); for (let k = 0; k < n; k++) this.tote(G.stack.x - 0.38, G.stack.y - 0.26, G.stack.x + 0.38, G.stack.y + 0.26, 0.15 + k * 0.95, 0.9, TOTE.rf); });
+      if (lift) add(lift.x + lift.y + 0.5, () => {
+        this.drawTote(j.rf, lift.x, lift.y, lift.z, true);
+        if (lift.phase === 'tip') for (let k = 0; k < 4; k++) { const u = (lift.u * 3 + k * 0.25) % 1, hh = (k * 83 + 40) % 360; this.box(lift.x - 0.2 + k * 0.12, lift.y - 0.05, lift.z - u * 1.1, lift.x - 0.1 + k * 0.12, lift.y + 0.05, lift.z - u * 1.1 + 0.15, '#888', { top: `hsl(${hh},55%,62%)` }); }
+      });
+      if (!sim.mergePort.away) add(G.px + G.opy + 0.3, () => this.drawOperator(G.px, G.opy, !!j, '#f97316', 0, 'merge'));
     }
     addClosing(add) {
       const sim = this.sim, g = sim.grid, y = g.LT;
@@ -466,7 +537,7 @@
       let best = null, bd = 14 * Math.max(1, this.cam.zoom);
       const near = (t, x, y, z) => { const [px, py] = this.P(x, y, z); const d = Math.hypot(this.cam.x + px * this.cam.zoom - sx, this.cam.y + py * this.cam.zoom - sy); if (d < bd) { bd = d; best = t; } };
       for (const b of sim.net.belts) for (const t of b.totes) near(t, t.x, t.y, (b.kind === 'return' ? RZ : CZ) + 0.5);
-      sim.merge.totes.forEach((t, k) => { const q = this.mergeSpot(k); near(t, q.x, q.y, CZ + 0.5); });
+      sim.merge.totes.forEach((t) => { const q = this.mergePos(t); near(t, q.x, q.y, q.z + 0.5); });
       if (best) return { kind: 'cell', id: g.idx(Math.floor(best.x ?? 0), Math.floor(best.y ?? 0)), tote: best };
       for (const z of [CZ + 1, CZ, 1, 0]) {
         const w = this.toWorld(sx, sy, z), x = Math.floor(w.x), y = Math.floor(w.y);

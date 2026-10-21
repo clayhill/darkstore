@@ -205,4 +205,7 @@ Each step ends in something that runs, and in a commit.
   of the lane (25 s to the lift, one every 8 s per lift), and takes the
   empty bins back; its own stock is not modelled. The carousels are drawn
   as carriers of six shelves with a bin on each, hanging from an overhead
-  track, one product per carrier.
+  track, one product per carrier. The merge is drawn as a put-to-light
+  station: a rack of tote lanes (three levels) with a light under each,
+  the merge position on the line in front of the operator, the RF totes'
+  accumulation lane behind them and a dolly for the empty RF totes.

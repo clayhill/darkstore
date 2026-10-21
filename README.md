@@ -579,8 +579,12 @@ from a reserve store after 15 minutes.
 
 **RF shelving and the merge.** Three RF pickers take the slow movers of a batch of up to 8 orders,
 walk an S-shaped route through the shelving with a tote per order on their cart (8 s a line) and
-put the totes on the belt to the merge. There the order waits until all its totes are in; the merge
-operator tips the RF tote into the order tote (6 s), or sends it along when it does not fit.
+put the totes on the belt to the merge. The merge is a put-to-light station: an order tote waits in
+a lane of its rack (three levels of eight) until all the order's totes are in, the light under the
+lane amber while its RF tote is still on the way and green once the order is complete. The RF totes
+wait in their own lane on the other side of the operator, who brings the order tote to the merge
+position, lifts the RF tote over it and tips it in (6 s), or sends it along when it does not fit,
+and stacks the empty RF tote on a dolly.
 
 **Closing line, sorter and vans.** A check-weigher (1 % go to a manual check), a document inserter,
 a lidding machine and a label printer with an SSCC per tote; the shipping sorter diverts each tote

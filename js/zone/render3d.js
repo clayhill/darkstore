@@ -267,7 +267,7 @@
     closingStatic(S) {
       const sim = this.sim, g = sim.grid, y = g.LT;
       const mg = { kind: 'port', id: sim.mergePort.idx };
-      S.box.box(g.RX + 2.8, y - 2, 0, g.RX + 7.6, y + 1.9, CZ - 0.05, '#2b2440', mg);
+      this.mergeStatic(S);
       sim.machines.forEach((m) => {
         const pick = { kind: 'cell', id: g.idx(Math.floor(m.x), Math.floor(y)) }, col = '#4c1d95';
         if (m.id === 'scale') { S.box.box(m.x - 0.55, y - 0.5, CZ - 0.05, m.x + 0.55, y + 0.5, CZ + 0.05, '#94a3b8', pick); S.box.box(m.x + 0.6, y - 0.1, 0, m.x + 0.75, y + 0.05, 3.6, '#475569'); S.box.box(m.x + 0.55, y - 0.3, 3.4, m.x + 0.8, y + 0.2, 4.4, '#0f172a', pick); return; }
@@ -281,6 +281,37 @@
       S.box.box(m0.x - 0.7, y - 3.2, 0, m0.x + 0.7, y - 2.7, CZ, '#475569', qc);
       // the stacking area at the end of each lane
       for (const lane of sim.lanes) S.box.box(g.SX + 5.4, lane.y - 0.75, 0, g.SX + 11, lane.y + 0.75, 0.02, '#1f2937', { kind: 'cell', id: g.idx(Math.floor(g.SX + 7), Math.floor(lane.y)) });
+    }
+    // The merge station: the put-to-light rack, light grey with blue beams,
+    // roller lanes sloping to the front and a light module under each lane;
+    // the line through the station with a stop at the merge position; the RF
+    // totes' accumulation lane with a shelf over it; the operator's mat, the
+    // screen on its post and a dolly for the empty RF totes.
+    mergeStatic(S) {
+      const sim = this.sim, g = sim.grid, G = this.mergeGeo(), mg = { kind: 'port', id: sim.mergePort.idx }, top = G.levels[2] + 1.6;
+      this.conveyor(S, [{ x: g.RX + 2.6, y: g.LT }, { x: g.RX + 8, y: g.LT }], 0.7, CZ, '#334155');
+      S.box.box(G.px + 0.4, g.LT - 0.36, CZ - 0.05, G.px + 0.45, g.LT + 0.36, CZ + 0.2, '#facc15', mg); // the stop
+      for (const s of [-1, 1]) S.box.box(G.px - 0.1, g.LT + s * 0.38 - 0.03, CZ + 0.3, G.px + 0.1, g.LT + s * 0.38 + 0.03, CZ + 0.45, '#0f172a', mg); // photo eyes
+      const cs = [...new Set([...Array(Math.floor(G.cols / 2) + 1)].map((_, k) => Math.min(G.cols, k * 2)).concat(G.cols))];
+      for (const c of cs) for (const y of [G.y0, G.y1]) { const x = G.x0 + c * 0.62; S.box.box(x - 0.04, y - 0.04, 0, x + 0.04, y + 0.04, top, '#cbd5e1', mg); }
+      for (const z of G.levels) {
+        S.box.slab(G.x0, G.x1, G.y0, z + 0.1, G.y1, z - 0.06, 0.04, '#94a3b8', mg); // the lanes, sloping to the front
+        for (let c = 0; c <= G.cols; c++) S.box.slab(G.x0 + c * 0.62 - 0.015, G.x0 + c * 0.62 + 0.015, G.y0, z + 0.2, G.y1, z + 0.04, 0.05, '#64748b', mg);
+        S.box.box(G.x0, G.y1 - 0.04, z - 0.42, G.x1, G.y1 + 0.04, z - 0.06, '#2563eb', mg); // front beam, the lights on it
+        S.box.box(G.x0, G.y0 - 0.04, z + 0.02, G.x1, G.y0 + 0.04, z + 0.2, '#2563eb', mg);
+        for (let c = 0; c < G.cols; c++) { const x = G.x0 + (c + 0.5) * 0.62; S.box.box(x - 0.16, G.y1 + 0.04, z - 0.38, x + 0.16, G.y1 + 0.07, z - 0.08, '#0f172a', mg); }
+      }
+      S.box.box(G.x0, G.y1 - 0.05, top - 0.55, G.x1, G.y1 + 0.02, top, '#1e293b', mg); // the sign board
+      // the RF totes' shelf over their lane
+      for (const x of [G.rfx - 2.6, G.rfx + 0.3]) for (const s of [-1, 1]) S.box.box(x - 0.04, G.rfy + s * 0.4 - 0.04, CZ, x + 0.04, G.rfy + s * 0.4 + 0.04, CZ + 1.35, '#cbd5e1', mg);
+      for (const s of [-1, 1]) S.box.box(G.rfx - 2.6, G.rfy + s * 0.4 - 0.04, CZ + 1.18, G.rfx + 0.3, G.rfy + s * 0.4 + 0.04, CZ + 1.4, '#94a3b8', mg);
+      for (let x = G.rfx - 2.5; x < G.rfx + 0.3; x += 0.25) S.cyl.cylY(x, G.rfy - 0.37, G.rfy + 0.37, CZ + 1.3, 0.035, '#64748b');
+      // the operator's mat, the screen's post, the dolly
+      S.box.box(G.px - 0.65, G.opy - 0.45, 0, G.px + 0.65, G.opy + 0.45, 0.03, '#10161f', mg);
+      S.box.box(G.px + 0.92, g.LT + 0.52, 0, G.px + 0.98, g.LT + 0.58, 4.5, '#475569');
+      S.box.box(G.px + 0.6, g.LT + 0.5, 3.35, G.px + 1.3, g.LT + 0.6, 4.45, '#0f172a', mg);
+      S.box.box(G.stack.x - 0.42, G.stack.y - 0.32, 0.06, G.stack.x + 0.42, G.stack.y + 0.32, 0.15, '#334155', mg);
+      for (const dx of [-0.32, 0.32]) for (const dy of [-0.22, 0.22]) S.cyl.cyl(G.stack.x + dx, G.stack.y + dy, 0, 0.08, 0.05, '#0b0f17');
     }
     startStatic(S) {
       const sim = this.sim, g = sim.grid, sx = g.OSX, sy = g.AY, e = sim.emptier, pick = { kind: 'cell', id: g.idx(Math.floor(sx), Math.floor(sy)) };
@@ -548,12 +579,41 @@
         for (let k = 0; k < Math.min(n, 8); k++) { const tx = cx - 0.15 + (k % 2) * 0.3, ty = cy - 0.18 + (Math.floor(k / 2) % 2) * 0.36, tz = 0.4 + Math.floor(k / 4) * 0.7; this.tote(D.box, tx - 0.13, ty - 0.17, tx + 0.13, ty + 0.17, tz, 0.6, TOTE.rf); }
       }
     }
-    mergeSpot(k) { return WS.ZoneRenderer.prototype.mergeSpot.call(this, k); }
+    mergeGeo() { return WS.ZoneRenderer.prototype.mergeGeo.call(this); }
+    mergeTarget() { return WS.ZoneRenderer.prototype.mergeTarget.call(this); }
+    mergePos(t) { return WS.ZoneRenderer.prototype.mergePos.call(this, t); }
+    rfPos(k) { return WS.ZoneRenderer.prototype.rfPos.call(this, k); }
+    mergeLight(t) { return WS.ZoneRenderer.prototype.mergeLight.call(this, t); }
+    mergeScreen() { return WS.ZoneRenderer.prototype.mergeScreen.call(this); }
+    mergeLift() { return WS.ZoneRenderer.prototype.mergeLift.call(this); }
+    // The order totes in their lanes with their lights, the one being merged
+    // at the merge position, the complete ones on the outlet; the RF totes in
+    // their lane, the one the operator lifts over the order tote and tips,
+    // the stack of empties; the operator turning between them.
     mergeLive() {
-      const sim = this.sim, g = sim.grid, m = sim.merge, D = this.dy;
-      m.totes.forEach((t, k) => { const q = this.mergeSpot(k); this.zoneTote(D, t, q.x, q.y, CZ, false); });
-      m.rf.forEach((t, k) => this.zoneTote(D, t, g.RX + 3.3 + k * 0.62, g.LT + 2.0, CZ, false));
-      if (!sim.mergePort.away) this.operator(g.RX + 5.2, g.LT + 2.9, 0, !!m.job, '#f97316', 0, 'merge');
+      const sim = this.sim, g = sim.grid, m = sim.merge, D = this.dy, G = this.mergeGeo(), j = m.job, lift = this.mergeLift();
+      for (const t of m.totes) {
+        const q = this.mergePos(t);
+        this.zoneTote(D, t, q.x, q.y, q.z, q.alongX);
+        if (t.lane >= 0) D.lit.box(q.x - 0.12, G.y1 + 0.07, q.z - 0.34, q.x + 0.12, G.y1 + 0.08, q.z - 0.12, this.mergeLight(t));
+      }
+      m.rf.forEach((t, k) => { if (lift && t === j.rf) return; const q = this.rfPos(k); this.zoneTote(D, t, q.x, q.y, q.z, true); });
+      if (lift) {
+        this.zoneTote(D, j.rf, lift.x, lift.y, lift.z, true);
+        if (lift.phase === 'tip') for (let k = 0; k < 5; k++) {
+          const u = (lift.u * 3 + k * 0.2) % 1, l = j.rf.lines[k % Math.max(1, j.rf.lines.length)];
+          D.box.box(lift.x - 0.25 + k * 0.11, lift.y - 0.05, lift.z + 0.2 - u * 1.2, lift.x - 0.15 + k * 0.11, lift.y + 0.05, lift.z + 0.35 - u * 1.2, l ? prodCol(l.gtin) : '#e2e8f0');
+        }
+      }
+      for (let k = 0; k < Math.min(5, sim.recycling.length); k++) this.tote(D.box, G.stack.x - 0.38, G.stack.y - 0.26, G.stack.x + 0.38, G.stack.y + 0.26, 0.15 + k * 0.95, 0.9, TOTE.rf);
+      // the screen
+      D.lit.box(G.px + 0.62, g.LT + 0.6, 3.37, G.px + 1.28, g.LT + 0.61, 4.43, '#0b1220');
+      this.screen('merge', G.px + 0.625, G.px + 1.275, g.LT + 0.613, 3.38, 4.42, this.mergeScreen());
+      if (sim.mergePort.away) return;
+      // facing the line, or turned to the RF tote (and the dolly) while lifting it
+      let a = 0;
+      if (lift && (lift.phase === 'lift' && lift.f < 0.15 || lift.phase === 'away' && j.into)) { const q = lift.phase === 'lift' ? this.rfPos(Math.max(0, m.rf.indexOf(j.rf))) : G.stack; a = -Math.atan2(q.y - G.opy, q.x - G.px) - Math.PI / 2; }
+      this.operator(G.px, G.opy, a, !!j, '#f97316', 0, 'merge');
     }
     closingLive() {
       const sim = this.sim, g = sim.grid, D = this.dy, y = g.LT;
@@ -671,13 +731,13 @@
         case 'PICKED': {
           const rf = o.rf && o.rf.state !== 'MERGE' && o.rf.state !== 'DONE';
           if (rf && o.rf.picker && o.rf.state === 'PICKING') { const pk = o.rf.picker; return at(pk.x, pk.y, 0.5, `At the merge, waiting for its RF tote: ${pk.name} is picking it`, 3); }
-          const k = sim.merge.totes.findIndex((t) => t.order === o), q = k >= 0 ? this.mergeSpot(k) : { x: g.RX + 5, y: g.LT };
+          const mt = sim.merge.totes.find((t) => t.order === o), q = mt ? this.mergePos(mt) : { x: g.RX + 5, y: g.LT };
           return at(q.x, q.y, CZ, sim.merge.job && sim.merge.job.o === o ? 'The merge operator tips the RF tote into the order tote' : rf ? 'At the merge, waiting for its RF tote on the belt' : 'At the merge, waiting for its other totes', 3);
         }
         case 'PACKING': {
           const t = onBelt[0];
           if (t) { const m = sim.machines.find((mm) => mm.tote === t); return at(t.x, t.y, CZ, m ? `${m.name}${m.id === 'scale' ? ': weighing' : m.id === 'docs' ? ': the documents go in' : m.id === 'lid' ? ': the lid goes on' : ': the SSCC label goes on'}` : t.failed || t.belt === sim.belts.check ? 'Off weight: to the manual check' : `On the ${t.belt.name.startsWith('sorter') || t.belt.name === 'to sorter' ? 'shipping sorter to its lane' : 'closing line'}`, 4); }
-          const k = sim.merge.totes.findIndex((t) => t.order === o), q = k >= 0 ? this.mergeSpot(k) : { x: g.RX + 5, y: g.LT };
+          const mt = sim.merge.totes.find((t) => t.order === o), q = mt ? this.mergePos(mt) : { x: g.RX + 5, y: g.LT };
           return at(q.x, q.y, CZ, 'At the merge, waiting to go onto the closing line', 4);
         }
         case 'PACKED': case 'LOADED': {
@@ -694,7 +754,7 @@
       const sim = this.sim, g = sim.grid, bg = 'rgba(15,23,42,0.82)';
       this.label(`A-FRAME · ${sim.channels.length} channels${sim.afRunning || !sim.windows.length ? '' : ' · belt waiting'}`, g.AX + g.afLen / 2, g.AY, TOP + 1.2, { size: 10, bg, color: '#7dd3fc' });
       for (const z of sim.zones) this.label(`${z.port.code} · ${z.kind === 'carousel' ? 'CAROUSELS' : 'PICK-TO-LIGHT'} · ${z.in.totes.length}/${sim.cfg.spurTotes}`, z.dx - 1.5, g.LB + 1.2, 5.5, { size: 10, bg, color: '#fdba74' });
-      this.label(`MERGE · ${sim.merge.totes.length}`, g.RX + 5.2, g.LT - 2.2, 4.4, { size: 10, bg, color: '#c4b5fd' });
+      this.label(`MERGE · ${sim.merge.totes.length}`, g.RX + 5.2, g.LT - 2.2, 5.9, { size: 10, bg, color: '#c4b5fd' });
       this.label('RF SHELVING', g.RFX + 1.5 * g.na, g.RFY + 0.2, 6.5, { size: 10, bg, color: '#fde68a' });
       const nb = sim.cuby.moving.filter((m) => m.full).length;
       this.label(`CUBY · ${nb} bin${nb === 1 ? '' : 's'} on the way`, g.CX0 + 3, g.CY0 + 0.2, CUBZ(sim.cfg.cubyLevels) + 1, { size: 10, bg, color: '#fde047' });

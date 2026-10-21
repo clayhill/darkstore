@@ -202,7 +202,7 @@
       this.things = []; // what map cells show (inspectors, map colours)
       this.stats = { started: 0, orders: 0, afTotes: 0, out: 0, recirc: 0, loopTotes: 0, short: 0, completed: 0, rfTotes: 0, merged: 0, weightFails: 0, missed: 0, shipped: 0, mergeWait: 0, mergeN: 0, zoneShort: 0 };
       this.windows = []; // A-frame windows on the belt, the front one first
-      this.merge = { totes: [], rf: [], out: [], job: null };
+      this.merge = { totes: [], rf: [], out: [], job: null, lanes: new Array(this.cfg.mergeBuffer).fill(null) };
       this.checkStation = { tote: null, t: 0, done: 0 };
       this.waiting = []; // orders waiting for order start
       const port = (code) => this.ports.find((p) => p.code === code);
@@ -863,14 +863,16 @@
     }
 
     // ---------------------------------------------------------------- merge
-    // Order totes off the loop wait at the merge until all of the order's
-    // totes are in: its other order totes and its RF tote. The merge
-    // operator tips the RF tote into the order tote (or, when it does not
-    // fit, sends it along as one more tote of the order), and the order's
-    // totes go on to the closing line together.
+    // Order totes off the loop wait at the merge, each in a lane of its
+    // put-to-light rack, until all of the order's totes are in: its other
+    // order totes and its RF tote. The merge operator tips the RF tote into
+    // the order tote (or, when it does not fit, sends it along as one more
+    // tote of the order), and the order's totes go on to the closing line
+    // together.
     mergeTakes(t) { return this.merge.totes.length < this.cfg.mergeBuffer || this.merge.totes.some((x) => x.order === t.order); }
     intoMerge(t) {
       t.at = 'merge'; t.mergeAt = this.time; this.merge.totes.push(t);
+      const lanes = this.merge.lanes; t.lane = lanes.indexOf(null); if (t.lane >= 0) lanes[t.lane] = t; // more than the rack holds wait beside it
       const o = t.order;
       if (o.totes.every((x) => x.at === 'merge') && o.totes.length === o.ntotes && o.status !== 'PICKED') { o.status = 'PICKED'; o.times.picked = this.time; }
       return true;
@@ -910,7 +912,8 @@
       while (m.out.length && this.belts.close[0].hasRoom()) {
         const t = m.out.shift();
         m.totes.splice(m.totes.indexOf(t), 1);
-        t.at = 'conveyor';
+        if (t.lane >= 0 && m.lanes[t.lane] === t) m.lanes[t.lane] = null;
+        t.at = 'conveyor'; t.lane = null;
         if (t.order.status === 'PICKED' || t.order.status === 'PICKING' || t.order.status === 'RELEASED') { t.order.status = 'PACKING'; }
         this.belts.close[0].put(t);
       }
