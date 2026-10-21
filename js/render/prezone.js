@@ -10,6 +10,8 @@
     drawSelectedCell() {
       const s = this.selected, sim = this.sim, g = sim.grid;
       if (!s || s.kind !== 'cell') return;
+      const f = sim.bots ? sim.mapGrid.floorCell(s.id) : -1;
+      if (f >= 0 && !sim.mapGrid.at(s.id)) { this.quadTop(g.cx(f), g.cy(f), g.cx(f) + 1, g.cy(f) + 1, 0.02, 'rgba(56,189,248,0.15)', '#38bdf8', 2.5); return; }
       const c = sim.mapGrid.at(s.id);
       if (!c || (c.part !== 0 && c.part !== 2)) return;
       const x0 = c.a * 3 + c.part;
@@ -111,7 +113,16 @@
         if (!this.levelShown(l)) continue;
         const w = this.toWorld(sx, sy, g.levelZ(l) + 0.5), a = Math.floor(w.x / 3), part = Math.floor(w.x - a * 3);
         if (a < 0 || a >= g.A || w.y < 0 || w.y >= g.B || part === 1) continue;
-        return { kind: 'cell', id: sim.mapGrid.idx(a * 4 + part, g.L - 1 - l) };
+        return { kind: 'cell', id: sim.mapGrid.idx(sim.mapGrid.colX(a, part), g.L - 1 - l) };
+      }
+      if (sim.bots) {
+        // a cell of the robot floor: a station's lane or handover cells open the station
+        const w = this.toWorld(sx, sy, 0), x = Math.floor(w.x), y = Math.floor(w.y);
+        if (g.inside(x, y) && y >= g.B) {
+          const port = sim.ports.find((p) => [...p.dock.cells, p.out].some((c) => c.x === x && c.y === y));
+          if (port) return { kind: 'port', id: port.idx };
+          if (g.type[g.idx(x, y)] !== WS.CELL.BLOCKED) return { kind: 'cell', id: sim.mapGrid.idx(x, y + sim.mapGrid.floorDY) };
+        }
       }
       return this.pickStations(this.toWorld(sx, sy, 1.5));
     }

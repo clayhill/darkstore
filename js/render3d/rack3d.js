@@ -41,7 +41,7 @@
       }
     }
     // the cell a stored tote belongs to when clicked
-    rackPick(a, s, l, b) { return { kind: 'cell', id: this.sim.mapGrid.idx(a * 4 + s * 2, this.sim.grid.L - 1 - l) }; }
+    rackPick(a, s, l, b) { return { kind: 'cell', id: this.sim.mapGrid.idx(this.sim.mapGrid.colX(a, s * 2), this.sim.grid.L - 1 - l) }; }
     buildTotes() {
       const sim = this.sim, g = sim.grid, inv = sim.inv, T = this.totes, Y0 = this.Y0;
       T.begin();
@@ -121,17 +121,112 @@
     }
   }
 
-  // Racking with the pre-zone conveyor in front: lines to the stations and back.
+  // Racking with the pre-zone conveyor in front: lines to the stations and
+  // back, or the stands and the floor of the transport robots (WS.ToteBots).
   class PreZone3D extends Rack3D {
     // the one-way pre-zone loop and its spurs (WS.PreZoneSim.preZoneLines())
     buildStatic() {
       super.buildStatic();
       for (const line of this.sim.preZoneLines()) this.beltLine(this.st, line, 0.72, this.sim.grid.convZ);
+      if (this.sim.bots) this.buildBotFloor();
+    }
+
+    // ---------------------------------------------------------------- transport robots
+    // The robot floor's paint as one texture, from the handover row to the stations.
+    buildBotFloor() {
+      const g = this.sim.grid, S = this.st, PX = 32, T = WS.View3D.THREE;
+      if (!this.floorCv) {
+        this.floorCv = document.createElement('canvas');
+        this.floorTex = new T.CanvasTexture(this.floorCv); this.floorTex.colorSpace = T.SRGBColorSpace; this.floorTex.anisotropy = 8;
+        const m = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshStandardMaterial({ map: this.floorTex, roughness: 0.9 }));
+        m.rotation.x = -Math.PI / 2; m.receiveShadow = true; this.scene.add(m); this.floorMesh = m;
+      }
+      const H = g.D - g.handY;
+      this.floorMesh.scale.set(g.W, H, 1); this.floorMesh.position.set(g.W / 2, 0.002, g.handY + H / 2);
+      this.floorCv.width = g.W * PX; this.floorCv.height = H * PX;
+      this.paintBotFloor(); this.heatAt = performance.now();
+      for (const ch of g.chargers) S.box.box(ch.x + 0.82, ch.y + 0.3, 0, ch.x + 0.98, ch.y + 0.7, 1.8, '#334155');
+    }
+    paintBotFloor() {
+      const sim = this.sim, g = sim.grid, C = WS.CELL, PX = 32, c = this.floorCv.getContext('2d'), Y = g.handY;
+      c.fillStyle = '#1f2a3a'; c.fillRect(0, 0, this.floorCv.width, this.floorCv.height);
+      const rect = (x, y, i, fill) => { c.fillStyle = fill; c.fillRect(x * PX + i, (y - Y) * PX + i, PX - 2 * i, PX - 2 * i); };
+      const chevron = (x, y, dx, col) => {
+        const mx = (x + 0.5) * PX, my = (y - Y + 0.5) * PX, k = PX * 0.2;
+        c.strokeStyle = col; c.lineWidth = 3; c.beginPath();
+        c.moveTo(mx - k * dx, my - k); c.lineTo(mx + k * 0.5 * dx, my); c.lineTo(mx - k * dx, my + k); c.stroke();
+      };
+      for (let y = Y; y < g.D; y++) for (let x = 0; x < g.W; x++) {
+        const i = g.idx(x, y), t = g.type[i];
+        if (t === C.HIGHWAY) { rect(x, y, 1, '#243246'); chevron(x, y, g.west.includes(y) ? -1 : 1, 'rgba(148,163,184,0.45)'); }
+        else if (t === C.PARK) { rect(x, y, 3, '#13261d'); c.strokeStyle = 'rgba(74,222,128,0.35)'; c.lineWidth = 1.5; c.strokeRect(x * PX + 3, (y - Y) * PX + 3, PX - 6, PX - 6); }
+        else if (t === C.CHARGER) { rect(x, y, 2, '#14532d'); c.strokeStyle = '#4ade80'; c.lineWidth = 1.5; c.strokeRect(x * PX + 6, (y - Y) * PX + 6, PX - 12, PX - 12); }
+        else if (t === C.LANE) { rect(x, y, 1, '#2a2614'); chevron(x, y, 1, 'rgba(250,204,21,0.6)'); }
+        else if (t === C.HAND || t === C.PORT || t === C.PORT_OUT) { rect(x, y, 1, '#3a2f12'); c.strokeStyle = '#facc15'; c.lineWidth = 2; c.strokeRect(x * PX + 2, (y - Y) * PX + 2, PX - 4, PX - 4); }
+        else rect(x, y, 0, '#141b27');
+        if (this.opts.heat) {
+          const v = Math.max(Math.min(1, g.waitHeat[i] / 40), Math.min(1, g.passHeat[i] / 60) * 0.6);
+          if (v > 0.04) rect(x, y, 0, `rgba(239,68,68,${(v * 0.7).toFixed(2)})`);
+        }
+      }
+      c.strokeStyle = 'rgba(202,138,4,0.6)'; c.lineWidth = 2; c.beginPath();
+      for (const y of [g.handY + 1, g.portY]) { c.moveTo(0, (y - Y) * PX); c.lineTo(g.W * PX, (y - Y) * PX); }
+      c.stroke();
+      this.floorTex.needsUpdate = true;
+    }
+    drawLive(alpha) {
+      super.drawLive(alpha);
+      if (!this.sim.bots) return;
+      const sim = this.sim, g = sim.grid, D = this.dy;
+      if (this.opts.heat && performance.now() - this.heatAt > 1000) { this.paintBotFloor(); this.heatAt = performance.now(); }
+      for (const ch of g.chargers) { const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING'; (on ? D.lit : D.box).box(ch.x + 0.8, ch.y + 0.35, 1.2, ch.x + 0.82, ch.y + 0.65, 1.6, on ? '#4ade80' : '#166534'); }
+      for (const r of sim.bots.robots) this.drawBot(r, r.prx + (r.rx - r.prx) * alpha, r.pry + (r.ry - r.pry) * alpha);
+    }
+    // A roller-top robot: a dark base with wheels, a white body with a teal
+    // band and the state light, the roller deck on top at conveyor height
+    // with the tote on it or rolling on or off.
+    drawBot(r, x, y) {
+      const sim = this.sim, g = sim.grid, D = this.dy, col = WS.led(this, r, sim), pick = { kind: 'robot', id: r.id }, cx = x + 0.5, cy = y + 0.5, H = g.convZ - 0.12;
+      D.rnd.box(cx - 0.4, cy - 0.4, 0.02, cx + 0.4, cy + 0.4, 0.16, '#1e293b', pick);
+      for (const s of [-1, 1]) D.cyl.cylX(cx + s * 0.405 - 0.03, cx + s * 0.405 + 0.03, cy, 0.12, 0.1, '#0b0f17');
+      D.rnd.box(cx - 0.39, cy - 0.39, 0.16, cx + 0.39, cy + 0.39, H - 0.08, '#e2e8f0', pick);
+      D.rnd.box(cx - 0.395, cy - 0.395, 0.9, cx + 0.395, cy + 0.395, 1.08, '#0d9488', pick);
+      D.lit.box(cx - 0.12, cy + 0.395, 1.3, cx + 0.12, cy + 0.4, 1.42, col);
+      D.lit.box(cx - 0.12, cy - 0.4, 1.3, cx + 0.12, cy - 0.395, 1.42, col);
+      // the deck: a frame and rollers across the way totes roll on and off (along y)
+      D.box.box(cx - 0.38, cy - 0.38, H - 0.08, cx + 0.38, cy + 0.38, H - 0.02, '#475569', pick);
+      for (let k = 0; k < 6; k++) D.cyl.cylX(cx - 0.34, cx + 0.34, cy - 0.3 + k * 0.12, H, 0.035, '#94a3b8');
+      const xf = this.xfer(r), T = sim.convTote();
+      let tx = cx, ty = cy, id = r.bin;
+      if (xf) { id = xf.u == null ? null : xf.id; if (xf.u != null) { tx = cx + (xf.at.x - cx) * xf.u; ty = cy + (xf.at.y - cy) * xf.u; } }
+      if (id) this.box3(D.box, tx - T.w, ty - T.d, tx + T.w, ty + T.d, H + 0.04, this.binColor(id));
+    }
+    // a robot is followed where it is drawn; a machine where WS.Rack3D puts it
+    followPos(id, alpha) {
+      const r = this.sim.fleet[id];
+      if (r && r.claims) return WS.View3D.prototype.followPos.call(this, id, alpha);
+      return super.followPos(id, alpha);
+    }
+    pickFloor(f) {
+      const sim = this.sim, g = sim.grid, x = Math.floor(f.x), y = Math.floor(f.y);
+      if (sim.bots && g.inside(x, y) && y >= g.B) {
+        const i = g.idx(x, y), port = sim.ports.find((p) => [...p.dock.cells, p.out].some((c) => c.x === x && c.y === y));
+        if (port) return { kind: 'port', id: port.idx };
+        if (g.type[i] !== WS.CELL.BLOCKED) return { kind: 'cell', id: sim.mapGrid.idx(x, y + sim.mapGrid.floorDY) };
+      }
+      return super.pickFloor(f);
+    }
+    drawLabels() {
+      super.drawLabels();
+      if (!this.sim.bots || (this.cam.dist > 24 && !this.cam.walk)) return; // robot names only up close
+      const z = this.sim.grid.convZ + 1.4;
+      for (const r of this.sim.bots.robots) this.label(r.name, r.rx + 0.5, r.ry + 0.5, z, { size: 9, color: '#0f172a', weight: 800, bg: 'rgba(241,245,249,0.85)' });
     }
     // a rack side at one level (the control-room map cell), outlined along its length
     selectionBox(s, alpha) {
       if (s.kind === 'cell') {
         const c = this.sim.mapGrid.at(s.id), g = this.sim.grid;
+        if (this.sim.bots && !c) { const f = this.sim.mapGrid.floorCell(s.id); return f >= 0 ? [g.cx(f), g.cy(f), g.cx(f) + 1, g.cy(f) + 1, 0.02] : null; }
         if (!c || (c.part !== 0 && c.part !== 2)) return null;
         const x0 = c.a * 3 + c.part;
         return [x0, 0, x0 + 1, g.SB, g.levelZ(c.level) + 0.02];

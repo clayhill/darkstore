@@ -44,6 +44,30 @@
       return `On the ${g.west.includes(r.y) ? 'west' : 'east'}bound highway · x ${r.x}`;
     },
     speed(r) { return r.v * r.sim.cfg.cellSize; },
+    // A cell of the robot floor (a map cell below the racking): a stand pair,
+    // the highway, a parking spot or charger.
+    inspectFloor(ui, i) {
+      const sim = ui.sim, g = sim.grid, C = WS.CELL, f = sim.mapGrid.floorCell(i);
+      if (f < 0) return WS.RackUI.conveyorHTML(ui);
+      const x = g.cx(f), y = g.cy(f), t = g.type[f], esc = WS.U.esc, link = (r) => `<a href="#" data-open="robot:${r.id}">${r.name}</a>`;
+      const here = sim.bots.robots.find((r) => r.x === x && r.y === y), a = Math.floor(x / 3);
+      let title = 'Robot floor', rows = '';
+      if ((t === C.STAND || t === C.HAND) && a < g.A) {
+        const aisle = sim.aisles[a], out = sim.bots.outStand(a).sort((p, q) => q.s - p.s), bots = sim.bots.robots.filter((r) => r.task && r.task.type === 'CARRY' && !r.task.done && (r.task.fromKey === 's' + a || r.task.toStand === a));
+        title = `Aisle ${a + 1} · stands`;
+        rows = `<dt>Outfeed stand</dt><dd>${out.length} / ${sim.cfg.standCap}${out.length ? ' · ' + out.map((it) => `<a href="#" data-open="bin:${it.bin.id}">${it.bin.id}</a> → ${it.port.code}`).join(', ') : ''}</dd>
+          <dt>Infeed stand</dt><dd>${aisle.inQ.length} / ${sim.cfg.standCap}${aisle.inQ.length ? ' · ' + aisle.inQ.map((q) => `<a href="#" data-open="bin:${q.bin.id}">${q.bin.id}</a>`).join(', ') : ''}</dd>
+          <dt>Robots on their way</dt><dd>${bots.length ? bots.map(link).join(', ') : '—'}</dd>`;
+      } else if (t === C.HIGHWAY) {
+        title = `${g.west.includes(y) ? 'Westbound' : 'Eastbound'} highway`;
+        rows = `<dt>Cell</dt><dd>x ${x}</dd><dt>Traffic wait</dt><dd>${g.waitHeat[f].toFixed(0)} s (5-min decay)</dd>`;
+      } else if (t === C.PARK || t === C.CHARGER) {
+        const ch = g.chargers.find((c) => c.x === x && c.y === y);
+        title = ch ? `Charger ${ch.id + 1}` : 'Parking spot';
+        if (ch) rows = `<dt>State</dt><dd>${ch.down ? 'out of service' : ch.robot >= 0 ? 'charging ' + link(sim.fleet[ch.robot]) : 'free'}</dd>`;
+      }
+      return `<div class="hd"><b>${esc(title)}</b><button class="close">×</button></div><dl class="kv">${rows}<dt>Robot here</dt><dd>${here ? link(here) + ' · ' + esc(ui.stateLabel(here.displayState)) : '—'}</dd></dl>`;
+    },
     motion(r) { return `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}`; },
     mechanism(r) { return `<dt>Roller deck</dt><dd>${r.xfer ? (r.xfer.take ? 'taking a tote on' : 'rolling a tote off') : r.bin ? 'carrying a tote' : 'empty'}</dd>`; },
     taskText(ui, r) {

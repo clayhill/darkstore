@@ -144,8 +144,8 @@
   class ShuttleSim extends WS.PreZoneSim {
     get kind() { return 'shuttle'; }
     get terms() { return TERMS; }
-    get stateLabels() { return STATE_LABELS; }
-    get legendStates() { return LEGEND; }
+    get stateLabels() { return this.bots ? Object.assign({}, STATE_LABELS, WS.BOT_LABELS) : STATE_LABELS; }
+    get legendStates() { return this.bots ? LEGEND.concat(WS.BOT_LEGEND) : LEGEND; }
     defaults() { return WS.SHUTTLE_CONFIG; }
     rackShape() { return { Z0: 2.4, frontBays: Math.max(2, this.cfg.bufferSize) }; } // the front bays of each side are level buffers
     describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles * c.levels} shuttles · ${c.aisles} lifts${this.bots ? ` · ${WS.botCount(c)} transport robots` : ''} · ${this.inv.bins.length} totes`; }

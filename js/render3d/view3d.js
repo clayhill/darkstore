@@ -1043,7 +1043,7 @@
     // planned routes of moving robots, and the cells they reserved ahead
     drawPaths(alpha) {
       const sim = this.sim, pos = [], cols = [], c = new THREE.Color(), zl = this.robotZ * LZ + 0.03;
-      if (this.opts.paths && sim.fleet.length && sim.fleet[0].path !== undefined) {
+      if (this.opts.paths && sim.fleet.some((r) => r.path !== undefined)) {
         for (const r of sim.fleet) {
           if (!r.path || !r.op || r.op.op !== 'move') continue;
           c.set(WS.stateColor(sim, r.displayState));

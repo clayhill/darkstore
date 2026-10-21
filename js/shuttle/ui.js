@@ -54,7 +54,7 @@
     depthTag: WS.RackUI.depthTag,
     inspectCell(ui, i) {
       const sim = ui.sim, c = sim.mapGrid.at(i);
-      if (!c) return WS.RackUI.conveyorHTML(ui);
+      if (!c) return sim.bots ? WS.BotUI.inspectFloor(ui, i) : WS.RackUI.conveyorHTML(ui);
       const aisle = sim.aisles[c.a], L = c.level;
       if (c.part === 1 || c.part === 3) {
         const m = c.part === 1 ? aisle.shuttles[L] : aisle.lift;

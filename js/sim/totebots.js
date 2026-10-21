@@ -477,6 +477,9 @@
     }
   }
 
+  // the robots' states for a type's legend and labels
+  WS.BOT_LEGEND = ['AT_PORT', 'WAITING_IN_TRAFFIC', 'CHARGING'];
+  WS.BOT_LABELS = { AT_PORT: 'Robot: tote on/off', WAITING_IN_TRAFFIC: 'Robot: in traffic', CHARGING: 'Robot: charging' };
   // robots for a scenario: transportRobots per station
   WS.botCount = (cfg) => Math.max(1, Math.round(cfg.transportRobots * (cfg.pickPorts + cfg.goodsInPorts)));
   WS.RobotRacking = RobotRacking;
