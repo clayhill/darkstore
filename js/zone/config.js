@@ -27,8 +27,14 @@
     afChannels: 240, // 120 per side, 0.1 m apart
     beltSpeed: 0.5, windowLength: 1.2, unitTime: 0.25, // m/s, m per order window, s per unit ejected
     channelCap: 80, refillLevel: 20, // units a channel holds; a channel at or below this asks for a refill
-    refillTime: 30, refillOps: 2, // s to take a supplier carton from the reserve rack and empty it into a channel; refill operators
+    refillTime: 30, refillOps: 2, // s to take a reserve bin from the flow rack and fill a channel from it; refill operators
     walkSpeed: 1.1, // m/s
+    // Reserve: each channel's lane in the flow rack behind the walkway holds
+    // bins of its product; the Cuby shuttle store sends a new one for each
+    // bin taken
+    reserveBins: 2, // bins a lane holds
+    cubyAisles: 3, cubyLevels: 10, // shuttle aisles (each with its lift), levels (a shuttle each)
+    cubyRetrieve: 25, cubyCycle: 8, // s from a request to the bin leaving the lift; s between bins out of one lift
 
     // Order start: the de-stacker feeds an empty tote and a printer labels it
     startTime: 4, // s per tote

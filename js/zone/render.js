@@ -7,7 +7,8 @@
 (function (WS) {
   'use strict';
   const CZ = 2.2, AZ = 2.3, RZ = 2.6, TZ = 0.95; // conveyor height, A-frame belt, tote return, order start under the A-frame (render levels)
-  const RACK = [0.5, 1.4, 2.3, 3.2]; // the reserve racks' levels
+  const RACK = [0.5, 1.4, 2.3, 3.2], RTOP = 4.05, BZ = 4.5; // the flow racks' levels, their return lane, the empty bin conveyor
+  const CUBZ = (l) => 0.3 + l * 0.58; // a level of the Cuby
   const TOTE = { order: '#2563eb', rf: '#f59e0b', empty: '#64748b' };
   const hue = (gtin) => (parseInt(gtin.slice(7, 12), 10) * 47) % 360;
 
@@ -34,6 +35,7 @@
       this.addClosing(add);
       this.addLanes(add);
       this.addStart(add);
+      this.addCuby(add);
       // order totes on the belts
       for (const b of sim.net.belts) for (const t of b.totes) {
         const x = t.px + (t.x - t.px) * alpha, y = t.py + (t.y - t.py) * alpha, z = this.beltZ(b, t.s);
@@ -93,16 +95,19 @@
     }
 
     // ---------------------------------------------------------------- A-frame
-    // The frame: two sloping faces of channels over the belt, each channel
-    // showing how full it is; windows on the belt with the units dispensed
-    // into them; the tip chute into the tote at the end; refill operators.
+    // The frame, light grey: two sloping faces of white channels over the
+    // belt, each showing its product as far as the channel is full; windows
+    // on the belt with the units dispensed into them; the hopper into the
+    // tote at the end; the ledges, the flow racks of reserve bins and the
+    // refill operators.
     addAframe(add) {
       const sim = this.sim, g = sim.grid, c = sim.cfg, P = this.P.bind(this), x0 = g.AX, x1 = g.AX + g.afLen, y = g.AY, top = 6.2, foot = AZ + 0.6, half = 0.75;
       const toX = (b) => g.AX + b / c.cellSize;
       // back face (side 0), behind the belt
       add(x0 + y - 0.9, () => {
         for (const xx of [x0, x1]) { this.box(xx - 0.06, y - half, 0, xx + 0.06, y - half + 0.1, foot, '#475569'); this.box(xx - 0.06, y + half - 0.1, 0, xx + 0.06, y + half, foot, '#475569'); }
-        this.poly([P(x0, y - half, foot), P(x1, y - half, foot), P(x1, y, top), P(x0, y, top)], '#1e3a5f', '#334155', 1);
+        this.box(x0, y - half - 0.38, 1.55, x1, y - half - 0.08, 1.65, '#b5835a', { top: '#c99a6b' });
+        this.poly([P(x0, y - half, foot), P(x1, y - half, foot), P(x1, y, top), P(x0, y, top)], '#a7b0bc', '#8b95a1', 1);
         this.channels(0, x0, y, half, foot, top);
       });
       // the belt with its windows
@@ -133,25 +138,26 @@
           for (let k = 0; k < Math.min(6, e.w.units); k++) { const ff = Math.min(1, f * 1.3 - k * 0.05), hh = (k * 53 + 20) % 360; if (ff > 0) this.box(hx - 0.25 + k * 0.08, y - 0.1, zt - ff * (zt - zb - 0.3), hx - 0.15 + k * 0.08, y + 0.02, zt - ff * (zt - zb - 0.3) + 0.15, '#888', { top: `hsl(${hh},55%,62%)` }); }
         }
       });
-      // the reserve racks behind the walkways: a carton of each channel's product
+      // the flow racks behind the walkways: grey bins of each channel's product in its lane
       const bay = 2;
       for (const s of [-1, 1]) for (let bx = x0 - 0.3; bx < x1 + 0.3 - 1e-6; bx += bay) {
         const ry = y + s * g.RK, xa = bx, xb = Math.min(x1 + 0.3, bx + bay);
         add(xa + ry + (s < 0 ? -0.2 : 0.4), () => {
-          for (const xx of [xa, xb - 0.07]) this.box(xx, ry - 0.35, 0, xx + 0.07, ry + 0.35, 3.9, '#1d4ed8');
-          for (const zz of RACK) this.box(xa, ry - 0.35, zz - 0.08, xb, ry + 0.35, zz, '#64748b', { top: '#475569' });
+          for (const xx of [xa, xb - 0.07]) this.box(xx, ry - 0.35, 0, xx + 0.07, ry + 0.35, 4.4, '#cdd4dc');
+          for (const zz of [...RACK, RTOP]) this.box(xa, ry - 0.35, zz - 0.08, xb, ry + 0.35, zz, '#aab3be', { top: '#94a3b8' });
           for (const ch of sim.channels) {
             if (ch.side !== (s > 0 ? 1 : 0) || ch.wx < xa || ch.wx >= xb) continue;
-            const zz = RACK[ch.slot % 4], hh = hue(ch.comps[0].gtin), taken = ch.req && ch.req.op && ch.req.op.state === 'WORKING' && !ch.req.op.fetch;
-            this.box(ch.wx - 0.22, ry - 0.3, zz, ch.wx + 0.22, taken ? ry : ry + 0.3, zz + 0.55, '#b8875a', { top: '#c99a6b', left: `hsl(${hh},45%,55%)` });
+            const zz = RACK[ch.slot % 4], hh = hue(ch.comps[0].gtin), near = y + s * (g.RK - 0.35);
+            for (let d = Math.min(2, ch.res) - 1; d >= 0; d--) { const yy = near + s * (0.18 + d * 0.34); this.box(ch.wx - 0.2, yy - 0.16, zz, ch.wx + 0.2, yy + 0.16, zz + 0.4, '#8e98a5', { top: `hsl(${hh},45%,58%)` }); }
           }
         });
       }
       // front face (side 1), in front of the belt
       add(x0 + y + 0.9, () => {
-        this.poly([P(x0, y + half, foot), P(x1, y + half, foot), P(x1, y, top), P(x0, y, top)], '#24476f', '#334155', 1);
+        this.poly([P(x0, y + half, foot), P(x1, y + half, foot), P(x1, y, top), P(x0, y, top)], '#c3cad3', '#8b95a1', 1);
         this.channels(1, x0, y, half, foot, top);
-        this.box(x0 - 0.1, y - 0.08, top - 0.05, x1 + 0.1, y + 0.08, top + 0.12, '#64748b');
+        this.box(x0 - 0.15, y - 0.22, top - 0.1, x1 + 0.15, y + 0.22, top + 0.45, '#8b95a1', { top: '#a3acb7' });
+        this.box(x0, y + half + 0.08, 1.55, x1, y + half + 0.38, 1.65, '#b5835a', { top: '#c99a6b' });
         const sel = this.selected && this.selected.kind === 'port' && sim.ports[this.selected.id] === sim.afPort;
         if (sel) this.quadTop(x0 - 0.5, y - 1.0, x1 + 0.5, y + 1.0, 0.03, null, '#38bdf8', 2.5);
       });
@@ -160,8 +166,8 @@
         const x = op.px + (op.x - op.px) * 1, yy = op.y;
         add(x + yy + (yy > y ? 0.95 : -0.95), () => {
           this.drawOperator(x, yy, op.state === 'WORKING', '#a3e635', 0, 'refill ' + op.name);
-          // the carton: from the reserve rack behind, then held up to the channel
-          if (op.state === 'WORKING') { const d = (yy > y ? 1 : -1) * (op.fetch ? 0.35 : -0.3); this.parcel(x - 0.2, yy + d - 0.17, x + 0.2, yy + d + 0.17, op.fetch ? 2.4 : 3.3, 0.5); }
+          // the bin: out of the flow rack behind, then on the ledge
+          if (op.state === 'WORKING' && op.job) { const s = yy > y ? 1 : -1, by = op.fetch ? yy + s * 0.3 : y + s * (half + 0.23), hh = hue(op.job.comps[0].gtin); this.box(x - 0.2, by - 0.16, op.fetch ? 2.3 : 1.65, x + 0.2, by + 0.16, (op.fetch ? 2.3 : 1.65) + 0.4, '#8e98a5', { top: `hsl(${hh},45%,58%)` }); }
         });
       }
     }
@@ -174,8 +180,9 @@
         const q = ch.comps[0].qty, f = q / ch.cap, xa = ch.wx - w * 0.42, xb = ch.wx + w * 0.42;
         const col = ch.jam ? '#dc2626' : q <= 0 ? '#7f1d1d' : ch.req && ch.req.op && ch.req.op.state === 'WORKING' ? '#22c55e' : ch.req ? '#f59e0b' : `hsl(${hue(ch.comps[0].gtin)},45%,58%)`;
         const at = (u) => ({ y: y + sy * half * (1 - u), z: foot + (top - foot) * u });
-        const a = at(0.02), b = at(0.08 + 0.85 * f);
-        this.poly([P(xa, a.y, a.z), P(xb, a.y, a.z), P(xb, b.y, b.z), P(xa, b.y, b.z)], col);
+        const a = at(0.02), b = at(0.08 + 0.85 * f), e = at(0.97);
+        this.poly([P(xa, a.y, a.z), P(xb, a.y, a.z), P(xb, e.y, e.z), P(xa, e.y, e.z)], '#eef2f6');
+        if (q > 0 || ch.jam) this.poly([P(xa + w * 0.12, a.y, a.z), P(xb - w * 0.12, a.y, a.z), P(xb - w * 0.12, b.y, b.z), P(xa + w * 0.12, b.y, b.z)], col);
       }
     }
 
@@ -369,7 +376,7 @@
     // the tote-emptying machine at the end of the return conveyor.
     addStart(add) {
       const sim = this.sim, g = sim.grid, n = sim.oms.freeTotes.length, e = sim.emptier;
-      const sx = 1.2, sy = g.AY;
+      const sx = g.OSX, sy = g.AY;
       add(sx + sy - 0.4, () => {
         this.box(sx - 0.55, sy - 0.6, 0, sx + 0.55, sy + 0.6, TZ, '#334155', { top: '#1f2937' });
         const h = Math.min(18, Math.ceil(n / 40));
@@ -377,7 +384,7 @@
         for (const xx of [sx - 0.6, sx + 0.52]) this.box(xx, sy - 0.65, 0, xx + 0.08, sy + 0.65, TZ + 5.4, '#64748b');
         this.text(`${n} empty`, sx, sy, TZ + 6, { size: 9, color: '#bfdbfe', bg: 'rgba(15,23,42,0.85)' });
       });
-      add(2.6 + sy + 0.2, () => { this.box(2.4, sy - 0.75, TZ, 3.2, sy - 0.45, TZ + 2.0, '#e2e8f0'); if (sim.startT > sim.cfg.startTime - 1) this.glow(2.8, sy - 0.4, TZ + 1.4, 12, '#38bdf8', 0.7); });
+      add(sx - 1.1 + sy + 0.2, () => { this.box(sx - 1.4, sy - 0.75, 0, sx - 0.8, sy - 0.45, TZ + 2.0, '#e2e8f0'); if (sim.startT > sim.cfg.startTime - 1) this.glow(sx - 1.1, sy - 0.4, TZ + 1.4, 12, '#38bdf8', 0.7); });
       add(e.x + e.y + 0.3, () => {
         this.box(e.x - 0.7, e.y - 0.6, 0, e.x + 0.6, e.y + 0.6, RZ + 2.2, '#4c1d95', { top: '#5b21b6' });
         if (e.tote) this.glow(e.x, e.y, RZ + 2.4, 16, '#22c55e', 0.6);
@@ -387,10 +394,60 @@
       add(rx + ry, () => { for (let k = 0; k < Math.min(12, Math.ceil(r / 8)); k++) this.box(rx - 0.3, ry - 0.4, 0.1 + k * 0.28, rx + 0.3, ry + 0.4, 0.36 + k * 0.28, '#475569', { top: '#64748b' }); });
     }
 
+    // ---------------------------------------------------------------- the Cuby
+    // The shuttle store: per aisle a rack either side, a yellow shuttle on
+    // each level, the lift at the west end; the bin conveyors to the backs of
+    // the flow racks and the bins on them.
+    addCuby(add) {
+      const sim = this.sim, g = sim.grid, c = sim.cfg, cb = sim.cuby, now = sim.time, x0 = g.CX0, x1 = g.CX1, lift = g.CX0 - 0.5, top = CUBZ(c.cubyLevels);
+      const busy = new Map();
+      for (const j of cb.jobs) if (now >= j.t0 && now <= j.t1) busy.set(j.a * 100 + j.level, j);
+      for (let a = 0; a < c.cubyAisles; a++) {
+        const ay = g.CY0 + g.CW * (a + 0.5);
+        for (const s of [-1, 1]) {
+          const ya = ay + s * 0.45, yb = ay + s * 1.25;
+          for (let bx = x0; bx < x1 - 1e-6; bx += 2) {
+            const xb = Math.min(x1, bx + 2);
+            add(bx + Math.max(ya, yb) - 0.2, () => {
+              this.box(bx, Math.min(ya, yb), 0, xb, Math.max(ya, yb), top, '#8e98a5', { top: '#a3acb7', left: '#7c8794', right: '#6b7683' });
+              for (let l = 1; l < c.cubyLevels; l += 1) this.line(this.P(bx, s > 0 ? yb : ya, CUBZ(l)), this.P(xb, s > 0 ? yb : ya, CUBZ(l)), 'rgba(15,23,42,0.35)', 1);
+            });
+          }
+        }
+        // the shuttles on the top levels show over the racks; the rest in the aisle
+        add(x0 + ay + 0.1, () => {
+          for (let l = 0; l < c.cubyLevels; l++) {
+            const j = busy.get(a * 100 + l), home = x0 + 0.35 + (((a * 7 + l * 5) % 9) / 9) * (x1 - x0 - 1);
+            let x = home;
+            if (j) { const half = (j.t1 - j.t0 - 5) / 2, t = now - j.t0; x = t < half ? x0 + 0.35 + (j.sx - x0 - 0.35) * (t / half) : t < 2 * half ? j.sx + (x0 + 0.35 - j.sx) * ((t - half) / half) : x0 + 0.35; }
+            this.box(x - 0.3, ay - 0.36, CUBZ(l) + 0.05, x + 0.3, ay + 0.36, CUBZ(l) + 0.25, '#ca8a04', { top: '#facc15' });
+          }
+          this.box(lift - 0.4, ay - 0.45, 0, lift + 0.4, ay + 0.45, top + 0.5, '#b91c1c', { top: '#dc2626' });
+        });
+      }
+      // the bin conveyors, full bins low and empty ones high
+      const cy = (a) => g.CY0 + g.CW * (a + 0.5), last = cy(c.cubyAisles - 1);
+      for (const [x, z] of [[g.BX, CZ], [g.EX, BZ]]) {
+        const lines = [[{ x, y: last }, { x, y: g.AY - g.BK }], ...[-1, 1].map((s) => [{ x, y: g.AY + s * g.BK }, { x: x1 + 0.3, y: g.AY + s * g.BK }])];
+        for (let a = 0; a < c.cubyAisles; a++) lines.push([{ x: lift - 0.3, y: cy(a) }, { x, y: cy(a) }]);
+        for (const pts of lines) add(Math.min(pts[0].x + pts[0].y, pts[1].x + pts[1].y) - 0.3, () => this.conveyor(pts, 0.5, z, '#3b4a5e', { legs: true }));
+      }
+      for (const m of cb.moving) {
+        if (now < m.t0) continue;
+        let d = Math.min(m.len, ((now - m.t0) / (m.t1 - m.t0)) * m.len), k = 1;
+        const seg = (k) => Math.hypot(m.path[k].x - m.path[k - 1].x, m.path[k].y - m.path[k - 1].y);
+        while (k < m.path.length - 1 && d > seg(k)) { d -= seg(k); k++; }
+        const p0 = m.path[k - 1], p1 = m.path[k], f = Math.min(1, d / (seg(k) || 1)), x = p0.x + (p1.x - p0.x) * f, y = p0.y + (p1.y - p0.y) * f;
+        const lane = m.full ? k === m.path.length - 1 : k === 1, zl = m.full ? RACK[m.ch.slot % 4] : RTOP, z = lane ? (m.full ? CZ + (zl - CZ) * f : zl + (BZ - zl) * f) : m.full ? CZ : BZ, hh = hue(m.ch.comps[0].gtin);
+        add(x + y + 0.3, () => this.box(x - 0.2, y - 0.16, z, x + 0.2, y + 0.16, z + 0.4, '#8e98a5', { top: m.full ? `hsl(${hh},45%,58%)` : '#a3acb7' }));
+      }
+    }
+
     drawLabels() {
       const sim = this.sim, g = sim.grid, bg = 'rgba(15,23,42,0.82)';
       this.text(`A-FRAME · ${sim.channels.length} channels${sim.afRunning || !sim.windows.length ? '' : ' · BELT WAITING'}`, g.AX + g.afLen / 2, g.AY, 7.4, { size: 10, bg, color: '#7dd3fc' });
-      this.text('ORDER START', 1.6, g.AY + 1.2, 0.5, { size: 10, bg, color: '#86efac' });
+      this.text('CUBY', g.CX0 + 2, g.CY0 + 0.3, CUBZ(sim.cfg.cubyLevels) + 0.8, { size: 10, bg, color: '#fde047' });
+      this.text('ORDER START', g.OSX, g.AY + 1.2, 0.5, { size: 10, bg, color: '#86efac' });
       for (const z of sim.zones) this.text(`${z.port.code} · ${z.kind === 'carousel' ? 'CAROUSELS' : z.idx === 0 ? 'PICK-TO-LIGHT · COMPLETION' : 'PICK-TO-LIGHT'} · ${z.in.totes.length}/${sim.cfg.spurTotes}${z.port.away ? ' · BREAK' : ''}`, z.dx - 1.5, g.LB + 1.2, 3.8, { size: 10, bg, color: '#fdba74' });
       this.text(`LOOP ${Math.round(sim.loopFill() * 100)}%`, g.LX + 2, g.LB - 0.5, 3.2, { size: 10, bg, color: '#e2e8f0' });
       this.text(`MERGE · ${sim.merge.totes.length} waiting`, g.RX + 5.2, g.LT - 2.2, 3.4, { size: 10, bg, color: '#c4b5fd' });

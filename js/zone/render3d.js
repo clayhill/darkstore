@@ -2,8 +2,10 @@
  * two sloping faces of channels over its belt, each channel's stack of
  * boxes going down as it dispenses and back up when it is refilled, the
  * windows on the belt filling as they pass and sliding off its end through
- * a hopper into the order tote below; the refill operators taking cartons
- * from the reserve racks behind their walkways. Around it the conveyors with
+ * a hopper into the order tote below, past which order start sends its
+ * totes; the refill operators taking bins from the flow racks behind their
+ * walkways, and the Cuby shuttle store sending those bins round on its
+ * conveyors. Around it the conveyors with
  * the totes, the pick-to-light flow racks lighting the location to pick, the
  * carousels' carriers turning round their track, the RF shelving with
  * the pickers and their carts, the merge, the closing line's machines, the
@@ -12,8 +14,9 @@
  * order's window, totes and van. */
 (function (WS) {
   'use strict';
-  const CZ = 2.2, AZ = 2.3, RZ = 2.6, TZ = 0.95, TOP = 6.2, FOOT = 2.9, HALF = 0.75, STEPS = 6; // as in the isometric view; the A-frame's faces in steps
-  const RACK = [0.5, 1.4, 2.3, 3.2]; // the reserve racks' levels, as in the isometric view
+  const CZ = 2.2, AZ = 2.3, RZ = 2.6, TZ = 0.95, TOP = 6.2, FOOT = 2.9, HALF = 0.75; // as in the isometric view
+  const RACK = [0.5, 1.4, 2.3, 3.2], RTOP = 4.05, BZ = 4.5; // the flow racks' levels, as in the isometric view; their return lane; the empty bin conveyor
+  const CUBZ = (l) => 0.3 + l * 0.58; // a level of the Cuby
   const CL = 6, CLZ = (l) => 0.45 + l * 0.62, CTOP = 4.3, CRAIL = 4.75; // carousel carriers: levels, shelf level, top of a carrier, the overhead track
   const TOTE = { order: '#2563eb', rf: '#f59e0b', empty: '#64748b' };
   const hue = (gtin) => (parseInt(gtin.slice(7, 12), 10) * 47) % 360;
@@ -36,7 +39,7 @@
     }
     workLights() {
       const sim = this.sim, g = sim.grid, out = sim.zones.map((z) => ({ x: z.pick.x, y: z.pick.y + 0.9 }));
-      out.push({ x: g.AX + g.afLen / 2, y: g.AY }, { x: g.RX + 5.2, y: g.LT + 2.6 }, { x: sim.machines[0].x - 0.9, y: g.LT - 2.4 }, sim.rfDepot(), { x: 1.4, y: g.AY }, { x: g.tipX, y: g.AY });
+      out.push({ x: g.AX + g.afLen / 2, y: g.AY }, { x: g.RX + 5.2, y: g.LT + 2.6 }, { x: sim.machines[0].x - 0.9, y: g.LT - 2.4 }, sim.rfDepot(), { x: g.OSX, y: g.AY }, { x: g.tipX, y: g.AY }, { x: g.CX0 + 3, y: g.CY0 + 3 }, { x: g.CX1 - 3, y: g.CY0 + 3 });
       return out;
     }
 
@@ -62,8 +65,8 @@
       for (const z of sim.zones) S.box.box(z.dx - 4.4, g.LB + 1, 0, z.dx + 1.4, z.kind === 'carousel' ? g.caroEnd + 0.3 : g.LB + g.SD + 2.3, 0.01, '#1f3a2c', { kind: 'port', id: z.port.idx });
       for (const s of [-1, 1]) for (const d of [-0.42, 0.42]) S.box.box(g.AX - 1.4, g.AY + s * g.WK + d - 0.04, 0, g.AX + g.afLen + 1.4, g.AY + s * g.WK + d + 0.04, 0.015, '#a16207');
       if (!this.chan) { this.chan = this.newBatch('box', 'std', 2048); this.res = this.newBatch('box', 'std', 2048); }
-      this.chan.slots(sim.channels.length, STEPS);
-      this.res.slots(sim.channels.length, 5);
+      this.chan.slots(sim.channels.length, 2);
+      this.res.slots(sim.channels.length, 6);
     }
     extraBatches() { return [this.chan, this.res]; }
     beltZ(b, s) { return WS.ZoneRenderer.prototype.beltZ.call(this, b, s); }
@@ -77,28 +80,54 @@
         if (k % 3 === 1) for (const s of [-1, 1]) S.box.box(x + s * 0.33 * Math.abs(uy) - 0.03, y + s * 0.33 * Math.abs(ux) - 0.03, 0, x + s * 0.33 * Math.abs(uy) + 0.03, y + s * 0.33 * Math.abs(ux) + 0.03, z - 0.35, '#475569');
       }
     }
-    // The A-frame: posts, the apex beam and the two sloping faces in steps; the belt underneath; the tip chute.
+    // The A-frame, light grey as the real ones are: frames at the ends and
+    // every few metres, two steep faces with a white channel for each slot
+    // over the belt, a grey header along the apex with an indicator light per
+    // channel, the ejectors along the foot; on each walkway side a ledge to
+    // set a bin on while filling a channel; blue railings at the hopper end.
     aframeStatic(S) {
-      const sim = this.sim, g = sim.grid, x0 = g.AX, x1 = g.AX + g.afLen, y = g.AY, pick = { kind: 'port', id: sim.afPort.idx };
-      for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / 6) for (const s of [-1, 1]) { S.box.box(x - 0.06, y + s * HALF - 0.05, 0, x + 0.06, y + s * HALF + 0.05, FOOT, '#475569'); }
-      for (let k = 0; k < STEPS; k++) {
-        const u = (k + 0.5) / STEPS, z = FOOT + (TOP - FOOT) * u, dy = HALF * (1 - u);
-        for (const s of [-1, 1]) S.box.box(x0, y + s * dy - 0.07, z - 0.08, x1, y + s * dy + 0.07, z, '#334155', pick);
+      const sim = this.sim, g = sim.grid, c = sim.cfg, x0 = g.AX, x1 = g.AX + g.afLen, y = g.AY, pick = { kind: 'port', id: sim.afPort.idx }, frame = '#d5dbe2';
+      const nf = Math.max(2, Math.round((x1 - x0) / 4)), w = WS.ZONE_CHANNEL_PITCH / c.cellSize;
+      for (let k = 0; k <= nf; k++) {
+        const x = x0 - 0.12 + ((x1 - x0 + 0.24) * k) / nf;
+        for (const s of [-1, 1]) {
+          S.box.box(x - 0.05, y + s * (HALF + 0.1) - 0.05, 0, x + 0.05, y + s * (HALF + 0.1) + 0.05, FOOT - 0.3, frame, pick);
+          S.box.slab(x - 0.05, x + 0.05, y + s * (HALF + 0.1), FOOT - 0.35, y + s * 0.1, TOP + 0.1, 0.1, frame, pick);
+        }
+        S.box.box(x - 0.05, y - HALF - 0.12, FOOT - 0.42, x + 0.05, y + HALF + 0.12, FOOT - 0.32, frame, pick);
       }
-      S.box.box(x0 - 0.1, y - 0.08, TOP - 0.05, x1 + 0.1, y + 0.08, TOP + 0.15, '#64748b', pick);
-      // the belt: its frame hung from cross beams between the posts, so the
-      // order start conveyor runs underneath; the rubber belt over its end drum
+      // the end panels closing the triangle
+      for (const x of [x0 - 0.15, x1 + 0.15]) for (let k = 0; k < 8; k++) {
+        const u = (k + 0.5) / 8, z = FOOT + (TOP - FOOT) * u, d = HALF * (1 - u) + 0.08, h = (TOP - FOOT) / 16;
+        S.box.box(x - 0.025, y - d, z - h, x + 0.025, y + d, z + h, '#e8ecf0', pick);
+      }
+      for (const s of [-1, 1]) {
+        // the face: a backing with a white channel for each slot
+        S.box.slab(x0, x1, y + s * HALF, FOOT, y + s * 0.06, TOP, 0.04, '#97a1ae', pick);
+        for (const ch of sim.channels) if ((ch.side ? 1 : -1) === s) S.box.slab(ch.wx - w * 0.43, ch.wx + w * 0.43, y + s * (HALF + 0.03), FOOT, y + s * 0.09, TOP - 0.05, 0.035, '#f3f5f8', pick);
+        // the ejectors along the foot; the ledge on the walkway side on its brackets
+        S.box.box(x0, y + s * (HALF - 0.05) - 0.12, FOOT - 0.45, x1, y + s * (HALF - 0.05) + 0.12, FOOT, '#475569', pick);
+        const la = y + s * (HALF + 0.08), lb = y + s * (HALF + 0.38);
+        S.box.box(x0, Math.min(la, lb), 1.55, x1, Math.max(la, lb), 1.65, '#b5835a', pick);
+        for (let x = x0 + 0.5; x < x1; x += 2) S.box.box(x - 0.03, Math.min(la, lb), 1.1, x + 0.03, Math.max(la, lb), 1.55, '#8b95a1');
+        // blue railing across the walkway at the hopper end
+        const ra = y + s * (HALF + 0.12), rb = y + s * (g.RK - 0.4), rx = x1 + 1.0;
+        for (const yy of [ra, (ra + rb) / 2, rb]) S.box.box(rx - 0.04, yy - 0.04, 0, rx + 0.04, yy + 0.04, 2.3, '#1d4ed8');
+        for (const z of [1.2, 2.25]) S.box.box(rx - 0.035, Math.min(ra, rb), z, rx + 0.035, Math.max(ra, rb), z + 0.08, '#2563eb');
+      }
+      // the header over the apex, with the WAMAS labels
+      S.box.box(x0 - 0.15, y - 0.22, TOP - 0.1, x1 + 0.15, y + 0.22, TOP + 0.45, '#8b95a1', pick);
+      for (let x = x0 + 0.6; x < x1; x += 2.4) for (const s of [-1, 1]) S.box.box(x, y + s * 0.225 - 0.005, TOP + 0.2, x + 0.4, y + s * 0.225 + 0.005, TOP + 0.38, x % 4.8 < 2.4 ? '#ef4444' : '#facc15');
+      // the belt between the faces, the rubber belt over its end drums
       S.box.box(x0 - 0.3, y - 0.32, AZ - 0.3, x1 + 0.3, y + 0.32, AZ - 0.05, '#1f2937', pick);
       S.box.box(x0 - 0.3, y - 0.27, AZ - 0.05, x1 + 0.3, y + 0.27, AZ, '#0b0f17', pick);
       for (const s of [-1, 1]) S.box.box(x0 - 0.3, y + s * 0.3 - 0.025, AZ - 0.05, x1 + 0.3, y + s * 0.3 + 0.025, AZ + 0.12, '#475569', pick);
-      for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / 6) S.box.box(x - 0.05, y - HALF, AZ - 0.42, x + 0.05, y + HALF, AZ - 0.3, '#475569');
       S.cyl.cylY(x1 + 0.3, y - 0.29, y + 0.29, AZ - 0.15, 0.15, '#94a3b8');
       S.cyl.cylY(x0 - 0.3, y - 0.29, y + 0.29, AZ - 0.15, 0.15, '#94a3b8');
       S.box.box(x0 - 0.75, y + 0.32, AZ - 0.4, x0 - 0.35, y + 0.6, AZ + 0.05, '#1e3a8a'); // drive motor
-      // the dispensers along the foot of each face
-      for (const s of [-1, 1]) S.box.box(x0, y + s * HALF * 0.55 - 0.08, FOOT - 0.4, x1, y + s * HALF * 0.55 + 0.08, FOOT - 0.1, '#0f172a', pick);
       this.hopperStatic(S);
       this.reserveStatic(S);
+      this.cubyStatic(S);
     }
     // The hopper past the end of the belt: a stainless funnel in rings,
     // narrowing from under the belt's end to the tote below; its flap at the
@@ -120,19 +149,59 @@
         S.box.box(hx - 0.3, y + s * 0.42 - 0.03, TZ + 0.4, hx - 0.24, y + s * 0.42 + 0.03, TZ + 0.55, '#0f172a'); // photo eye
       }
     }
-    // The reserve racks behind the walkways: carton flow racks, four levels
-    // sloping down towards the walkway, a carton lane for every channel.
+    // The flow racks behind the walkways: light grey, four levels of roller
+    // lanes sloping down towards the walkway with a lane for every channel,
+    // yellow label strips on the front beams, and a return lane at the top
+    // sloping the other way for the empty bins. Behind each, the bin
+    // conveyor from the Cuby and over it the one for the empty bins.
     reserveStatic(S) {
-      const sim = this.sim, g = sim.grid, x0 = g.AX - 0.3, x1 = g.AX + g.afLen + 0.3, pick = { kind: 'port', id: sim.afPort.idx };
+      const sim = this.sim, g = sim.grid, x0 = g.AX - 0.3, x1 = g.AX + g.afLen + 0.3, pick = { kind: 'port', id: sim.afPort.idx }, grey = '#cdd4dc';
       for (const s of [-1, 1]) {
         const ry = g.AY + s * g.RK, near = ry - s * 0.35, far = ry + s * 0.35;
-        for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / Math.ceil((x1 - x0) / 2.2)) for (const yy of [near, far]) S.box.box(x - 0.04, yy - 0.04, 0, x + 0.04, yy + 0.04, 3.95, '#1d4ed8', pick);
-        for (const z of RACK) {
-          S.box.box(x0, ry - 0.35, z - 0.1, x1, ry + 0.35, z - 0.04, '#64748b', pick);
-          S.box.box(x0, near - 0.03, z - 0.12, x1, near + 0.03, z + 0.02, '#f97316', pick);
-          S.box.box(x0, far - 0.03, z - 0.06, x1, far + 0.03, z + 0.04, '#f97316', pick);
-          for (let k = 0; k < 6; k++) S.box.box(x0, ry - 0.3 + k * 0.12, z - 0.04, x1, ry - 0.28 + k * 0.12, z - 0.02, '#94a3b8', pick); // roller tracks
+        for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / Math.ceil((x1 - x0) / 2.2)) for (const yy of [near, far]) S.box.box(x - 0.04, yy - 0.04, 0, x + 0.04, yy + 0.04, 4.4, grey, pick);
+        for (const z of [...RACK, RTOP]) {
+          const top = z === RTOP;
+          S.box.slab(x0, x1, near, z - (top ? 0.02 : 0.1), far, z + (top ? -0.1 : 0.0), 0.03, '#aab3be', pick);
+          S.box.box(x0, near - 0.03, z - 0.14, x1, near + 0.03, z + 0.02, grey, pick);
+          if (!top) S.box.box(x0, near - s * 0.035, z - 0.11, x1, near - s * 0.03, z - 0.01, '#facc15', pick); // label strip
+          S.box.box(x0, far - 0.03, z - 0.06, x1, far + 0.03, z + 0.04, grey, pick);
         }
+      }
+      // the bin conveyors: out of each lift along to the back of both racks; the empty bins back above them
+      const cy = (a) => g.CY0 + g.CW * (a + 0.5), last = cy(sim.cfg.cubyAisles - 1), lift = g.CX0 - 0.5;
+      for (const [x, z] of [[g.BX, CZ], [g.EX, BZ]]) {
+        for (let a = 0; a < sim.cfg.cubyAisles; a++) this.conveyor(S, [{ x: lift - 0.3, y: cy(a) }, { x, y: cy(a) }], 0.5, z, '#3b4a5e');
+        this.conveyor(S, [{ x, y: last }, { x, y: g.AY - g.BK }], 0.5, z, '#3b4a5e');
+        for (const s of [-1, 1]) this.conveyor(S, [{ x, y: g.AY + s * g.BK }, { x: x1, y: g.AY + s * g.BK }], 0.5, z, '#3b4a5e');
+      }
+    }
+    // The Cuby: in each aisle a rack either side, a level for every shuttle,
+    // grey bins (a few blue) on every level; at the west end the lift in its
+    // red frame, which brings the bins down to the conveyor.
+    cubyStatic(S) {
+      const sim = this.sim, g = sim.grid, c = sim.cfg, x0 = g.CX0, x1 = g.CX1, pick = { kind: 'cell', id: g.idx(Math.floor(x0 + 2), Math.floor(g.CY0 + 1)) }, grey = '#9aa4b0';
+      for (let a = 0; a < c.cubyAisles; a++) {
+        const ay = g.CY0 + g.CW * (a + 0.5), top = CUBZ(c.cubyLevels);
+        for (const s of [-1, 1]) {
+          const ya = ay + s * 0.45, yb = ay + s * 1.25;
+          for (let x = x0; x <= x1 + 1e-6; x += (x1 - x0) / Math.ceil((x1 - x0) / 1.6)) for (const yy of [ya, yb]) S.box.box(x - 0.04, yy - 0.04, 0, x + 0.04, yy + 0.04, top + 0.3, grey, pick);
+          for (let l = 0; l < c.cubyLevels; l++) {
+            const z = CUBZ(l);
+            S.box.box(x0, Math.min(ya, yb), z - 0.05, x1, Math.max(ya, yb), z, '#7c8794', pick);
+            S.box.box(x0, ya - 0.03, z, x1, ya + 0.03, z + 0.06, '#5b6573', pick); // the shuttle's rail
+            let k = 0;
+            for (let x = x0 + 0.1; x + 0.5 < x1; x += 0.56, k++) {
+              const h = (a * 131 + l * 37 + k * 17 + (s > 0 ? 7 : 0)) % 23;
+              if (h === 0) continue; // a gap
+              S.box.box(x, Math.min(ya, yb) + 0.08, z, x + 0.48, Math.max(ya, yb) - 0.06, z + 0.36, h < 4 ? '#2563eb' : '#8e98a5', pick);
+            }
+          }
+        }
+        // the lift and its red frame
+        const lx = x0 - 0.5;
+        for (const dx of [-0.38, 0.38]) for (const dy of [-0.4, 0.4]) S.box.box(lx + dx - 0.05, ay + dy - 0.05, 0, lx + dx + 0.05, ay + dy + 0.05, top + 0.5, '#dc2626', pick);
+        for (const dy of [-0.4, 0.4]) S.box.box(lx - 0.43, ay + dy - 0.05, top + 0.42, lx + 0.43, ay + dy + 0.05, top + 0.52, '#dc2626', pick);
+        S.box.box(lx + 0.2, ay - 0.3, top + 0.52, lx + 0.42, ay + 0.3, top + 0.85, '#1e293b', pick); // the lift's drive
       }
     }
     zoneStatic(S, z) {
@@ -214,10 +283,10 @@
       for (const lane of sim.lanes) S.box.box(g.SX + 5.4, lane.y - 0.75, 0, g.SX + 11, lane.y + 0.75, 0.02, '#1f2937', { kind: 'cell', id: g.idx(Math.floor(g.SX + 7), Math.floor(lane.y)) });
     }
     startStatic(S) {
-      const sim = this.sim, g = sim.grid, sx = 1.2, sy = g.AY, e = sim.emptier, pick = { kind: 'cell', id: g.idx(1, Math.floor(sy)) };
+      const sim = this.sim, g = sim.grid, sx = g.OSX, sy = g.AY, e = sim.emptier, pick = { kind: 'cell', id: g.idx(Math.floor(sx), Math.floor(sy)) };
       S.box.box(sx - 0.55, sy - 0.6, 0, sx + 0.55, sy + 0.6, TZ, '#334155', pick);
       for (const xx of [sx - 0.6, sx + 0.52]) S.box.box(xx, sy - 0.65, 0, xx + 0.08, sy + 0.65, TZ + 5.4, '#64748b');
-      S.box.box(2.4, sy - 0.75, 0, 3.2, sy - 0.45, TZ + 2.0, '#e2e8f0', pick);
+      S.box.box(sx - 1.4, sy - 0.75, 0, sx - 0.8, sy - 0.45, TZ + 2.0, '#e2e8f0', pick);
       S.box.box(e.x - 0.7, e.y - 0.6, 0, e.x + 0.6, e.y + 0.6, RZ + 2.2, '#4c1d95', pick);
     }
 
@@ -254,16 +323,18 @@
     }
     // The channels: a stack of product boxes down each face, shorter as the
     // channel empties; amber while it waits for a refill, green as it is refilled.
+    // The channels: a stripe of the product down each white channel, as long
+    // as the stack in it; the header light over it amber while it waits for a
+    // refill, green as it is refilled, red when it is jammed or empty.
     aframeLive() {
-      const sim = this.sim, g = sim.grid, c = sim.cfg, D = this.dy, B = this.chan, y = g.AY, w = WS.ZONE_CHANNEL_PITCH / c.cellSize * 0.42;
+      const sim = this.sim, g = sim.grid, c = sim.cfg, D = this.dy, B = this.chan, y = g.AY, w = WS.ZONE_CHANNEL_PITCH / c.cellSize * 0.3;
       sim.channels.forEach((ch, k) => {
-        const q = ch.comps[0].qty, n = Math.ceil((q / ch.cap) * STEPS), state = ch.jam ? 'j' : q <= 0 ? 'e' : ch.req ? (ch.req.op && ch.req.op.state === 'WORKING' ? 'r' : 'w') : '';
-        if (!B.open(k, n + state)) return;
-        const s = ch.side ? 1 : -1, col = ch.jam ? '#dc2626' : ch.req && ch.req.op && ch.req.op.state === 'WORKING' ? '#22c55e' : ch.req ? '#f59e0b' : prodCol(ch.comps[0].gtin), pick = { kind: 'port', id: sim.afPort.idx };
-        for (let j = 0; j < Math.max(n, q <= 0 ? 1 : 0); j++) {
-          const u = (j + 0.5) / STEPS, z = FOOT + (TOP - FOOT) * u, dy = HALF * (1 - u);
-          B.box(ch.wx - w, y + s * dy - 0.06 + s * 0.08, z, ch.wx + w, y + s * dy + 0.06 + s * 0.08, z + 0.28, q <= 0 ? '#7f1d1d' : col, pick);
-        }
+        const q = ch.comps[0].qty, f = Math.round((q / ch.cap) * 40) / 40, state = ch.jam ? 'j' : q <= 0 ? 'e' : ch.req ? (ch.req.op && ch.req.op.state === 'WORKING' ? 'r' : 'w') : '';
+        if (!B.open(k, f + state)) return;
+        const s = ch.side ? 1 : -1, pick = { kind: 'port', id: sim.afPort.idx }, at = (u) => [y + s * (HALF * (1 - u) + 0.075), FOOT + (TOP - FOOT) * u];
+        if (q > 0) { const [ya, za] = at(0.03), [yb, zb] = at(0.03 + 0.92 * f); B.slab(ch.wx - w, ch.wx + w, ya, za, yb, zb, 0.06, prodCol(ch.comps[0].gtin), pick); }
+        const light = ch.jam ? '#ef4444' : q <= 0 ? '#b91c1c' : state === 'r' ? '#22c55e' : state === 'w' ? '#f59e0b' : null;
+        if (light) B.box(ch.wx - 0.05, y + s * 0.23 - 0.02, TOP + 0.02, ch.wx + 0.05, y + s * 0.23 + 0.02, TOP + 0.16, light, pick);
         B.close(k);
       });
       B.flush();
@@ -275,62 +346,95 @@
         let k = 0;
         for (const ln of wd.lines) for (let u = 0; u < ln.got && k < 24; u++, k++) { const ux = xc - hw + 0.15 + (k % 8) * ((2 * hw - 0.3) / 8), uy = y - 0.18 + Math.floor(k / 8) * 0.16; D.box.box(ux, uy, AZ, ux + 0.12, uy + 0.1, AZ + 0.18, prodCol(ln.line.gtin)); }
       }
-      // units falling from a channel into the window under it
+      // units falling from a channel's ejector into the window under it
       for (const e of sim.ejects) {
         const f = (sim.time - e.t) / 0.35;
         if (f < 0 || f > 1) continue;
-        const ch = e.ch, sy = y + (ch.side ? 1 : -1) * HALF * 0.55, zz = FOOT - 0.3 - f * (FOOT - 0.3 - AZ), yy = sy + (y - sy) * f;
+        const ch = e.ch, sy = y + (ch.side ? 1 : -1) * (HALF - 0.05), zz = FOOT - 0.45 - f * (FOOT - 0.45 - AZ), yy = sy + (y - sy) * f;
         D.box.box(ch.wx - 0.06, yy - 0.05, zz, ch.wx + 0.06, yy + 0.05, zz + 0.15, prodCol(ch.comps[0].gtin || '0000000000000'));
       }
-      if (!sim.afRunning && sim.windows.length) D.litCyl.cyl(g.AX + g.afLen + 0.3, y, TOP + 0.2, TOP + 0.5, 0.1, '#f59e0b');
+      if (!sim.afRunning && sim.windows.length) D.litCyl.cyl(g.AX + g.afLen + 0.3, y, TOP + 0.45, TOP + 0.75, 0.1, '#f59e0b');
       this.tipLive();
       this.reserveLive();
-      // refill operators: walking the walkway; at the channel, turned round to
-      // the reserve rack to take the carton, then emptying it into the channel
+      this.binsLive();
+      this.cubyLive();
+      // refill operators: walking the walkway; at the channel turned round to
+      // the flow rack to take the bin, then filling the channel from it on the ledge
       for (const op of sim.refillers) {
         if (op.state === 'BREAK') continue;
         const toFrame = op.y < y ? Math.PI : 0, working = op.state === 'WORKING', a = working ? (op.fetch ? toFrame + Math.PI : toFrame) : op.state === 'WALKING' ? -op.heading - Math.PI / 2 : toFrame;
         this.operator(op.x, op.y, a, working, '#a3e635', 0, 'refill ' + op.name);
         if (!working || !op.job) continue;
-        const dir = op.y < y ? 1 : -1, ch = op.job;
+        const dir = op.y < y ? 1 : -1, ch = op.job, s = -dir;
         if (op.fetch) {
-          // from the rack's level to the arms
-          const f = Math.min(1, Math.max(0, (sim.cfg.refillTime - op.t) / 6)), zr = RACK[ch.slot % 4] + 0.05, z = zr + (2.0 - zr) * Math.min(1, f * 1.6), dy = -dir * (0.62 - 0.35 * Math.min(1, f * 1.6));
-          this.carton(D, op.x, op.y + dy, z, ch);
+          // out of the lane to the arms, then onto the ledge
+          const f = Math.min(1, Math.max(0, (c.refillTime - op.t) / 6)), zr = RACK[ch.slot % 4], ya = g.AY + s * (g.RK - 0.18), yh = op.y + dir * 0.25;
+          const u = Math.min(1, f * 1.8), v = Math.max(0, (f - 0.6) / 0.4), yl = g.AY + s * (HALF + 0.23);
+          this.bin(D, op.x, f < 0.6 ? ya + (yh - ya) * u : yh + (yl - yh) * v, f < 0.6 ? zr + (2.3 - zr) * u : 2.3 + (1.65 - 2.3) * v, ch, true);
         } else {
-          // held up against the face, open, its units sliding into the channel
-          this.carton(D, op.x, op.y + dir * 0.3, 2.9, ch, true);
-          const u = (this.t * 2.2) % 1, zz = 3.4 + u * 0.5, yy = op.y + dir * (0.32 + u * 0.25);
-          D.box.box(op.x - 0.05, yy - 0.04, zz, op.x + 0.05, yy + 0.04, zz + 0.12, prodCol(ch.comps[0].gtin));
+          // on the ledge; a unit at a time from the bin into the channel
+          this.bin(D, op.x, g.AY + s * (HALF + 0.23), 1.65, ch, true);
+          const u = (this.t * 1.6) % 1, ya = g.AY + s * (HALF + 0.23), yb = g.AY + s * (HALF * 0.55 + 0.1), za = 2.0, zb = FOOT + (TOP - FOOT) * 0.45;
+          D.box.box(op.x - 0.05, ya + (yb - ya) * u - 0.04, za + (zb - za) * u + Math.sin(u * Math.PI) * 0.4, op.x + 0.05, ya + (yb - ya) * u + 0.04, za + (zb - za) * u + Math.sin(u * Math.PI) * 0.4 + 0.12, prodCol(ch.comps[0].gtin));
         }
       }
     }
-    // a supplier carton with the product's label, closed or with its flaps open
-    carton(D, x, y, z, ch, open) {
-      const col = '#b8875a';
-      if (open) {
-        D.box.box(x - 0.22, y - 0.16, z, x + 0.22, y + 0.16, z + 0.5, col);
-        D.box.box(x - 0.18, y - 0.12, z + 0.5, x + 0.18, y + 0.12, z + 0.51, prodCol(ch.comps[0].gtin, 45));
-        for (const s of [-1, 1]) D.box.box(x - 0.22, y + s * 0.16 - 0.01, z + 0.5, x + 0.22, y + s * 0.16 + 0.01, z + 0.78, '#a5764c');
-      } else this.parcel(D.box, x - 0.22, y - 0.16, x + 0.22, y + 0.16, z, 0.5);
-      D.box.box(x - 0.12, y - 0.165, z + 0.12, x + 0.12, y - 0.16, z + 0.32, prodCol(ch.comps[0].gtin, 62));
+    // a grey bin, 600 × 400, its product's label at the front and, when full, the product in it
+    bin(D, x, y, z, ch, full, B = D.box, pick) {
+      B.box(x - 0.2, y - 0.16, z, x + 0.2, y + 0.16, z + 0.4, '#8e98a5', pick);
+      if (full) B.box(x - 0.17, y - 0.13, z + 0.4, x + 0.17, y + 0.13, z + 0.41, prodCol(ch.comps[0].gtin, 55), pick);
+      B.box(x - 0.1, y - 0.165, z + 0.15, x + 0.1, y + 0.165, z + 0.3, '#f8fafc', pick);
     }
-    // A carton of each channel's product in the reserve rack, two deep in
-    // its lane; the front one goes while its operator takes it.
+    // The bins in each channel's lane of the flow rack, the front one at the walkway.
     reserveLive() {
       const sim = this.sim, g = sim.grid, B = this.res, pick = { kind: 'port', id: sim.afPort.idx };
       sim.channels.forEach((ch, k) => {
-        const op = ch.req && ch.req.op, gone = op && op.job === ch && op.state === 'WORKING' ? 1 : 0;
-        if (!B.open(k, gone)) return;
-        const s = ch.side ? 1 : -1, ry = g.AY + s * g.RK, near = ry - s * 0.35, z = RACK[ch.slot % 4], col = prodCol(ch.comps[0].gtin, 62);
-        for (let d = gone; d < 2; d++) {
-          const ya = near + s * (0.03 + d * 0.33), yb = ya + s * 0.3, zz = z + d * 0.04;
-          B.box(ch.wx - 0.2, Math.min(ya, yb), zz, ch.wx + 0.2, Math.max(ya, yb), zz + 0.5, d ? '#a5764c' : '#b8875a', pick);
-          if (d === gone) B.box(ch.wx - 0.11, ya - s * 0.006, zz + 0.12, ch.wx + 0.11, ya - s * 0.001, zz + 0.32, col, pick);
-        }
+        if (!B.open(k, ch.res)) return;
+        const s = ch.side ? 1 : -1, near = g.AY + s * (g.RK - 0.35), z = RACK[ch.slot % 4];
+        for (let d = 0; d < Math.min(2, ch.res); d++) this.bin(null, ch.wx, near + s * (0.18 + d * 0.34), z + d * 0.05, ch, true, B, pick);
         B.close(k);
       });
       B.flush();
+    }
+    // Bins on the move: full ones on the conveyor from the Cuby, sliding into
+    // their lane at its level; empty ones from the return lane back over them.
+    binsLive() {
+      const sim = this.sim, D = this.dy, cb = sim.cuby;
+      for (const m of cb.moving) {
+        if (sim.time < m.t0) continue;
+        let d = Math.min(m.len, ((sim.time - m.t0) / (m.t1 - m.t0)) * m.len), k = 1;
+        while (k < m.path.length - 1 && d > Math.hypot(m.path[k].x - m.path[k - 1].x, m.path[k].y - m.path[k - 1].y)) { d -= Math.hypot(m.path[k].x - m.path[k - 1].x, m.path[k].y - m.path[k - 1].y); k++; }
+        const a = m.path[k - 1], b = m.path[k], L = Math.hypot(b.x - a.x, b.y - a.y) || 1, f = Math.min(1, d / L), x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+        const lane = m.full ? k === m.path.length - 1 : k === 1, zl = m.full ? RACK[m.ch.slot % 4] : RTOP;
+        const z = lane ? (m.full ? CZ + (zl - CZ) * f : zl + (BZ - zl) * f) : m.full ? CZ : BZ;
+        this.bin(D, x, y, z, m.ch, m.full);
+      }
+    }
+    // The shuttles: one per level of each aisle, out to the bin and back to the
+    // lift with it; the lift's carriage bringing it down to the conveyor.
+    cubyLive() {
+      const sim = this.sim, g = sim.grid, c = sim.cfg, D = this.dy, cb = sim.cuby, now = sim.time;
+      const busy = new Map();
+      for (const j of cb.jobs) if (now >= j.t0 && now <= j.t1) busy.set(j.a * 100 + j.level, j);
+      for (let a = 0; a < c.cubyAisles; a++) {
+        const ay = g.CY0 + g.CW * (a + 0.5), lx = g.CX0 - 0.5;
+        let carriage = CZ, load = null;
+        for (let l = 0; l < c.cubyLevels; l++) {
+          const j = busy.get(a * 100 + l), z = CUBZ(l) + 0.06, home = g.CX0 + 0.35 + (((a * 7 + l * 5) % 9) / 9) * (g.CX1 - g.CX0 - 1);
+          let x = home, carry = false;
+          if (j) {
+            const half = (j.t1 - j.t0 - 5) / 2, t = now - j.t0;
+            if (t < half) x = g.CX0 + 0.35 + (j.sx - g.CX0 - 0.35) * (t / half);
+            else if (t < 2 * half) { x = j.sx + (g.CX0 + 0.35 - j.sx) * ((t - half) / half); carry = true; }
+            else { x = g.CX0 + 0.35; carriage = z + (CZ - z) * Math.min(1, (t - 2 * half) / 5); load = j.ch; }
+          }
+          D.box.box(x - 0.3, ay - 0.36, z, x + 0.3, ay + 0.36, z + 0.2, '#facc15');
+          D.box.box(x - 0.31, ay - 0.37, z + 0.08, x + 0.31, ay + 0.37, z + 0.12, '#111827');
+          if (carry) this.bin(D, x, ay, z + 0.2, j.ch, true);
+        }
+        D.box.box(lx - 0.32, ay - 0.36, carriage - 0.12, lx + 0.32, ay + 0.36, carriage, '#334155');
+        if (load) this.bin(D, lx, ay, carriage, load, true);
+      }
     }
     // The window tipping: its units slide off the end of the belt into the
     // hopper and drop into the tote; the flap stands open while they fall.
@@ -485,9 +589,9 @@
       D.box.box(x + 0.4, y + w, hz * 0.2, x + 0.4 + (L * 0.68 - 0.4) * fill, y + w + 0.01, hz * 0.28, '#2563eb');
     }
     startLive() {
-      const sim = this.sim, g = sim.grid, D = this.dy, sx = 1.2, sy = g.AY, h = Math.min(18, Math.ceil(sim.oms.freeTotes.length / 40));
+      const sim = this.sim, g = sim.grid, D = this.dy, sx = g.OSX, sy = g.AY, h = Math.min(18, Math.ceil(sim.oms.freeTotes.length / 40));
       for (let k = 0; k < h; k++) D.box.box(sx - 0.3, sy - 0.4, TZ + k * 0.28, sx + 0.3, sy + 0.4, TZ + k * 0.28 + 0.26, k % 2 ? '#1d4ed8' : '#2563eb');
-      if (sim.startT > sim.cfg.startTime - 1) D.litCyl.cyl(2.8, sy - 0.42, TZ + 1.4, TZ + 1.6, 0.06, '#38bdf8');
+      if (sim.startT > sim.cfg.startTime - 1) D.litCyl.cyl(sx - 1.1, sy - 0.42, TZ + 1.4, TZ + 1.6, 0.06, '#38bdf8');
       const e = sim.emptier;
       if (e.tote) D.litCyl.cyl(e.x, e.y, RZ + 2.2, RZ + 2.45, 0.08, '#22c55e');
       const r = sim.returnDock.length, rx = g.SX + 9.8, ry = 0.6;
@@ -541,7 +645,7 @@
       switch (o.status) {
         case 'NEW': {
           const ahead = sim.waiting.filter((x) => x.due < o.due || (x.due === o.due && x.created < o.created)).length;
-          return at(1.4, g.AY, TZ, `Waiting for order start${ahead ? `: ${ahead} order${ahead > 1 ? 's' : ''} go first` : ''}. Its van (${o.route.name}) leaves at ${U.fmtClock(o.due).slice(-8, -3)}`, 0);
+          return at(g.OSX, g.AY, TZ, `Waiting for order start${ahead ? `: ${ahead} order${ahead > 1 ? 's' : ''} go first` : ''}. Its van (${o.route.name}) leaves at ${U.fmtClock(o.due).slice(-8, -3)}`, 0);
         }
         case 'RELEASED': case 'PICKING': {
           // the A-frame window first, as long as it has not tipped
@@ -592,7 +696,9 @@
       for (const z of sim.zones) this.label(`${z.port.code} · ${z.kind === 'carousel' ? 'CAROUSELS' : 'PICK-TO-LIGHT'} · ${z.in.totes.length}/${sim.cfg.spurTotes}`, z.dx - 1.5, g.LB + 1.2, 5.5, { size: 10, bg, color: '#fdba74' });
       this.label(`MERGE · ${sim.merge.totes.length}`, g.RX + 5.2, g.LT - 2.2, 4.4, { size: 10, bg, color: '#c4b5fd' });
       this.label('RF SHELVING', g.RFX + 1.5 * g.na, g.RFY + 0.2, 6.5, { size: 10, bg, color: '#fde68a' });
-      this.label('ORDER START', 1.6, g.AY + 1.2, 1, { size: 10, bg, color: '#86efac' });
+      const nb = sim.cuby.moving.filter((m) => m.full).length;
+      this.label(`CUBY · ${nb} bin${nb === 1 ? '' : 's'} on the way`, g.CX0 + 3, g.CY0 + 0.2, CUBZ(sim.cfg.cubyLevels) + 1, { size: 10, bg, color: '#fde047' });
+      this.label('ORDER START', g.OSX, g.AY + 1.2, 1, { size: 10, bg, color: '#86efac' });
       if (this.cam.dist > 45 && !this.cam.walk) return;
       for (const lane of sim.lanes) { const r = lane.route; this.label(`${r.name} · ${lane.stack.length}`, g.SX + 3, lane.y + 0.9, 1, { size: 9, bg, color: r.color }); }
     }

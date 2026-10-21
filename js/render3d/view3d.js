@@ -74,6 +74,14 @@
       M.setPosition(x, z * LZ, (y0 + y1) / 2);
       this.put(color, pick);
     }
+    // sloping slab from x0 to x1, running from (y0, z0) to (y1, z1) in the
+    // y-z plane, t (cells) thick: a face that leans, such as an A-frame's
+    slab(x0, x1, y0, z0, y1, z1, t, color, pick) {
+      const dy = y1 - y0, dz = (z1 - z0) * LZ, len = Math.hypot(dy, dz) || 1e-4;
+      M.makeRotationX(Math.atan2(-dz, dy)); M.scale(V.set(Math.abs(x1 - x0) || 1e-4, t, len));
+      M.setPosition((x0 + x1) / 2, ((z0 + z1) / 2) * LZ, (y0 + y1) / 2);
+      this.put(color, pick);
+    }
     // fixed ranges of `size` instances per object, for `count` objects
     slots(count, size) {
       this.size = size; this.sig = new Array(count).fill(null);

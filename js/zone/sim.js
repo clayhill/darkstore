@@ -44,10 +44,12 @@
 
   // ---------------------------------------------------------------- floor
   // The floor in cells, as a map for the control room and the views. Rows
-  // from the back: the tote return conveyor, the A-frame with the tote
-  // conveyor from order start running under its belt, a walkway on each side
-  // for the refill operators and behind it a carton flow rack with the
-  // reserve stock, the loop with the zone spurs below it; to its right
+  // from the back: the tote return conveyor, the A-frame with a walkway on
+  // each side for the refill operators, behind each walkway a flow rack of
+  // reserve bins with the bin conveyors behind it, and below the A-frame the
+  // Cuby shuttle store the bins come from. Order start is past the end of
+  // the A-frame: its totes pass under the A-frame's hopper on their way to
+  // the loop, with the zone spurs below it; to its right
   // the merge, the closing line and the shipping sorter with the route
   // lanes, the RF shelving below the merge and the vans at the far wall.
   class ZoneFloor extends WS.RobotFloor {
@@ -55,19 +57,23 @@
       const cs = cfg.cellSize, afLen = (2 + (cfg.afChannels / 2) * CHANNEL_PITCH) / cs, AX = 4, tipX = AX + afLen + 0.7;
       const nz = cfg.ptlZones + (cfg.carousels > 0 ? 1 : 0), LX = Math.max(26, Math.ceil(tipX) - 2), RX = LX + 8 * nz + 8, LT = 7, LB = 13, SD = 4;
       const SX = RX + 25, laneY = (r) => LT + 3 + 2.8 * r, na = cfg.rfAisles, rfLevels = 5, bays = Math.max(2, Math.ceil(cfg.rfLocations / (na * 2 * rfLevels)));
+      const AY = 4.5, CY0 = AY + 6.4, CW = 2.6; // the A-frame's belt; the Cuby's first aisle and aisle pitch
       const RFX = RX + 3, RFY = LB + 1, caroEnd = LB + SD + 1.7 + 1.6 + Math.max(1, (cfg.carouselShelves * CARO_PITCH / cs - 2 * Math.PI * 0.8) / 2);
-      const W = Math.ceil(SX + 20), D = Math.ceil(Math.max(laneY(cfg.routes - 1) + 3, RFY + bays + 5, LB + SD + 9, cfg.carousels > 0 ? caroEnd + 1.5 : 0));
+      const W = Math.ceil(SX + 20), D = Math.ceil(Math.max(laneY(cfg.routes - 1) + 3, RFY + bays + 5, LB + SD + 9, cfg.carousels > 0 ? caroEnd + 1.5 : 0, CY0 + CW * cfg.cubyAisles + 1));
       super(W, D, M.FLOOR);
       Object.assign(this, { cfg, AX, afLen, tipX, nz, LX, RX, LT, LB, SD, SX, RFX, RFY, na, rfLevels, bays, laneY, caroEnd });
-      this.AY = 3.5; this.SY = 5.6; // A-frame belt; the feed from the tip position to the loop
-      this.WK = 1.05; this.RK = 2.1; // the walkways and the reserve racks, either side of the A-frame
+      this.AY = AY; this.SY = AY + 1.6; // A-frame belt; the feed from the tip position to the loop
+      this.WK = 1.35; this.RK = 2.2; this.BK = 2.9; // the walkways, the reserve flow racks and the bin conveyors behind them, either side of the A-frame
+      this.OSX = tipX + 3; // order start: the de-stacker, past the end of the A-frame
+      // the Cuby: aisles along the A-frame, a lift at the west end of each; the bin conveyor out of it and the one for empty bins back
+      Object.assign(this, { CY0, CW, CX0: AX, CX1: AX + afLen, BX: 1.6, EX: 0.9 });
       this.what = new Int16Array(W * D).fill(-1); // what a map cell shows: index into sim.things
       // the zones on the loop, then the other places where people or machines work, as stations
       const box = (x0, y0, x1, y1) => [{ x: Math.floor(x0), y: Math.floor(y0) }, { x: Math.floor(x1), y: Math.floor(y1) }];
       const st = (code, name, cells, o = {}) => this.ports.push(Object.assign({ kind: 'ZONE', code, name, face: 'front', drop: cells[0], lift: cells[0], cells, person: true }, o));
       for (let z = 0; z < cfg.ptlZones; z++) { const dx = RX - 5 - 8 * z; st('P' + (z + 1), z === 0 ? 'Pick-to-light 1 · completion' : 'Pick-to-light ' + (z + 1), box(dx - 4, LB + 1, dx + 0.9, LB + SD + 1.9), { zone: 'P' + (z + 1) }); }
       if (cfg.carousels > 0) { const dx = RX - 5 - 8 * cfg.ptlZones; st('CA', 'Carousels', box(dx - 4, LB + 1, dx + 0.9, caroEnd), { zone: 'CA' }); }
-      st('AF', 'A-frame', box(AX - 0.5, 2.8, AX + afLen + 0.4, 4.2), { person: false, zone: 'AF' });
+      st('AF', 'A-frame', box(AX - 0.5, AY - 0.7, AX + afLen + 0.4, AY + 0.7), { person: false, zone: 'AF' });
       st('RF', 'RF shelving', box(RFX, RFY, RFX + 3 * na - 0.1, RFY + bays + 1.9), { person: false, zone: 'RF' });
       st('MG', 'Merge', box(RX + 2.6, LT - 2, RX + 7.4, LT + 2.9));
       st('QC', 'Manual check', box(RX + 9.4, LT - 3.4, RX + 10.6, LT - 1.6));
@@ -257,9 +263,9 @@
     buildBelts() {
       const cfg = this.cfg, g = this.grid, net = (this.net = new WS.BeltNet(this, cfg.conveyorSpeed / cfg.cellSize, cfg.totePitch / cfg.cellSize));
       const { LX, RX, LT, LB, SD, SX, SY } = g, J = LX + 4;
-      // order start under the A-frame's belt to the tip position below its end, then up to the loop
+      // from order start to the tip position under the hopper at the end of the A-frame's belt, then up to the loop
       const B = (this.belts = {});
-      B.start = net.belt('start', [{ x: 2.2, y: g.AY }, { x: g.tipX, y: g.AY }], { exit: (t) => this.atTip(t) });
+      B.start = net.belt('start', [{ x: g.OSX - 0.6, y: g.AY }, { x: g.tipX, y: g.AY }], { exit: (t) => this.atTip(t) });
       B.feed = net.belt('feed', [{ x: g.tipX, y: g.AY }, { x: g.tipX, y: SY }, { x: J, y: SY }, { x: J, y: LT }]);
       // the loop, east along the top: segments between the entry (J), the exit (X) and the zone spurs
       const loopLen = 2 * (RX - LX) + 2 * (LB - LT), X = RX - LX, U = (x, side) => (side ? X + (LB - LT) + (RX - x) : x - LX);
@@ -346,8 +352,9 @@
       B.sorter.forEach((seg, k) => { if (k) seg.exit = (t) => (t.route === k - 1 ? this.lanes[k - 1].belt : B.sorter[k + 1] || null); });
       this.lanes.forEach((lane, r) => net.link(B.sorter[r + 1], lane.belt));
       // tote return: back along the far wall to the tote-emptying machine and the de-stacker
-      B.ret = net.belt('tote return', [{ x: SX + 9, y: 0.6 }, { x: 2.2, y: 0.6 }], { exit: (t) => this.atEmptier(t), kind: 'return' });
-      this.emptier = { x: 1.4, y: 0.6, tote: null, t: 0, cycles: 0 };
+      B.ret = net.belt('tote return', [{ x: SX + 9, y: 0.6 }, { x: g.OSX + 0.8, y: 0.6 }], { exit: (t) => this.atEmptier(t), kind: 'return' });
+      this.emptier = { x: g.OSX, y: 0.6, tote: null, t: 0, cycles: 0 };
+      this.cuby = { aisles: [...Array(cfg.cubyAisles)].map((_, a) => ({ a, y: g.CY0 + g.CW * (a + 0.5), free: 0, out: 0 })), queue: [], jobs: [], moving: [], retrieved: 0, stored: 0 };
       this.markFloor();
     }
     rfDepot() { const g = this.grid; return { x: g.RFX + 0.6, y: g.RFY - 0.6 }; }
@@ -367,7 +374,12 @@
       g.mark(g.RX + 2.6, g.LT - 2, g.RX + 7.4, g.LT + 3, M.MERGE, thing({ kind: 'merge', fill: (mix) => mix('#26203a', '#dc2626', Math.min(1, this.merge.totes.length / this.cfg.mergeBuffer)) }));
       g.mark(g.RFX, g.RFY, g.RFX + 3 * g.na + 1, g.RFY + g.bays + 2, M.SHELF, thing({ kind: 'rf' }));
       for (const lane of this.lanes) g.mark(g.SX + 0.5, lane.y - 0.8, g.SX + 11, lane.y + 1.2, M.LANE, thing({ kind: 'lane', lane, fill: (mix) => mix('#2a2208', '#f59e0b', Math.min(1, lane.stack.length / this.cfg.vanCapacity)) }));
-      g.mark(0, g.AY - 1, 2.6, g.AY + 1, M.STACK, thing({ kind: 'start' }));
+      g.mark(g.OSX - 0.6, g.AY - 0.7, g.OSX + 0.6, g.AY + 0.7, M.STACK, thing({ kind: 'start' }));
+      g.mark(g.OSX - 0.7, 0, g.OSX + 0.6, 1.2, M.MACHINE, thing({ kind: 'start' }));
+      // the Cuby with its lifts, and the bin conveyors round to the backs of the flow racks
+      const cb = thing({ kind: 'cuby' });
+      g.mark(g.CX0 - 0.9, g.CY0, g.CX1, g.CY0 + g.CW * this.cfg.cubyAisles, M.SHELF, cb);
+      for (const [x0, y0, x1, y1] of [[g.EX - 0.3, g.AY - g.BK, g.BX + 0.3, g.CY0 + g.CW * this.cfg.cubyAisles], [g.EX - 0.3, g.AY - g.BK - 0.3, g.CX1 + 0.3, g.AY - g.BK + 0.3], [g.EX - 0.3, g.AY + g.BK - 0.3, g.CX1 + 0.3, g.AY + g.BK + 0.3]]) g.mark(x0, y0, x1, y1, M.BELT, cb);
       g.mark(g.SX + 11.2, 0, g.W, g.D, M.DOCK);
     }
 
@@ -394,7 +406,7 @@
       const af = byDemand.filter((p) => this.fitsAframe(p)).slice(0, cfg.afChannels), per = Math.ceil(cfg.afChannels / 2);
       af.forEach((p, n) => {
         const side = n % 2, k = Math.floor(n / 2), b = (1 + (k + 0.5) * CHANNEL_PITCH); // m along the belt
-        const x = g.AX + b / cfg.cellSize, ch = loc(p, 'AF', `AF ${side ? 'F' : 'B'}-${String(k + 1).padStart(3, '0')}`, x, g.AY + (side ? 0.45 : -0.45), cfg.channelCap, { side, slot: k, b, req: null, jam: null, dispensed: 0, refills: 0 });
+        const x = g.AX + b / cfg.cellSize, ch = loc(p, 'AF', `AF ${side ? 'F' : 'B'}-${String(k + 1).padStart(3, '0')}`, x, g.AY + (side ? 0.45 : -0.45), cfg.channelCap, { side, slot: k, b, req: null, jam: null, dispensed: 0, refills: 0, res: cfg.reserveBins, incoming: 0 });
         this.channels.push(ch);
       });
       this.channelsByB = this.channels.slice().sort((a, b) => a.b - b.b);
@@ -546,9 +558,11 @@
       return this.belts.feed;
     }
     // A channel at or below its refill level asks for a refill; refill
-    // operators work the one that will run out first. At the channel the
-    // operator turns round to the reserve rack behind the walkway, takes the
-    // product's carton from it and empties it into the channel.
+    // operators work the one that will run out first, as long as its lane in
+    // the flow rack has a bin. At the channel the operator turns round to the
+    // flow rack behind the walkway, takes the product's bin from it, sets it
+    // on the ledge at the foot of the A-frame and fills the channel from it,
+    // then puts the empty bin on the return lane at the top of the rack.
     requestRefill(ch) { ch.req = { t: this.time, op: null }; }
     channelUrgency(ch) { const p = this.inv.byGtin.get(ch.comps[0].gtin); return ch.comps[0].qty / Math.max(0.05, p.hits); }
     dispatchRefills() {
@@ -556,7 +570,7 @@
         if (op.job || op.away) continue;
         let best = null, bs = Infinity;
         for (const ch of this.channels) {
-          if (!ch.req || ch.req.op) continue;
+          if (!ch.req || ch.req.op || ch.res < 1) continue;
           const s = this.channelUrgency(ch) + Math.abs(ch.wx - op.x) * 0.02;
           if (s < bs) { bs = s; best = ch; }
         }
@@ -564,11 +578,12 @@
         best.req.op = op; op.job = best; op.state = 'WALKING'; op.path = this.refillPath(op, best);
       }
     }
-    // along the walkway on the channel's side, round the end of the frame to change sides
+    // along the walkway on the channel's side, round the west end of the frame
+    // to change sides (the east end has the hopper and the tote conveyor)
     refillPath(op, ch) {
       const g = this.grid, yb = g.AY - g.WK, yf = g.AY + g.WK, y = ch.side ? yf : yb, onBack = op.y < g.AY;
       if (onBack === !ch.side) return [{ x: ch.wx, y }];
-      const ends = [g.AX - 1.2, g.AX + g.afLen + 1.2], ex = Math.abs(op.x - ends[0]) + Math.abs(ch.wx - ends[0]) < Math.abs(op.x - ends[1]) + Math.abs(ch.wx - ends[1]) ? ends[0] : ends[1];
+      const ex = g.AX - 1.2;
       return [{ x: ex, y: op.y }, { x: ex, y }, { x: ch.wx, y }];
     }
     stepRefillers(dt) {
@@ -577,19 +592,59 @@
         op.px = op.x; op.py = op.y;
         if (op.away && !op.job) { op.state = 'BREAK'; op.stateTime.BREAK += dt; continue; }
         if (op.state === 'BREAK') op.state = 'IDLE';
-        if (op.state === 'WALKING' && op.walk(dt)) { op.state = 'WORKING'; op.t = c.refillTime; }
+        if (op.state === 'WALKING' && op.walk(dt)) { op.state = 'WORKING'; op.t = c.refillTime; op.job.res--; this.requestBin(op.job); }
         else if (op.state === 'WORKING') {
           op.t -= dt;
           if (op.t <= 0) {
             const ch = op.job, cp = ch.comps[0], n = ch.cap - cp.qty;
             if (n > 0) { cp.qty += n; this.inv.byGtin.get(cp.gtin).onHand += n; }
             ch.req = null; ch.refills++; op.done++; op.job = null; op.state = 'IDLE';
+            this.binBack(ch);
           }
         }
         op.fetch = op.state === 'WORKING' && op.t > c.refillTime - FETCH; // taking the carton from the reserve rack
         op.stateTime[op.state] += dt;
       }
     }
+
+    // ---------------------------------------------------------------- the Cuby
+    // The shuttle store with the reserve bins of the A-frame's products: a
+    // shuttle on every level of each aisle, a lift at the aisle's end. A flow
+    // rack lane that has given up a bin asks for another; the aisle whose lift
+    // is free first sends it (its shuttle fetches the bin, the lift brings it
+    // down) and the bin conveyor carries it round to the back of the lane.
+    // Empty bins go back along the conveyor over it. The Cuby's own stock is
+    // not modelled: it always has the bin.
+    requestBin(ch) { ch.incoming++; this.cuby.queue.push(ch); }
+    stepCuby() {
+      const c = this.cfg, cb = this.cuby, g = this.grid;
+      while (cb.queue.length) {
+        const ch = cb.queue.shift(), A = cb.aisles.reduce((m, x) => (x.free < m.free ? x : m), cb.aisles[0]);
+        const t0 = Math.max(this.time, A.free), t1 = t0 + c.cubyRetrieve, level = (ch.slot * 7 + ch.refills * 3 + ch.side) % c.cubyLevels;
+        const sx = g.CX0 + 1 + (((ch.slot * 37 + ch.side * 53 + ch.refills * 11) % 100) / 100) * (g.CX1 - g.CX0 - 2);
+        A.free = t0 + c.cubyCycle; A.out++;
+        cb.jobs.push({ a: A.a, level, sx, t0, t1, ch });
+        const path = this.binPath(A, ch, true), len = this.pathLen(path), v = c.conveyorSpeed / c.cellSize;
+        const m = { ch, full: true, path, len, t0: t1, t1: t1 + len / v };
+        cb.moving.push(m);
+        this.schedule(m.t1 - this.time, () => { ch.res++; ch.incoming--; cb.retrieved++; cb.moving.splice(cb.moving.indexOf(m), 1); });
+      }
+      while (cb.jobs.length && cb.jobs[0].t1 < this.time - 1) cb.jobs.shift();
+    }
+    // an empty bin from the top of the rack back to its aisle's lift
+    binBack(ch) {
+      const c = this.cfg, cb = this.cuby, A = cb.aisles[(ch.slot + ch.side) % cb.aisles.length], path = this.binPath(A, ch, false), len = this.pathLen(path);
+      const m = { ch, full: false, path, len, t0: this.time, t1: this.time + len / (c.conveyorSpeed / c.cellSize) };
+      cb.moving.push(m);
+      this.schedule(m.t1 - this.time, () => { cb.stored++; cb.moving.splice(cb.moving.indexOf(m), 1); });
+    }
+    // out of the lift, along the bin conveyor to the back of the channel's lane and into it; or the way back for an empty one
+    binPath(A, ch, full) {
+      const g = this.grid, s = ch.side ? 1 : -1, yb = g.AY + s * g.BK, yr = g.AY + s * g.RK, lift = g.CX0 - 0.5, x = full ? g.BX : g.EX;
+      const p = [{ x: lift, y: A.y }, { x, y: A.y }, { x, y: yb }, { x: ch.wx, y: yb }, { x: ch.wx, y: yr }];
+      return full ? p : p.reverse();
+    }
+    pathLen(p) { let n = 0; for (let k = 1; k < p.length; k++) n += Math.hypot(p[k].x - p[k - 1].x, p[k].y - p[k - 1].y); return n; }
 
     // ---------------------------------------------------------------- the loop
     needs(t, zone) { return t.zones.has(zone.id) && !t.done.has(zone.id); }
@@ -1040,6 +1095,7 @@
       this.stepMachines(dt);
       this.stepVans();
       this.stepRefillers(dt);
+      this.stepCuby();
       this.stepPickers(dt);
       this.updateStatuses();
     }
