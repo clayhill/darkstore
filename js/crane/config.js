@@ -3,7 +3,7 @@
  * so the whole system fits the view. */
 (function (WS) {
   'use strict';
-  WS.CRANE_CONFIG = Object.assign({}, WS.BASE_CONFIG, {
+  WS.CRANE_CONFIG = Object.assign({}, WS.BASE_CONFIG, WS.BOT_CONFIG, {
     // Racking
     aisles: 5, levels: 12, bays: 28, // bays per side
     cellSize: 0.65, // m — one bay; also the unit of the pre-zone conveyors

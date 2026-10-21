@@ -25,7 +25,7 @@
     crane: {
       name: 'SkyStack', cut: true, three: ['js/render3d/rack3d.js', 'js/crane/render3d.js'], sub: 'Stacker crane AS/RS', scan: 'tote, order, crane', click: 'cranes, racks, stations',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Crane',
-      sim: ['js/sim/prezone.js', 'js/crane/config.js', 'js/crane/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/crane/render.js', 'js/crane/ui.js'],
+      sim: ['js/sim/prezone.js', 'js/sim/totebots.js', 'js/crane/config.js', 'js/crane/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/crane/render.js', 'js/crane/ui.js'],
     },
     acr: {
       name: 'StackPilot', cut: true, three: ['js/render3d/rack3d.js', 'js/acr/render3d.js'], sub: 'Case-handling robots', scan: 'tote, order, robot', click: 'robots, rack columns, stations',

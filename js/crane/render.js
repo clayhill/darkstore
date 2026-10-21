@@ -8,13 +8,15 @@
   const ORANGE = '#f97316', ORANGE_TOP = '#fdba74';
 
   class CraneRenderer extends WS.PreZoneRenderer {
-    drawScene() {
+    drawScene(alpha) {
       this.drawFloor();
+      this.drawBotLayer(alpha);
       this.drawPreZone();
       this.drawRackScene((aisle) => [() => this.drawCrane(aisle.crane)]);
       this.drawSelectedCell();
       const items = [];
       this.conveyorItems(items);
+      if (this.sim.bots) this.botItems(items, alpha);
       this.drawStations(items);
     }
     // floor rail the crane drives on, guide rail along the top of the racking

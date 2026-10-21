@@ -3,7 +3,9 @@ DarkStore - mobile robots between the racking and the stations
 
 Read common.txt first, then shuttle.txt, crane.txt and pallet.txt: this is
 a variant of those three types (RailRunner, SkyStack, DeepLane), not a type
-of its own. Roadmap item 32. Status: planned, not built.
+of its own. Roadmap item 32. Status: built for RailRunner and SkyStack
+(js/sim/totebots.js); DeepLane keeps its loop (10). Section 11 records
+where the build differs from this plan and what tuning found.
 
 1. Overview
 
@@ -181,3 +183,54 @@ step; new golden runs are added for the robot variants.
   the new handover row, or let the stub start one row further down.
 - StackPilot's short handover conveyors could get the same option later;
   out of scope here.
+
+11. As built
+
+Layout, from the aisle fronts (y = B, the lift or I/O row):
+- B+1, B+2: the stands, two rows deep so an infeed stand holds the tote at
+  the lift, one behind it and a third being put down (standCap limits
+  them to 2 by default).
+- handY = B+3: handover cells in front of the stands; the cells in front
+  of the lifts and past the racking are parking spots.
+- The highway: botLanes lanes each way (default 2), westbound next to the
+  stands, eastbound next to the stations. One lane each way was the
+  limit: robots stopping to turn off held up the robots behind them.
+  Lane changes away from the stands or stations at even x, towards them
+  at odd x, so two robots never want each other's cell.
+- Crossings: down from the westbound to the eastbound highway anywhere in
+  the west part, up anywhere in the east part, CROSS_GAP (6) cells apart,
+  plus both ends. Every loop a robot can drive is then at least 14 cells
+  long, too long for robots to block each other all round. Without
+  crossings every leg was half a lap (16 m on average).
+- portY: per station a queue lane of four cells, the infeed cell and the
+  outfeed cell; stations sit 6 cells apart from x = 5. Parking and the
+  chargers (one per six robots) are past the last station and the last
+  aisle. The floor widens until every robot has a parking spot; cells no
+  robot can reach or leave (corners of the two-lane highway) are blocked.
+- The router plans with exact (Float64) costs on this floor: with Float32
+  it dropped entries as stale on routes longer than about 30 s. Other
+  floors keep Float32, so their runs are unchanged (the same bug may cost
+  them routes; worth fixing separately with new golden files).
+
+Dispatch:
+- A station's outgoing tote goes first (its outfeed holds two, then the
+  station stops), then the stands' front totes, oldest first.
+- Pairing: a robot that leaves a tote on a station's infeed moves to its
+  outfeed and waits up to pairWait (15 s) for the next tote leaving it.
+  The dispatcher leaves a station's outgoing tote to a robot about to
+  arrive there with a tote, when it is no further off than the nearest
+  idle robot and could leave its tote now. About half the totes leaving
+  a station go with the robot that brought one.
+- At most lane + 1 robots head for a pick station, two for a goods-in
+  station (a goods-in tote takes a minute or more; robots queueing there
+  do nothing else).
+
+Tuning (default site, 2 h runs): the loop picks 550-650 lines/h. Robots
+per station: 3 → about 480-530, 4 → 580-680 once running, 5 and more no
+better (traffic on the highway). Default transportRobots 4 (16 robots).
+Robots start slower than the loop (half as many totes in the first five
+minutes). On seed 3, which opens with a large receipt, the goods-in
+station limits the first hour for both, more so with robots. SkyStack:
+about 555 against the loop's 560-590.
+A broken-down robot stays where it is: in front of a stand it blocks that
+aisle's output until it is repaired.

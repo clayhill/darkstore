@@ -11,12 +11,7 @@
     drawScene(alpha) {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();
-      if (sim.bots) {
-        this.drawCached('bot-floor', g.W, () => this.drawBotFloor());
-        if (this.opts.heat) this.drawHeat();
-        if (this.opts.claims) this.drawClaims(0);
-        if (this.opts.paths) this.drawPaths(alpha);
-      }
+      this.drawBotLayer(alpha);
       this.drawPreZone();
       this.drawRackScene((aisle) => this.aisleItems(aisle));
       this.drawSelectedCell();

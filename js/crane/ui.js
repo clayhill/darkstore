@@ -6,7 +6,7 @@
   const esc = WS.U.esc, R = WS.RackUI;
   const mean = (n, t) => (n ? Math.round(t / n) + ' s' : '—');
   WS.TypeUI = WS.TypeUI || {};
-  WS.TypeUI.crane = {
+  WS.TypeUI.crane = WS.BotUI.wrap({
     kpiTiles(ui) {
       const sim = ui.sim, c = sim.cycles, fem = sim.femCycles(), n = c.single + c.dual;
       const waiting = sim.aisles.reduce((s, a) => s + a.inQ.length, 0), queued = sim.aisles.reduce((s, a) => s + a.crane.jobs.length, 0);
@@ -60,5 +60,5 @@
       return R.sideHTML(ui, c.a, c.level, c.part / 2, `<dt>Crane</dt><dd>${link}</dd>`);
     },
     locate: R.locate,
-  };
+  });
 })((globalThis.WS = globalThis.WS || {}));

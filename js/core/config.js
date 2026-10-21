@@ -57,4 +57,18 @@
     // random breakdowns (failRate per hour over the whole fleet, 0 = none)
     surgeFactor: 2.5, surgeMinutes: 30, repairMinutes: 10, chargerMinutes: 30, breakMinutes: 15, failRate: 0,
   };
+
+  // Mobile robots instead of the pre-zone conveyor loop, for the racking
+  // types that have one (RailRunner, SkyStack; js/sim/totebots.js and
+  // specs/prezone-robots.txt).
+  WS.BOT_CONFIG = {
+    transport: 'loop', // 'loop' | 'robots'
+    transportRobots: 4, // per station: with fewer the robots, with more the traffic on the highway is the limit
+    botLanes: 2, // lanes each way on the robots' highway
+    vmax: 1.8, accel: 1.0, brake: 1.2, // m/s, m/s² — roller-top robots
+    wheelShift: 0.9, // s — turn 90° on the spot
+    transferTime: 3, // s — a tote onto or off the roller deck
+    pairWait: 15, // s a robot that has left a tote at a station waits at its outfeed for the next one (0 = drives off)
+    standCap: 2, // totes on an aisle's outfeed or infeed stand
+  };
 })((globalThis.WS = globalThis.WS || {}));

@@ -3,7 +3,7 @@
  * of system (see specs/shuttle.txt). */
 (function (WS) {
   'use strict';
-  WS.SHUTTLE_CONFIG = Object.assign({}, WS.BASE_CONFIG, {
+  WS.SHUTTLE_CONFIG = Object.assign({}, WS.BASE_CONFIG, WS.BOT_CONFIG, {
     // Racking
     aisles: 6, levels: 10, bays: 22, // bays per side; the two front bays of each side are level buffers
     cellSize: 0.65, // m — one bay; also the unit of the pre-zone conveyors
@@ -23,15 +23,6 @@
 
     // Pre-zone conveyor from the lifts to the stations and back
     preZoneSpeed: 1.0, // m/s
-    // or mobile robots instead of the loop (specs/prezone-robots.txt)
-    transport: 'loop', // 'loop' | 'robots'
-    transportRobots: 4, // per station: with fewer the robots, with more the traffic on the highway is the limit
-    botLanes: 2, // lanes each way on the robots' highway
-    vmax: 1.8, accel: 1.0, brake: 1.2, // m/s, m/s² — roller-top robots
-    wheelShift: 0.9, // s — turn 90° on the spot
-    transferTime: 3, // s — a tote onto or off the roller deck
-    pairWait: 15, // s a robot that has left a tote at a station waits at its outfeed for the next one (0 = drives off)
-    standCap: 2, // totes on an aisle's outfeed or infeed stand
     chargers: 0, robots: 0, // no battery robots
     toteSlots: 6,
     portInboundCap: 6, // totes on their way to one station

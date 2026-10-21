@@ -30,6 +30,19 @@
         ui.kpiTile('Stand waits', k.standWait.toFixed(0), 's', `a tote on an outfeed stand waits for a robot · stands full ${pc(k.standFull)}% of the time · at a station's outfeed ${k.outWait.toFixed(0)} s`),
       ];
     },
+    // A type's UI (WS.TypeUI.shuttle, .crane) with the transport robots
+    // added: their tiles, the transport setting, how a robot is described,
+    // and the floor cells under the racking in the inspector.
+    wrap(T) {
+      const B = WS.BotUI, bot = (f, g) => function (...a) { const r = a.find((x) => x && x.claims); return r ? g(...a) : f.apply(this, a); };
+      return Object.assign({}, T, {
+        kpiTiles(ui) { return T.kpiTiles(ui).concat(ui.sim.bots ? B.kpiTiles(ui) : []); },
+        settings(ui, c, num, sel) { const s = T.settings(ui, c, num, sel); return Object.assign({}, s, { scenario: s.scenario + B.settings(c, num, sel), about: s.about + (c.transport === 'robots' ? ` Here mobile robots replace the pre-zone loop: ${WS.botCount(c)} roller-top robots carry the totes between stands at the aisle fronts and the stations, on a highway ${c.botLanes} lane${c.botLanes > 1 ? 's' : ''} each way; a robot that leaves a tote at a station waits up to ${c.pairWait} s to take the station's next tote back.` : '') }); },
+        position: bot(T.position, B.position), speed: bot(T.speed, B.speed), motion: bot(T.motion, B.motion), mechanism: bot(T.mechanism, B.mechanism),
+        taskText: bot(T.taskText, (ui, r) => B.taskText(ui, r)),
+        inspectCell(ui, i) { return ui.sim.bots && !ui.sim.mapGrid.at(i) ? B.inspectFloor(ui, i) : T.inspectCell(ui, i); },
+      });
+    },
     // the transport setting, and the robots' when they carry the totes
     settings(c, num, sel) {
       return `<div class="row2">${sel('transport', 'Transport to the stations', [['loop', 'Conveyor loop'], ['robots', 'Mobile robots']])}${c.transport === 'robots' ? num('transportRobots', 'Robots per station', 0.5, 0.5, 8) : '<div></div>'}</div>

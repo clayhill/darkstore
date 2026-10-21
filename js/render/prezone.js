@@ -60,6 +60,14 @@
       this.line(P(0, g.portY, 0), P(g.W, g.portY, 0), edge, 1.2);
       for (const ch of g.chargers) this.box(ch.x + 0.82, ch.y + 0.3, 0, ch.x + 0.98, ch.y + 0.7, 1.8, '#334155');
     }
+    // the robot floor under everything else, with its overlays
+    drawBotLayer(alpha) {
+      if (!this.sim.bots) return;
+      this.drawCached('bot-floor', this.sim.grid.W, () => this.drawBotFloor());
+      if (this.opts.heat) this.drawHeat();
+      if (this.opts.claims) this.drawClaims(0);
+      if (this.opts.paths) this.drawPaths(alpha);
+    }
     // traffic heat on the robot floor
     drawHeat() {
       const g = this.sim.grid;

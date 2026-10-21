@@ -329,6 +329,22 @@ loop never fills up and locks.
 A returning tote goes to the aisle and level with the least work queued; with the velocity policy,
 fast movers are stored near the aisle front.
 
+**Mobile robots instead of the loop.** A setting in Scenario (Transport to the stations) replaces the
+pre-zone loop with roller-top robots, as many real systems do. The lift puts a tote on a short stand
+in front of its aisle; a robot takes it to its station's infeed and, often, takes the station's next
+outgoing tote straight back to an aisle's infeed stand or on to the next station. The robots drive a
+floor of their own: a highway two lanes each way, joined at both ends and by crossings, a queue lane
+and two handover cells per station, parking spots and chargers. With four robots per station the
+default site picks about as many lines per hour as with the loop; fewer robots are the limit, more
+only add traffic. The control room adds robot utilization, the share of driving done empty, paired
+trips and how long totes wait on the stands; a robot that breaks down in front of a stand blocks
+that aisle until it is repaired. SkyStack has the same setting (specs/prezone-robots.txt).
+
+| | |
+|---|---|
+| ![RailRunner with mobile robots: stands at the aisle fronts, a two-lane highway each way and the stations' queue lanes](docs/screenshots/rail-robots.png) | ![Close-up in 3D: roller-top robots carrying totes between the stands and the stations](docs/screenshots/rail-robots-3d.png) |
+| **Robots:** stands, highway, queue lanes and handover cells in front of the stations | **3D close-up:** roller-top robots with totes, the stands and a station |
+
 **KPIs.** Lift utilization (the lift is usually the bottleneck of a shuttle aisle) and shuttle cycles
 per hour. Not modelled yet: roaming shuttles, double-deep storage and putting totes in sequence on the
 conveyor.
@@ -345,7 +361,7 @@ conveyor.
 | **3D:** high racking with a crane per aisle on its rails | **3D walk mode:** down an aisle, the crane's mast and carriage between the racks |
 
 SkyStack uses the same racking, storage policy and conveyor as RailRunner, with one stacker crane per
-aisle instead of shuttles and lifts.
+aisle instead of shuttles and lifts, and the same choice of mobile robots instead of the loop.
 
 **Crane.** The crane drives along a floor rail while its carriage moves up or down the mast, each with
 its own speed and acceleration, so a trip takes the longer of the two. After arriving it settles,
@@ -666,7 +682,8 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             floor), machine (shuttles, lifts, cranes), ports, orders (OMS, packing, dock),
             kpi, sim (loop, layout), rack (tote slots, seeding and conveyors of every racking
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
-            paths and putaway: RailRunner, SkyStack and DeepLane), disrupt (surges,
+            paths and putaway: RailRunner, SkyStack and DeepLane), totebots (mobile robots
+            instead of the pre-zone loop: their floor, tasks and dispatch), disrupt (surges,
             breakdowns, charger faults, breaks)
 js/render/  iso (shared isometric view: camera, input, primitives, robot overlays), stations
             (warehouse floor, stations, packing, dock), control (SCADA map + charts),
@@ -692,7 +709,7 @@ test/run.js headless soak test with invariant checks:  node test/run.js [hours] 
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
-            one-way aisles, no picker zones, robot sorter, small pallets), and compares a fingerprint of stock, fleet, orders and KPIs
+            one-way aisles, no picker zones, robot sorter, small pallets, transport robots), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 

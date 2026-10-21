@@ -385,7 +385,7 @@
       for (const aisle of sim.aisles) {
         const key = 's' + aisle.a;
         if (busy.has(key)) continue;
-        const it = this.outStand(aisle.a).sort((p, q) => q.s - p.s)[0];
+        const it = this.outStand(aisle.a).sort((p, q) => p.len - p.s - (q.len - q.s))[0]; // the front one: least way to go (a crane puts totes on at two places)
         if (it) jobs.push({ key, it, bin: it.bin, t: it.t0, from: { x: aisle.a * 3, y: g.handY }, port: it.port });
       }
       for (const p of sim.ports) {

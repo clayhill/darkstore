@@ -28,7 +28,7 @@
     }
     place() {
       const g = this.sim.grid, L = this.sim.cfg.levels;
-      this.rx = this.a * 4 + 1;
+      this.rx = this.sim.mapGrid.colX(this.a, 1);
       this.ry = Math.max(-0.2, Math.min(L, L - 1 - (this.z - g.Z0) / g.LH));
       this.x = this.a; this.y = Math.max(0, Math.round((this.z - g.Z0) / g.LH));
     }
@@ -110,7 +110,7 @@
       cr.xfer = null;
       cr.drop(t.bin.id); cr.lifts++;
       const port = sim.ports[t.port];
-      sim.toPort(t.bin, sim.outPath(cr.a, port, y), port);
+      sim.sendOut(cr.a, t.bin, port, y);
     }
     sim.onCycle(stores.length && rets.length ? 'dual' : 'single', sim.time - t0);
   }
@@ -119,12 +119,11 @@
   class CraneSim extends WS.PreZoneSim {
     get kind() { return 'crane'; }
     get terms() { return TERMS; }
-    get stateLabels() { return STATE_LABELS; }
-    get legendStates() { return LEGEND; }
-    get taskTypes() { return {}; }
+    get stateLabels() { return this.bots ? Object.assign({}, STATE_LABELS, WS.BOT_LABELS) : STATE_LABELS; }
+    get legendStates() { return this.bots ? LEGEND.concat(WS.BOT_LEGEND) : LEGEND; }
     defaults() { return WS.CRANE_CONFIG; }
     rackShape() { return { Z0: 0.4, frontBays: 0 }; }
-    describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles} cranes · ${this.inv.bins.length} totes`; }
+    describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles} cranes${this.bots ? ` · ${WS.botCount(c)} transport robots` : ''} · ${this.inv.bins.length} totes`; }
     get ioPos() { return this.cfg.bays + 0.5; } // the crane's position at the I/O point
     // Handler position k (0 nearest the mast) relative to the crane: totes
     // stand a tote and a gap apart, as they queue on the conveyors.
@@ -207,6 +206,7 @@
         const plan = this.planCycle(aisle);
         if (plan) cr.run(craneCycle(this, cr, plan.stores, plan.rets), { type: 'CYCLE', stores: plan.stores, rets: plan.rets });
       }
+      this.dispatchRobots();
     }
     // One crane cycle: the totes waiting at the I/O point, stored in the
     // order that keeps the crane moving least, then the retrievals closest (in
@@ -225,8 +225,8 @@
         const it = inq.splice(k, 1)[0];
         stores.push(it); p = it.b + 0.5; z = g.levelZ(it.l);
       }
-      // retrievals only while the loop has room for them (WS.PreZoneSim.loopRoom)
-      const rets = [], room = this.loopRoom();
+      // retrievals only while the loop or the stand has room for them (WS.PreZoneSim.outSpace)
+      const rets = [], room = this.outSpace(aisle);
       while (rets.length < Math.min(n, room) && cr.jobs.length) {
         let k = 0, bt = Infinity;
         cr.jobs.forEach((t, j) => {

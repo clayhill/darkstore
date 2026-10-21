@@ -126,8 +126,9 @@
     // A machine puts a tote for a station on aisle a's outfeed at y: onto
     // the loop, or onto the aisle's stand for a robot.
     sendOut(a, bin, port, y) { return this.bots ? this.bots.toStand(a, bin, port, y) : this.toPort(bin, this.outPath(a, port, y), port); }
-    // Room for a machine to send another tote out of aisle a.
-    outRoom(aisle) { return this.bots ? this.bots.outRoom(aisle.a) : this.loopRoom() > 0; }
+    // Room for a machine to send more totes out of an aisle: on the loop, or on the aisle's stand.
+    outSpace(aisle) { return this.bots ? this.cfg.standCap - this.bots.outStand(aisle.a).length : this.loopRoom(); }
+    outRoom(aisle) { return this.outSpace(aisle) > 0; }
     // From a station along the far line, round the right end and along the
     // near line to aisle a's infeed, up to where its machine takes the tote.
     returnPath(port, a) {
