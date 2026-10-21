@@ -19,7 +19,10 @@
 (function (WS) {
   'use strict';
   const M = { FLOOR: WS.CELL.BLOCKED, BELT: 20, LOOP: 21, AFRAME: 22, RACK: 23, MACHINE: 24, LANE: 25, SHELF: 26, DOCK: 27, CAROUSEL: 28, STACK: 29, MERGE: 30 };
-  const TERMS = { unit: 'location', Unit: 'Location', units: 'locations', Units: 'Locations', store: 'picking area', Store: 'Picking area', port: 'zone', ports: 'zones', starve: 'totes', flow1: 'Order totes out /h', flow2: 'Order lines /h' };
+  const TERMS = {
+    unit: 'location', Unit: 'Location', units: 'locations', Units: 'Locations', store: 'picking area', Store: 'Picking area', port: 'zone', ports: 'zones', starve: 'totes', flow1: 'Order totes out /h', flow2: 'Order lines /h',
+    fault: { button: 'Jam a channel', title: 'One of the busiest A-frame channels jams and dispenses nothing until a technician has freed it', note: 'The control room lists what is going on and the throughput chart marks it. A jammed channel dispenses nothing: every line for its product goes short and the tote goes to the completion zone. A refill operator on a break leaves the channels emptying; the busiest operator goes first.' },
+  };
   const TIP = 1.0, PUT = 2.0, CHANNEL_PITCH = 0.1; // s the window takes to tip into the tote; s an RF picker takes to put a tote on the belt; m per A-frame channel
   const CARO_PITCH = 0.4; // m of carousel ring per shelf
 
@@ -152,7 +155,7 @@
   // A person who walks: the A-frame's refill operators and the RF pickers.
   class Walker {
     constructor(sim, k, role, x, y) {
-      Object.assign(this, { sim, id: k, role, name: OPS[(k + (role === 'rf' ? 7 : 0)) % OPS.length], x, y, px: x, py: y, path: [], state: 'IDLE', t: 0, distance: 0, heading: 0, done: 0 });
+      Object.assign(this, { sim, id: k, role, roleName: role === 'rf' ? 'RF picker' : 'Refill operator', name: OPS[(k + (role === 'rf' ? 7 : 0)) % OPS.length], x, y, px: x, py: y, path: [], state: 'IDLE', t: 0, distance: 0, heading: 0, done: 0 });
       this.stateTime = { IDLE: 0, WALKING: 0, WORKING: 0, BREAK: 0 };
     }
     get utilization() { const s = this.stateTime, tot = s.IDLE + s.WALKING + s.WORKING; return tot ? (s.WALKING + s.WORKING) / tot : 0; }
@@ -947,6 +950,23 @@
       return true;
     }
 
+    // ---------------------------------------------------------------- disruptions (WS.Disruptions)
+    // A breakdown jams one of the busiest A-frame channels: it dispenses
+    // nothing until it has been freed, so its lines go short to completion.
+    fault(until) {
+      const free = this.channels.filter((ch) => !ch.jam);
+      if (!free.length) return null;
+      const ch = free.reduce((a, b) => (this.inv.byGtin.get(b.comps[0].gtin).hits > this.inv.byGtin.get(a.comps[0].gtin).hits ? b : a));
+      ch.jam = { until };
+      ch.jam.h = this.disrupt.note('breakdown', `${ch.code} jammed`, until);
+      this.log('warn', `A-frame channel ${ch.code} jammed (${this.inv.byGtin.get(ch.comps[0].gtin).name}) · technician on the way`);
+      return `Channel ${ch.code} jammed`;
+    }
+    unjam(ch) { ch.jam.h.t1 = this.time; ch.jam = null; this.log('robot', `A-frame channel ${ch.code} freed`); }
+    clearFaults() { for (const ch of this.channels) if (ch.jam) this.unjam(ch); }
+    faultAlerts(left) { return this.channels.filter((ch) => ch.jam).map((ch) => ({ sev: 'critical', key: 'jam' + ch.code, title: `Channel ${ch.code} jammed`, msg: `Its lines go short to completion · ${left(ch.jam.until)}` })); }
+    checkFaults() { for (const ch of this.channels) if (ch.jam && this.time >= ch.jam.until) this.unjam(ch); }
+
     // ---------------------------------------------------------------- control room
     afFill(mix) { const low = this.channels.filter((ch) => ch.comps[0].qty <= this.cfg.refillLevel).length; return mix('#16324f', '#dc2626', Math.min(1, (low / Math.max(1, this.channels.length)) * 4)); }
     zoneFill(z, mix) { return z.port.away ? '#334155' : z.job ? '#14532d' : '#1f3a2c'; }
@@ -1003,6 +1023,7 @@
     tick() {
       super.tick();
       const dt = this.cfg.tick;
+      this.checkFaults();
       this.orderStart(dt);
       this.stepAframe(dt);
       this.net.update(dt);

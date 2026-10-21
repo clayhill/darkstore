@@ -4,7 +4,7 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG, RC = WS.CLIMB_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG, RC = WS.CLIMB_CONFIG, ZC = WS.ZONE_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
@@ -15,6 +15,7 @@
     climb: [`${RC.aisles} aisles`, `${(RC.levels * RC.levelHeight).toFixed(1)} m high`, `${RC.robots} robots`, `climbs ${RC.climbSpeed} m/s`],
     pallet: [`${DC.aisles} blocks`, `lanes ${DC.laneDepth} pallets deep`, `${DC.aisles * DC.levels} carriers`, `${DC.aisles} lifts`],
     amr: [`${MC.aisles} aisles of shelving`, `${MC.robots} robots`, `${MC.pickers} pickers`, `${MC.robotTotes} totes per robot`],
+    zone: [`A-frame of ${ZC.afChannels} channels`, `${ZC.ptlZones} pick-to-light zones`, `carousels & RF`, `${ZC.routes} van routes`],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
     for (const s of specs[ul.dataset.specs] || []) {
@@ -831,6 +832,96 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview };
+  /* ---------- pharmacy wholesale preview ---------- */
+  // An A-frame: its belt carries a window per order under the channels, which
+  // drop their boxes in; at the end the window tips into the order tote
+  // waiting below. The tote rides on to a pick-to-light rack, where the light
+  // shows the location and an operator picks into it.
+  function zonePreview(canvas) {
+    const GW = 12, GD = 6.4, AY = 1.1, BZ = 0.55, TY = 2.6, LY = 4.6, X0 = 1, X1 = 8, TIP = 8.6, PICK = 6, NC = 14;
+    const kit = isoKit(canvas, GW, GD, 2.4, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(41), HUES = ['#38bdf8', '#f472b6', '#a3e635', '#fbbf24', '#c084fc', '#2dd4bf', '#fb923c', '#f87171'];
+    const chans = [...Array(NC * 2)].map((_, k) => ({ x: X0 + 0.25 + ((k % NC) + 0.5) * ((X1 - X0 - 0.5) / NC), side: k < NC ? -1 : 1, col: HUES[Math.floor(rand() * HUES.length)], fill: 0.4 + rand() * 0.6, drop: -1 }));
+    // the tote's path: along the A-frame to the tip, round to the rack, away
+    const path = [{ x: 0.4, y: TY }, { x: TIP, y: TY }, { x: GW - 0.6, y: TY }, { x: GW - 0.6, y: LY }, { x: 1.2, y: LY }];
+    const segs = path.slice(1).map((b, k) => { const a = path[k]; return { a, b, l: Math.hypot(b.x - a.x, b.y - a.y) }; }), L = segs.reduce((n, g) => n + g.l, 0);
+    const at = (s) => { for (const g of segs) { if (s <= g.l) return { x: g.a.x + ((g.b.x - g.a.x) * s) / g.l, y: g.a.y + ((g.b.y - g.a.y) * s) / g.l }; s -= g.l; } return path[path.length - 1]; };
+    const sTip = TIP - 0.4, sPick = segs[0].l + segs[1].l + segs[2].l + (GW - 0.6 - PICK);
+    const totes = [], wins = [];
+    let spawn = 0, glow = 0, lit = -1;
+    function step(dt) {
+      spawn -= dt;
+      if (spawn <= 0 && (!totes.length || totes[totes.length - 1].s > 1.2)) { spawn = 2.4; totes.push({ s: 0, units: 0, hold: 0, tipped: false, picked: false }); wins.push({ x: X0 - 0.3, units: [], tote: totes[totes.length - 1] }); }
+      // windows: along the belt, the channels over them dropping in a box; waiting at the end for their tote
+      for (const w of wins) {
+        const end = X1 + 0.1, tAt = w.tote.s >= sTip - 1e-3;
+        const nx = Math.min(end, w.x + 1.55 * dt);
+        for (const c of chans) if (c.x > w.x && c.x <= nx && rand() < 0.35) { w.units.push(c.col); c.drop = 0.35; c.fill = Math.max(0.1, c.fill - 0.08); }
+        w.x = nx;
+        if (w.x >= end && tAt && !w.tote.tipped) { w.tote.tipped = true; w.tote.units = w.units.length; w.tote.hold = 0.6; glow = 0.5; w.done = true; }
+      }
+      while (wins.length && wins[0].done) wins.shift();
+      for (const c of chans) { c.drop -= dt; if (c.fill < 0.2 && rand() < dt * 0.5) c.fill = 1; }
+      // totes: keep their distance; wait at the tip for the window, at the rack for the pick
+      for (let k = 0; k < totes.length; k++) {
+        const t = totes[k], ahead = totes[k - 1];
+        if (t.hold > 0) { t.hold -= dt; continue; }
+        let lim = ahead ? ahead.s - 0.9 : Infinity;
+        if (!t.tipped) lim = Math.min(lim, sTip);
+        if (!t.picked) lim = Math.min(lim, sPick);
+        const ns = Math.min(lim, t.s + 1.8 * dt);
+        if (t.s < sPick && ns >= sPick - 1e-3 && !t.picked) { t.picked = true; t.hold = 1.3; t.units += 2; lit = Math.floor(rand() * 10); }
+        t.s = Math.max(t.s, ns);
+      }
+      while (totes.length && totes[0].s >= L - 0.05) totes.shift();
+      glow = Math.max(0, glow - dt);
+    }
+    const drawTote = (t) => {
+      const q = at(t.s), w = 0.32, d = 0.26;
+      box(q.x - w, q.y - d, q.x + w, q.y + d, 0.45, 0.85, 'rgba(37,99,235,.65)', 'rgba(29,78,216,.75)', 'rgba(30,64,175,.75)', '#60a5fa');
+      for (let k = 0; k < Math.min(4, Math.ceil(t.units / 2)); k++) box(q.x - w + 0.08 + (k % 2) * 0.28, q.y - d + 0.06 + Math.floor(k / 2) * 0.24, q.x - w + 0.32 + (k % 2) * 0.28, q.y - d + 0.24 + Math.floor(k / 2) * 0.24, 0.85, 0.92, HUES[(k * 3 + 1) % HUES.length]);
+    };
+    animate(canvas, kit, step, () => {
+      // conveyors
+      for (let k = 1; k < path.length; k++) { const a = path[k - 1], b = path[k], x0 = Math.min(a.x, b.x) - 0.35, x1 = Math.max(a.x, b.x) + 0.35, y0 = Math.min(a.y, b.y) - 0.35, y1 = Math.max(a.y, b.y) + 0.35; box(x0, y0, x1, y1, 0.3, 0.45, 'rgba(51,65,85,.55)', 'rgba(30,41,59,.6)', 'rgba(15,23,42,.6)', 'rgba(125,211,252,.35)'); }
+      // the A-frame: belt with its windows, two faces of channels
+      box(X0 - 0.4, AY - 0.3, X1 + 0.4, AY + 0.3, BZ - 0.15, BZ, '#0f172a', '#111827', '#0b1220', 'rgba(125,211,252,.4)');
+      for (const w of wins) { const hw = 0.45; quad([P(w.x - hw, AY - 0.28, BZ + 0.01), P(w.x + hw, AY - 0.28, BZ + 0.01), P(w.x + hw, AY + 0.28, BZ + 0.01), P(w.x - hw, AY + 0.28, BZ + 0.01)], 'rgba(56,189,248,.12)', '#38bdf8', 1); w.units.slice(0, 8).forEach((c, k) => box(w.x - 0.35 + (k % 4) * 0.18, AY - 0.18 + Math.floor(k / 4) * 0.18, w.x - 0.23 + (k % 4) * 0.18, AY - 0.06 + Math.floor(k / 4) * 0.18, BZ, BZ + 0.12, c)); }
+      const face = (side) => {
+        const yf = AY + side * 0.7, zf = BZ + 0.5, zt = 2.1;
+        quad([P(X0, yf, zf), P(X1, yf, zf), P(X1, AY, zt), P(X0, AY, zt)], side > 0 ? 'rgba(14,165,233,.10)' : 'rgba(14,165,233,.06)', 'rgba(125,211,252,.5)', 1);
+        for (const c of chans) {
+          if (c.side !== side) continue;
+          const f = c.fill, hw = 0.16, zb = zf + 0.05, ztop = zf + 0.05 + (zt - zf - 0.1) * f, yb = yf - side * 0.05, ytop = yf + (AY - yf) * ((ztop - zf) / (zt - zf));
+          quad([P(c.x - hw, yb, zb), P(c.x + hw, yb, zb), P(c.x + hw, ytop, ztop), P(c.x - hw, ytop, ztop)], c.fill < 0.2 ? '#f59e0b' : c.col + (side > 0 ? '99' : 'dd'));
+          if (c.drop > 0) box(c.x - 0.07, AY + side * 0.35 * (c.drop / 0.35) - 0.06, c.x + 0.07, AY + side * 0.35 * (c.drop / 0.35) + 0.06, BZ + 0.6 * (c.drop / 0.35), BZ + 0.6 * (c.drop / 0.35) + 0.12, c.col);
+        }
+      };
+      face(-1);
+      // the A of the frame at both ends
+      for (const x of [X0, X1]) quad([P(x, AY - 0.75, BZ - 0.15), P(x, AY, 2.2), P(x, AY + 0.75, BZ - 0.15)], null, 'rgba(125,211,252,.7)', 1.4);
+      quad([P(X0, AY, 2.2), P(X1, AY, 2.2)], null, 'rgba(186,230,253,.9)', 2);
+      // the tip chute down to the tote
+      quad([P(X1 + 0.4, AY - 0.25, BZ), P(X1 + 0.4, AY + 0.25, BZ), P(TIP + 0.25, TY - 0.3, 1.0), P(TIP - 0.25, TY - 0.3, 1.0)], glow ? 'rgba(74,222,128,.5)' : 'rgba(148,163,184,.25)', 'rgba(148,163,184,.6)', 1);
+      const items = [];
+      items.push({ d: AY + 3, fn: () => face(1) });
+      // the pick-to-light rack behind the operator
+      const rx0 = 3.2, rx1 = 8.8, ry = LY + 1.4;
+      items.push({ d: ry + 4, fn: () => {
+        box(rx0, ry - 0.3, rx1, ry + 0.3, 0, 0.9, 'rgba(30,64,175,.18)', 'rgba(30,64,175,.22)', 'rgba(30,58,138,.25)', 'rgba(96,165,250,.55)');
+        for (let k = 0; k < 10; k++) for (let lv = 0; lv < 2; lv++) {
+          const x = rx0 + 0.3 + k * 0.54, z = 0.2 + lv * 0.4, on = k === lit && lv === 1 && totes.some((t) => t.hold > 0 && t.picked);
+          box(x - 0.18, ry - 0.2, x + 0.18, ry + 0.2, z, z + 0.25, HUES[(k + lv * 3) % HUES.length] + '66', HUES[(k + lv * 3) % HUES.length] + '44', HUES[(k + lv * 3) % HUES.length] + '33');
+          if (on) { ctx.save(); ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 12; box(x - 0.1, ry - 0.34, x + 0.1, ry - 0.3, z + 0.3, z + 0.38, '#4ade80', '#4ade80', '#4ade80'); ctx.restore(); }
+        }
+      } });
+      const busy = totes.some((t) => t.hold > 0 && t.picked);
+      items.push({ d: PICK + LY + 0.9, fn: () => { const [px, py] = P(PICK, LY + 0.75, 0); person(ctx, px, py, kit.s / 20, '#f97316', busy ? Math.max(0, Math.sin(performance.now() / 110)) * 3 * kit.s / 20 : 0, 3); } });
+      for (const t of totes) { const q = at(t.s); items.push({ d: q.x + q.y, fn: () => drawTote(t) }); }
+      items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

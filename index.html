@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DarkStore — Warehouse Automation Simulator</title>
-  <meta name="description" content="DarkStore simulates warehouse automation in the browser: goods-to-person storage, robots alongside pickers and parcel sorters. Pick a system and watch robots, operators and orders move through it.">
+  <meta name="description" content="DarkStore simulates warehouse automation in the browser: goods-to-person storage, robots alongside pickers, pharmacy order picking and parcel sorters. Pick a system and watch robots, operators and orders move through it.">
   <link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
@@ -132,6 +132,19 @@
             <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </a>
+        <a class="card" href="zonehop.html">
+          <div class="preview">
+            <canvas data-preview="zone" role="img" aria-label="Animated preview: an A-frame dropping boxes into windows on its belt, which tip into order totes on a conveyor; the totes ride on to a pick-to-light rack where an operator picks into them"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Pharmacy wholesale</p>
+            <h3>ZoneHop</h3>
+            <p class="desc">The order tote travels past the stock: an A-frame drops the fast movers in, then the tote turns only into the picking zones its order needs, is closed and labelled, and waits in its route's lane for the van.</p>
+            <ul class="specs" data-specs="zone"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
         <a class="card" href="sorthub.html">
           <div class="preview">
             <canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas>
@@ -153,7 +166,7 @@
 
   <script>
     // load fresh copies, so the cards always match the current simulations
-    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/climb/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
+    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/climb/config.js', 'js/zone/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
   </script>
 </body>
 </html>

@@ -4,7 +4,8 @@
  *             surgeMinutes, as on Black Friday
  *  breakdown  a robot or machine stops where it is until a technician has
  *             repaired it (repairMinutes); it stays in the way meanwhile. A
- *             type without a fleet (the tilt-tray loop) stops its sorter.
+ *             type without a fleet stops its own machine: the tilt-tray loop
+ *             its sorter, ZoneHop jams an A-frame channel (sim.fault).
  *  charger    a charger is out of service for chargerMinutes; a robot on it
  *             stops charging and goes to another one
  *  break      the operator of a station walks off for breakMinutes; the
@@ -42,6 +43,7 @@
     breakdown(target) {
       const sim = this.sim, until = sim.time + sim.cfg.repairMinutes * MIN;
       if (!sim.fleet.length) {
+        if (sim.fault) return sim.fault(until);
         if (!sim.stopLoop || this.loop) return null;
         this.loop = { until }; sim.stopLoop(true);
         this.loop.h = this.note('breakdown', 'Loop stopped', until);
@@ -98,7 +100,7 @@
       sim.log('warn', `${this.who(p)} on a break for ${this.mins(sim.cfg.breakMinutes)}`);
       return `${this.who(p)} on a break`;
     }
-    who(p) { return p.stats ? `${p.name}: operator` : p.name; }
+    who(p) { return p.stats ? `${p.name}: operator` : p.roleName ? `${p.roleName} ${p.name}` : p.name; }
     // Everything back to normal now.
     clear() {
       const sim = this.sim;
@@ -107,6 +109,7 @@
       for (const ch of sim.grid.chargers || []) if (ch.down) this.restore(ch);
       for (const p of this.people()) if (p.away) this.back(p);
       if (this.loop) this.restartLoop();
+      if (sim.clearFaults) sim.clearFaults();
     }
 
     // ---------------------------------------------------------------- endings
@@ -136,10 +139,11 @@
       const sim = this.sim, t = sim.time, out = [], left = (u) => this.mins((u - t) / MIN) + ' left';
       if (this.surge) out.push({ sev: 'warning', key: 'surge', title: `Order surge ×${this.surge.factor}`, msg: `${sim.terms.units === 'parcels' ? 'Parcels' : 'Orders'} arriving ${this.surge.factor} times as fast · ${left(this.surge.until)}` });
       if (this.loop) out.push({ sev: 'critical', key: 'loop', title: 'Sorter loop stopped', msg: `Drive fault · repair ${left(this.loop.until)}` });
+      if (sim.faultAlerts) out.push(...sim.faultAlerts(left));
       const down = sim.fleet.filter((m) => m.down);
       if (down.length) out.push({ sev: 'critical', key: 'down', title: `${down.length} broken down`, msg: down.slice(0, 4).map((m) => `${m.name} (${left(m.down.until)})`).join(', ') + (down.length > 4 ? ' …' : '') });
       for (const ch of sim.grid.chargers || []) if (ch.down) out.push({ sev: 'warning', key: 'chg' + ch.id, title: `Charger ${ch.id + 1} out of service`, msg: left(ch.down.until) });
-      for (const p of this.people()) if (p.away) out.push(p.stats ? { sev: 'warning', key: 'away' + p.idx, title: `${p.name}: operator on break`, msg: `Station stopped · ${left(p.away.until)}`, port: p.idx } : { sev: 'info', key: 'away-' + p.name, title: `${p.name} on break`, msg: left(p.away.until) });
+      for (const p of this.people()) if (p.away) out.push(p.stats ? { sev: 'warning', key: 'away' + p.idx, title: `${p.name}: operator on break`, msg: `Station stopped · ${left(p.away.until)}`, port: p.idx } : { sev: 'info', key: 'away-' + p.name, title: `${this.who(p)} on break`, msg: left(p.away.until) });
       return out;
     }
   }

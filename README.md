@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the nine simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the ten simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of nine
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of ten
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,9 +14,10 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the nine systems work this way. AisleMate is the common first step towards it: people
-still pick from ordinary shelving, and robots carry the order totes to them. SortHub is not a store
-at all but a parcel sorter, the kind of hub parcels go through after the warehouse.
+Seven of the ten systems work this way. AisleMate is the common first step towards it: people
+still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
+the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
+but a parcel sorter, the kind of hub parcels go through after the warehouse.
 
 **What every simulation shares**
 
@@ -32,7 +33,7 @@ at all but a parcel sorter, the kind of hub parcels go through after the warehou
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The nine systems**
+**The ten systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -44,11 +45,12 @@ at all but a parcel sorter, the kind of hub parcels go through after the warehou
 | [**AisleMate**](https://clayhill.github.io/darkstore/aislemate.html) | Robots alongside pickers (collaborative AMRs) | Goods on ordinary shelving | Robots with order totes, pickers walking to them | Robot waits for pickers, picker utilization |
 | [**RackRider**](https://clayhill.github.io/darkstore/rackrider.html) | Climbing robots | Totes in tall racking | Robots that drive, climb the racking and present the tote at the station | Climbing blocks the aisle, the robot as the conveyor |
 | [**DeepLane**](https://clayhill.github.io/darkstore/deeplane.html) | Pallet shuttle AS/RS | Pallets in deep lanes, one SKU per lane | A carrier with a satellite per level, a lift per block | Last in, first out lanes, the lift as the bottleneck |
+| [**ZoneHop**](https://clayhill.github.io/darkstore/zonehop.html) | Pharmacy wholesale: A-frame and zone picking | Small boxes in A-frame channels, flow racks, carousels and shelving | Order totes on a conveyor loop, past the zones their order needs | A-frame refills, zone skipping, totes that miss their van |
 | [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
-by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt` and
-`sort.txt` describe the nine systems.
+by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
+`pharma.txt` and `sort.txt` describe the ten systems.
 
 ## Run
 
@@ -73,7 +75,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   machine breaking down, a charger fault or an operator going on a break, or let robots fail at
   random. See how each system copes, and how long it takes to catch up.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D**: a free 3D view of the whole warehouse, in all nine systems. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all ten systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
@@ -222,7 +224,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The nine systems in detail
+## The ten systems in detail
 
 ### CubeFlow — cube storage
 
@@ -532,6 +534,66 @@ per stop and the robots' time split. With the default 10 robots and 6 pickers th
 time waiting for pickers, which is normal for this kind of system. Not modelled yet: pickers
 following a robot through the aisle, pick carts, picker breaks.
 
+### ZoneHop — pharmacy wholesale
+
+![ZoneHop: the A-frame and the order start at the back, the conveyor loop with the pick-to-light zones and the carousels, the RF shelving, the closing line and the route lanes with the vans](docs/screenshots/zone-floor.png)
+
+| | |
+|---|---|
+| ![Close-up: the A-frame, the loop and the pick-to-light zones with their operators](docs/screenshots/zone-closeup.png) | ![ZoneHop control room: totes out, lines per hour, the A-frame's share, recirculation, merge wait, vans and the zone cards](docs/screenshots/zone-control.png) |
+| **Close-up:** totes leave the A-frame and turn off the loop into the zones they need | **Control room:** the conveyor map with every tote, zone cards with how often each is skipped |
+| ![ZoneHop in 3D: the loop, the zones, the carousels, the RF shelving and the vans at their doors](docs/screenshots/zone-3d.png) | ![The A-frame in 3D: the channels' stacks of boxes on the sloping faces, the belt underneath](docs/screenshots/zone-3d-closeup.png) |
+| **3D:** the whole system, from the A-frame to the vans | **3D close-up:** the A-frame, each channel's stack going down as it dispenses |
+
+ZoneHop is not goods-to-person: nothing travels to a picker, the order tote travels past the stock.
+It is the system a pharmacy wholesaler uses to deliver many small orders to pharmacies several times
+a day. Its side panel has its own Zones and Routes tabs; orders and stock use the shared ones.
+
+**Orders.** Pharmacies on 12 routes order 8 to 30 lines at a time, 250 orders an hour on average, in
+waves: slow just after a tour of vans has left, up to 1.6 times as fast just before the next one.
+An order is due on the first van of its route that leaves at least 20 minutes after it came in.
+
+**Order start and the A-frame.** The de-stacker feeds an empty tote and a printer labels it (4 s),
+the order due first first. The A-frame has 240 channels on two sloping faces, each holding one fast
+mover, and a belt underneath with a 1.2 m window per order. As the window passes a channel holding
+one of its products, the dispenser ejects the units into it (0.25 s each); at the end of the belt
+the window tips into the order's tote, which waits there, and without its tote the belt stops. Two
+refill operators walk the frame and refill channels at 20 units (30 s), the one that runs out first
+first. A line whose channel is empty goes short, and the tote goes to the completion zone.
+
+**The loop and the zones.** The tote rides a loop and turns into every zone its order has lines
+in, and only those: three pick-to-light zones with a flow rack wall behind the operator (2 s a line,
+1.2 s a unit, the location lit with its quantity; the first is also the completion zone) and a
+zone with two horizontal carousels, which turn the shorter way round to the next shelf while the
+operator picks from the other one. A spur holds 4 totes; with it full the tote goes round again.
+Order start holds while the loop is three quarters full. Products are slotted by units a day: the
+fastest that fit the A-frame go there, the next ones to pick-to-light (shared out so each zone has
+about as many lines), then the carousels, the long tail to the RF shelving. Zone stock is topped up
+from a reserve store after 15 minutes.
+
+**RF shelving and the merge.** Three RF pickers take the slow movers of a batch of up to 8 orders,
+walk an S-shaped route through the shelving with a tote per order on their cart (8 s a line) and
+put the totes on the belt to the merge. There the order waits until all its totes are in; the merge
+operator tips the RF tote into the order tote (6 s), or sends it along when it does not fit.
+
+**Closing line, sorter and vans.** A check-weigher (1 % go to a manual check), a document inserter,
+a lidding machine and a label printer with an SSCC per tote; the shipping sorter diverts each tote
+into its route's lane, where totes stack five high. A van leaves every two hours, a route every
+90 s, with up to 60 totes; it brings the empty totes of its trip back 90 minutes later, and the
+tote-emptying machine tips them and stacks them for the de-stacker. 1000 totes circulate.
+
+**Disruptions.** The breakdown button jams one of the busiest A-frame channels: its lines go short
+to completion until it is freed. A break can hit a refill operator, an RF picker or a zone operator.
+
+**KPIs.** Order totes out and lines per hour, the A-frame's share of the units, empty channels and
+refills waiting, loop fill and recirculation, merge wait, zone utilization and zone skipping, totes
+in the lanes and per van, orders that missed their van, and a time split of the totes (being picked,
+queued, moving, at the merge). With the defaults ZoneHop picks about 4700 lines and 245 totes an
+hour; the A-frame dispenses two thirds of the units, the pick-to-light operators are 35–40 % busy,
+the carousel zone is skipped by 60 % of the totes, about 15 % of the totes go round the loop once
+more, and no order misses its van. The tote cam rides an order tote from order start to its lane;
+Follow an order follows its window on the A-frame, its totes, the merge and its van.
+
 ### SortHub — parcel sorter
 
 ![SortHub: small robots on a raised deck carrying parcels from the inducts and tipping them through holes into the bags below](docs/screenshots/sort-robots.png)
@@ -582,7 +644,7 @@ limit for both.
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
-aislemate.html, sorthub.html
+aislemate.html, zonehop.html, sorthub.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -610,9 +672,11 @@ js/climb/   RackRider: config, sim (climbing, presenting at the station, on Stac
 js/pallet/  DeepLane: config, sim (lanes, carriers and satellites on RailRunner's machines,
             receiving and empty pallets), render, render3d, ui
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
+js/zone/    ZoneHop: config, belts (the conveyor network), sim (orders with routes, A-frame,
+            zones, RF, merge, closing line, sorter, vans, tote return), render, render3d, ui
 js/sort/    SortHub: config, sim (parcels, inducts, chutes, tray loop, robot deck, bag workers),
             render, render3d, ui (its own tiles, tabs and settings)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|sort] [settings JSON]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,

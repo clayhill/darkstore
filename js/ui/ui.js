@@ -388,14 +388,14 @@
     // and how long each disruption lasts.
     disruptions(num) {
       const sim = this.sim, c = sim.cfg, tm = this.terms, parcels = tm.units === 'parcels';
-      const machine = sim.fleet.length ? (tm.machine || 'robot').toLowerCase() : null, chargers = (sim.grid.chargers || []).length;
+      const machine = sim.fleet.length ? (tm.machine || 'robot').toLowerCase() : null, chargers = (sim.grid.chargers || []).length, F = tm.fault; // a type's own breakdown (ZoneHop: a jammed channel)
       const btn = (k, label, title) => `<button class="btn" data-disrupt="${k}" title="${title}">${label}</button>`;
       return `<div class="sect"><h3>Disruptions <span class="sub">a bad day, now</span></h3><div class="card">
-        <div class="btns dis">${btn('surge', parcels ? 'Parcel surge' : 'Order surge', `${parcels ? 'Parcels' : 'Orders'} come in ${c.surgeFactor}× as fast for ${c.surgeMinutes} min`)}${btn('breakdown', machine ? 'Break down a ' + machine : 'Stop the loop', machine ? `A ${machine} at work stops where it is until it is repaired (${c.repairMinutes} min)` : `A drive fault stops the tray loop for ${c.repairMinutes} min`)}${chargers ? btn('charger', 'Charger fault', `A charger is out of service for ${c.chargerMinutes} min`) : ''}${btn('break', 'Operator break', `The busiest ${sim.pickers ? 'operator or picker' : 'operator'} takes a ${c.breakMinutes} min break`)}<button class="btn ghost" data-disrupt="clear" title="End every disruption now">All clear</button></div>
+        <div class="btns dis">${btn('surge', parcels ? 'Parcel surge' : 'Order surge', `${parcels ? 'Parcels' : 'Orders'} come in ${c.surgeFactor}× as fast for ${c.surgeMinutes} min`)}${btn('breakdown', F ? F.button : machine ? 'Break down a ' + machine : 'Stop the loop', F ? `${F.title} (${c.repairMinutes} min)` : machine ? `A ${machine} at work stops where it is until it is repaired (${c.repairMinutes} min)` : `A drive fault stops the tray loop for ${c.repairMinutes} min`)}${chargers ? btn('charger', 'Charger fault', `A charger is out of service for ${c.chargerMinutes} min`) : ''}${btn('break', 'Operator break', `The busiest ${sim.pickers ? 'operator or picker' : 'operator'} takes a ${c.breakMinutes} min break`)}<button class="btn ghost" data-disrupt="clear" title="End every disruption now">All clear</button></div>
         <div class="row2">${num('surgeFactor', 'Surge: times as fast', 0.5, 1, 10)}${num('surgeMinutes', 'Surge lasts (min)', 5, 1, 480)}</div>
         <div class="row2">${num('repairMinutes', 'Repair takes (min)', 1, 1, 120)}${num('breakMinutes', 'Break lasts (min)', 1, 1, 60)}</div>
         <div class="row2">${num('failRate', 'Random failures / h', 0.5, 0, 30)}${chargers ? num('chargerMinutes', 'Charger fault lasts (min)', 5, 1, 240) : '<div></div>'}</div>
-        <div class="note">The control room lists what is going on, the throughput chart marks it, and the time split shows ${machine ? machine + 's' : 'the trays'} that are down. A ${machine || 'stopped sorter'} stays where it is while it is repaired, in the way of the others.</div></div></div>`;
+        <div class="note">${F ? F.note : `The control room lists what is going on, the throughput chart marks it, and the time split shows ${machine ? machine + 's' : 'the trays'} that are down. A ${machine || 'stopped sorter'} stays where it is while it is repaired, in the way of the others.`}</div></div></div>`;
     }
     bind_settings(b) {
       b.querySelectorAll('[data-disrupt]').forEach((el) => (el.onclick = () => {

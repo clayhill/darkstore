@@ -27,7 +27,7 @@ output) are written down once, in common.txt.
                 parcel stream into chutes (no stock; implemented as SortHub)
   pharma.txt    pharmacy wholesale: order totes travel past an A-frame and
                 picking zones to a closing line and route lanes (not
-                goods-to-person; planned as ZoneHop)
+                goods-to-person; implemented as ZoneHop)
   amr.txt       robots alongside pickers: people still pick from ordinary
                 shelving, robots carry the order totes to them (not
                 goods-to-person; implemented as AisleMate)

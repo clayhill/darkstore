@@ -1,7 +1,7 @@
 DarkStore - pharmacy wholesale: A-frame and zone picking
 ========================================================
 
-Read common.txt first. To be implemented as ZoneHop.
+Read common.txt first. Implemented as ZoneHop.
 
 1. Overview
 
@@ -131,23 +131,33 @@ On top of the common output:
 
 8. Parameters
 
-Typical values, to be tuned once the model runs.
+Tuned once the model ran (the first guesses in brackets): the first
+guesses overloaded the pick-to-light zones, and the vans and totes could
+not carry 400 orders an hour.
 
   products             1200 SKUs; A-frame 240 channels (120 per side),
-                       pick-to-light 2 zones of 150 locations, carousel
-                       zone 2 carousels of 60 shelves, RF 600 locations
-  orders               400 per hour, 10-40 lines, 1-3 units per line
+                       pick-to-light 3 zones of 100 locations (2 of 150),
+                       carousel zone 2 carousels of 60 shelves, RF 600
+                       locations
+  orders               250 per hour on average (400), 8-30 lines (10-40),
+                       1-3 units per line; waves up to 1.6 times the
+                       average just before a tour leaves
   A-frame              belt 0.5 m/s, window 1.2 m, 0.25 s per unit,
                        channels 80 units, refill at 20, 30 s per refill,
                        2 refill operators
-  pick-to-light        2 s per line plus 1.5 s per unit, 4 totes per spur
-  carousel             0.5 m/s ring speed, 3 s per line
-  RF                   1.1 m/s walking, 8 s per line, batches of 8 orders
-  conveyors            0.6 m/s
+  pick-to-light        2 s per line plus 1.2 s per unit (1.5), 4 totes
+                       per spur
+  carousel             0.5 m/s ring speed, 3 s per line plus 0.8 s per unit
+  RF                   3 pickers, 1.1 m/s walking, 8 s per line, batches
+                       of 8 orders
+  merge                6 s to tip an RF tote into its order tote
+  conveyors            0.6 m/s, a tote and its gap 0.7 m
   closing line         scale 2 s, documents 4 s, lid 3 s, label 3 s,
-                       weight errors 1 %
-  routes               8 routes, vans of 60 totes, departures 3 times a day
-  totes                300 in circulation
+                       weight errors 1 %, manual check 40 s
+  routes               12 routes (8), vans of 60 totes; a tour every 2 h
+                       (3 a day), its vans 90 s apart; a van is back with
+                       the empty totes after 90 min; cut-off 20 min
+  totes                1000 in circulation (300)
 
 9. Build plan
 
@@ -174,3 +184,10 @@ Each step ends in something that runs, and in a commit.
   van wait for the next trip.
 - The closing line and route vans replace the shared packing benches and
   truck.
+- Made while building: steps 1 to 3 were built together. The RF tote is
+  tipped into its order tote at the merge by an operator (a separate tote
+  only when it does not fit), so most orders ship as one tote. Pick-to-
+  light products are shared out over the zones by demand, so each zone has
+  about as many lines. The first pick-to-light zone is the completion
+  zone, picking short A-frame lines from its reserve. A breakdown jams one
+  of the busiest A-frame channels. The robot cam rides an order tote.
