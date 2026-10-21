@@ -44,6 +44,15 @@ function checkRacking() {
     for (const r of sim.fleet) r.load.forEach((id) => { if (kind !== 'climb' || sim.inv.binById.get(id).loc !== 'port') put(id, r.name); });
     for (const p of sim.ports) p.back.forEach((b) => { if (!b.conv) put(b.id, p.code + ' return'); }); // still on the return conveyor: counted there
   }
+  if (sim.bots) {
+    // transport robots: one tote on the deck; a tote at the end of a station's outfeed is still on the conveyor
+    for (const r of sim.bots.robots) {
+      if (r.bin) put(r.bin, r.name);
+      const t = g.type[g.idx(r.x, r.y)];
+      if (t === WS.CELL.BLOCKED || t === WS.CELL.STAND) throw new Error(`t=${sim.time.toFixed(1)} ${r.name} on a cell robots do not drive on (${r.x},${r.y})`);
+    }
+    for (const p of sim.ports) p.back.forEach((b) => { if (!b.conv) put(b.id, p.code + ' outfeed'); });
+  }
   for (const p of sim.ports) { p.inQ.forEach((q) => put(q.bin.id, p.code)); if (p.pick) put(p.pick.id, p.code); p.outQ.forEach((b) => put(b.id, p.code)); }
   if (kind === 'pallet') { checkLanes(); for (const b of sim.inv.bins) if (b.loc === 'dock') put(b.id, 'dock'); }
   for (const b of sim.inv.bins) {

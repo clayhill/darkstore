@@ -23,6 +23,13 @@
 
     // Pre-zone conveyor from the lifts to the stations and back
     preZoneSpeed: 1.0, // m/s
+    // or mobile robots instead of the loop (specs/prezone-robots.txt)
+    transport: 'loop', // 'loop' | 'robots'
+    transportRobots: 3, // per station
+    vmax: 1.5, accel: 0.8, brake: 1.0, // m/s, m/s² — roller-top robots
+    wheelShift: 1.2, // s — turn 90° on the spot
+    transferTime: 3, // s — a tote onto or off the roller deck
+    standCap: 2, // totes on an aisle's outfeed or infeed stand
     chargers: 0, robots: 0, // no battery robots
     toteSlots: 6,
     portInboundCap: 6, // totes on their way to one station

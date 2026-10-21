@@ -20,7 +20,7 @@
     shuttle: {
       name: 'RailRunner', cut: true, three: ['js/render3d/rack3d.js', 'js/shuttle/render3d.js'], sub: 'Shuttle AS/RS', scan: 'tote, order, machine', click: 'shuttles, lifts, racks, stations',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
-      sim: ['js/sim/prezone.js', 'js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js'],
+      sim: ['js/sim/prezone.js', 'js/sim/totebots.js', 'js/shuttle/config.js', 'js/shuttle/sim.js'], view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js'],
     },
     crane: {
       name: 'SkyStack', cut: true, three: ['js/render3d/rack3d.js', 'js/crane/render3d.js'], sub: 'Stacker crane AS/RS', scan: 'tote, order, crane', click: 'cranes, racks, stations',

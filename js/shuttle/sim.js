@@ -24,7 +24,7 @@
       this.a = a; this.l = l; this.pos = sim.front; this.jobs = []; this.axis = 'y';
       this.xfer = null; // tote being taken or put: { id, take, side } (0 left, 1 right); for the view
     }
-    place() { this.rx = this.a * 4 + 1; this.ry = this.sim.cfg.levels - 1 - this.l; this.x = this.a; this.y = this.l; }
+    place() { this.rx = this.sim.mapGrid.colX(this.a, 1); this.ry = this.sim.cfg.levels - 1 - this.l; this.x = this.a; this.y = this.l; }
   }
   class Lift extends WS.Machine {
     constructor(sim, id, a) {
@@ -35,7 +35,7 @@
     }
     place() {
       const g = this.sim.grid, L = this.sim.cfg.levels;
-      this.rx = this.a * 4 + 3;
+      this.rx = this.sim.mapGrid.colX(this.a, 3);
       this.ry = this.z <= g.convZ + 0.01 ? L : Math.max(-0.2, L - 1 - (this.z - g.Z0) / g.LH);
       this.x = this.a; this.y = Math.max(0, Math.round((this.z - g.Z0) / g.LH));
     }
@@ -106,7 +106,7 @@
     const x = g.outX(lift.a), y = B + 0.5;
     yield { op: 'until', fn: () => sim.convFree(x, y), waitState: 'WAITING_PORT' };
     t0 = sim.time;
-    const port = sim.ports[item.port], it = sim.toPort(bin, sim.outPath(lift.a, port, y), port);
+    const port = sim.ports[item.port], it = sim.sendOut(lift.a, bin, port, y);
     lift.bin = null; lift.lifts++;
     yield { op: 'until', fn: () => it.s >= 0.8 || !sim.conv.includes(it) };
     yield { op: 'wait', t: Math.max(0, cfg.liftTransfer - (sim.time - t0)) };
@@ -137,7 +137,7 @@
     bin.loc = 'buffer'; lift.bin = null;
     yield { op: 'wait', t: Math.max(0, cfg.liftTransfer - (sim.time - t0)) };
     // dual cycle: take an outbound tote from the same level on the way down
-    if (aisle.outBuf[item.l].length && sim.loopRoom() > 0) yield* liftOut(sim, lift, item.l);
+    if (aisle.outBuf[item.l].length && sim.outRoom(aisle)) yield* liftOut(sim, lift, item.l);
   }
 
   // ---------------------------------------------------------------- simulation
@@ -146,10 +146,9 @@
     get terms() { return TERMS; }
     get stateLabels() { return STATE_LABELS; }
     get legendStates() { return LEGEND; }
-    get taskTypes() { return {}; }
     defaults() { return WS.SHUTTLE_CONFIG; }
     rackShape() { return { Z0: 2.4, frontBays: Math.max(2, this.cfg.bufferSize) }; } // the front bays of each side are level buffers
-    describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles * c.levels} shuttles · ${c.aisles} lifts · ${this.inv.bins.length} totes`; }
+    describe() { const c = this.cfg; return `${c.aisles} aisles × ${c.levels} levels × ${c.bays} bays online · ${c.aisles * c.levels} shuttles · ${c.aisles} lifts${this.bots ? ` · ${WS.botCount(c)} transport robots` : ''} · ${this.inv.bins.length} totes`; }
     // the buffers' ends: the shuttle's side (where the shuttle stops to hand
     // totes over) and the lift's side; totes in a buffer stand a bay apart
     get front() { return this.grid.B - this.grid.frontBays + 0.5; }
@@ -227,8 +226,8 @@
         const lift = aisle.lift;
         if (!lift.idle) continue;
         let best = null;
-        // nothing more onto a busy loop (WS.PreZoneSim.loopRoom)
-        for (let l = 0; l < cfg.levels && this.loopRoom() > 0; l++) {
+        // nothing more onto a busy loop or a full stand (WS.PreZoneSim.outRoom)
+        for (let l = 0; l < cfg.levels && this.outRoom(aisle); l++) {
           const o = aisle.outBuf[l][0];
           if (o && (!best || o.t < best.t)) best = { t: o.t, out: l };
         }
@@ -240,6 +239,7 @@
         if (best.in) lift.run(liftIn(this, lift, best.in), { type: 'IN', bin: best.in.bin });
         else lift.run(liftOut(this, lift, best.out), { type: 'OUT', bin: aisle.outBuf[best.out][0].bin });
       }
+      this.dispatchRobots();
     }
   }
 

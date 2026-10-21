@@ -277,6 +277,7 @@
     drawClaims(z) {
       const g = this.sim.grid;
       for (const r of this.sim.fleet) {
+        if (!r.claims) continue; // a machine on rails among the robots
         const col = WS.stateColor(this.sim, r.displayState);
         for (const i of r.claims) {
           const x = g.cx(i), y = g.cy(i);

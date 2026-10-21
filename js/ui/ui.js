@@ -456,7 +456,7 @@
         <dt>Destination</dt><dd>${dest}</dd><dt>Task</dt><dd>${this.taskText(r)}</dd>
         <dt>Carrying</dt><dd>${r.bin ? `<a href="#" data-open="bin:${r.bin}">${r.bin}</a>` : '—'}</dd>
         ${T.mechanism(r)}
-        ${T.power ? `<dt>Power</dt><dd>${T.power(r)}</dd>` : `<dt>Battery</dt><dd>${this.battBar(r.battery)}</dd><dt>Reserved cells</dt><dd>${r.claims.size}</dd>`}
+        ${T.power && !r.claims ? `<dt>Power</dt><dd>${T.power(r)}</dd>` : `<dt>Battery</dt><dd>${this.battBar(r.battery)}</dd><dt>Reserved cells</dt><dd>${r.claims.size}</dd>`}
         <dt>Tasks done</dt><dd>${r.tasksDone} · ${r.lifts} ${T.liftsLabel}</dd>
         <dt>Distance</dt><dd>${(r.distance * sim.cfg.cellSize / 1000).toFixed(2)} km</dd></dl>
         <h3>Time by state</h3><div class="bar" style="height:10px">${bars}</div>`;

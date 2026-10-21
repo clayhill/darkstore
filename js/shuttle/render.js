@@ -8,15 +8,22 @@
   const ORANGE = '#f97316', ORANGE_TOP = '#fdba74', CYAN = '#06b6d4', CYAN_TOP = '#67e8f9';
 
   class ShuttleRenderer extends WS.PreZoneRenderer {
-    drawScene() {
+    drawScene(alpha) {
       const sim = this.sim, g = sim.grid;
       this.drawFloor();
+      if (sim.bots) {
+        this.drawCached('bot-floor', g.W, () => this.drawBotFloor());
+        if (this.opts.heat) this.drawHeat();
+        if (this.opts.claims) this.drawClaims(0);
+        if (this.opts.paths) this.drawPaths(alpha);
+      }
       this.drawPreZone();
       this.drawRackScene((aisle) => this.aisleItems(aisle));
       this.drawSelectedCell();
       const items = [];
       for (const aisle of sim.aisles) items.push({ d: g.laneX(aisle.a) + g.B, fn: () => this.drawLift(aisle) });
       this.conveyorItems(items);
+      if (sim.bots) this.botItems(items, alpha);
       this.drawStations(items);
     }
     // shuttle rails along the lane, one pair per level

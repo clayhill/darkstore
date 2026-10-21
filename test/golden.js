@@ -12,7 +12,7 @@ const dir = path.join(__dirname, 'golden');
 const RUNS = {
   cube: ['cube', {}], 'cube-arm': ['cube', { armStations: 2, armExceptions: 'route' }], 'cube-nearest': ['cube', { putawayPolicy: 'nearest' }],
   pod: ['pod', {}], 'pod-packing': ['pod', { packBaggers: 1, packBoxers: 1 }], 'pod-single': ['pod', { stationPoints: 1 }], 'pod-notunnel': ['pod', { tunnelling: 'off' }],
-  shuttle: ['shuttle', {}], 'shuttle-decant': ['shuttle', { autoDecant: 1 }],
+  shuttle: ['shuttle', {}], 'shuttle-decant': ['shuttle', { autoDecant: 1 }], 'shuttle-robots': ['shuttle', { transport: 'robots' }],
   crane: ['crane', {}], 'crane-single': ['crane', { handlerSlots: 1 }],
   acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],
   sort: ['sort', {}], 'sort-tray': ['sort', { mechanism: 'tray' }],

@@ -34,6 +34,8 @@
     // a type may give the control room its own map (RailRunner draws levels × aisles)
     get grid() { return this.sim.mapGrid || this.sim.grid; }
 
+    // map rows below a robot's floor row: a map that shows more than the floor (RailRunner with robots) moves the floor down
+    dy(r) { return r.claims ? this.grid.floorDY || 0 : 0; }
     mapGeom(w, h) {
       const g = this.grid, pad = 18;
       const s = Math.min((w - pad * 2) / g.W, (h - pad * 2 - 14) / (g.D + 0.6));
@@ -42,7 +44,7 @@
     pickMap(mx, my) {
       const g = this.grid, r = this.map.getBoundingClientRect(), m = this.mapGeom(r.width, r.height);
       for (const rb of this.sim.fleet) {
-        const cx = m.ox + (rb.rx + 0.5) * m.s, cy = m.oy + (rb.ry + 0.5) * m.s;
+        const cx = m.ox + (rb.rx + 0.5) * m.s, cy = m.oy + (rb.ry + this.dy(rb) + 0.5) * m.s;
         if (Math.abs(mx - cx) < m.s * 0.5 && Math.abs(my - cy) < m.s * 0.5) return { kind: 'robot', id: rb.id };
       }
       const x = Math.floor((mx - m.ox) / m.s), y = Math.floor((my - m.oy) / m.s);
@@ -85,14 +87,15 @@
         c.fillStyle = ch.down ? '#ef4444' : '#4ade80'; c.font = '700 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; c.fillText(ch.down ? '✕' : '⚡', m.ox + (ch.x + 0.5) * s, m.oy + (ch.y + 0.5) * s);
       }
       // claims and paths (robots only)
+      const F = sim.grid; // robots' cells are floor cells
       for (const r of sim.fleet) {
-        const col = WS.stateColor(this.sim, r.displayState);
+        const col = WS.stateColor(this.sim, r.displayState), dy = this.dy(r);
         c.strokeStyle = col; c.globalAlpha = 0.6; c.lineWidth = 1;
-        if (r.claims) for (const i of r.claims) { if (g.cx(i) === r.x && g.cy(i) === r.y) continue; c.strokeRect(m.ox + g.cx(i) * s + 2.5, m.oy + g.cy(i) * s + 2.5, s - 5, s - 5); }
+        if (r.claims) for (const i of r.claims) { if (F.cx(i) === r.x && F.cy(i) === r.y) continue; c.strokeRect(m.ox + F.cx(i) * s + 2.5, m.oy + (F.cy(i) + dy) * s + 2.5, s - 5, s - 5); }
         if (r.path && r.op && r.op.op === 'move') {
           c.globalAlpha = 0.5; c.lineWidth = 1.5; c.beginPath();
-          c.moveTo(m.ox + (r.rx + 0.5) * s, m.oy + (r.ry + 0.5) * s);
-          for (let k = r.pi + 1; k < r.path.length; k++) c.lineTo(m.ox + (r.path[k].x + 0.5) * s, m.oy + (r.path[k].y + 0.5) * s);
+          c.moveTo(m.ox + (r.rx + 0.5) * s, m.oy + (r.ry + dy + 0.5) * s);
+          for (let k = r.pi + 1; k < r.path.length; k++) c.lineTo(m.ox + (r.path[k].x + 0.5) * s, m.oy + (r.path[k].y + dy + 0.5) * s);
           c.stroke();
         }
         c.globalAlpha = 1;
@@ -109,7 +112,7 @@
       // robots
       const sel = this.app.ui.selection;
       for (const r of sim.fleet) {
-        const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha;
+        const x = r.prx + (r.rx - r.prx) * alpha, y = r.pry + (r.ry - r.pry) * alpha + this.dy(r);
         const col = WS.stateColor(this.sim, r.displayState), px = m.ox + x * s, py = m.oy + y * s;
         if (r.busy && !r.down) { c.strokeStyle = `rgba(239,68,68,${(0.5 + 0.5 * Math.sin(t * 6)).toFixed(2)})`; c.lineWidth = 2; c.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1); }
         c.fillStyle = col; WS.roundRect(c, px + s * 0.14, py + s * 0.14, s * 0.72, s * 0.72, 3); c.fill();

@@ -72,6 +72,7 @@
     cx(i) { return i % this.W; }
     cy(i) { return (i / this.W) | 0; }
     inside(x, y) { return x >= 0 && y >= 0 && x < this.W && y < this.D; }
+    colX(a, part) { return a * 4 + part; } // map column of an aisle's part
     passable() { return false; }
     // map cell → { aisle, level, part } with part 0/2 = rack side, 1 = lane, 3 = front column
     at(i) {
@@ -94,8 +95,22 @@
     // ---------- a type supplies ----------
     // rackShape(): { Z0, frontBays } · aisleLoad(aisle) / levelLoad(aisle, l)
     // for the storage policy · slotRank(l, s, b): 0 = fastest position, 1 = slowest
-    createGrid() { return new Racking(this.cfg, this.rackShape()); }
-    createMap() { return new RackMap(this); }
+    // With cfg.transport 'robots' mobile robots carry the totes instead of
+    // the loop (WS.ToteBots, js/sim/totebots.js): the floor in front of the
+    // racking becomes a robot floor, and sim.bots runs the robots.
+    createGrid() { return this.cfg.transport === 'robots' ? new WS.RobotRacking(this.cfg, this.rackShape()) : new Racking(this.cfg, this.rackShape()); }
+    createMap() { return this.bots ? new WS.RobotRackMap(this) : new RackMap(this); }
+    get taskTypes() { return this.bots ? WS.ToteBotTasks : {}; }
+    seed() {
+      if (this.cfg.transport === 'robots') this.bots = new WS.ToteBots(this);
+      super.seed();
+      if (this.bots) this.bots.createRobots();
+    }
+    // the map cell of a stored tote: its rack side's column at its level
+    place(bin, a, l, s, b) { super.place(bin, a, l, s, b); bin.x = this.mapGrid.colX(a, s * 2); }
+    // a type's dispatch() ends with this
+    dispatchRobots() { if (this.bots) this.bots.dispatch(); }
+    tick() { super.tick(); if (this.bots) this.bots.tick(); }
     newAisle() { return { inQ: [] }; } // returning totes waiting for the aisle's machines
     sideFill(a, l, s) { return this.aisles[a].count[l * 2 + s] / this.grid.SB; }
     // a tote 0.8 cells across and 0.6 along the aisle, as in the racking
@@ -108,6 +123,11 @@
       const g = this.grid, x = g.outX(a), px = port.drop.x + 0.5;
       return [{ x, y: y0 }, { x, y: g.nearY }, { x: g.loopX0, y: g.nearY }, { x: g.loopX0, y: g.farY }, { x: px, y: g.farY }, { x: px, y: g.D }];
     }
+    // A machine puts a tote for a station on aisle a's outfeed at y: onto
+    // the loop, or onto the aisle's stand for a robot.
+    sendOut(a, bin, port, y) { return this.bots ? this.bots.toStand(a, bin, port, y) : this.toPort(bin, this.outPath(a, port, y), port); }
+    // Room for a machine to send another tote out of aisle a.
+    outRoom(aisle) { return this.bots ? this.bots.outRoom(aisle.a) : this.loopRoom() > 0; }
     // From a station along the far line, round the right end and along the
     // near line to aisle a's infeed, up to where its machine takes the tote.
     returnPath(port, a) {
@@ -127,6 +147,7 @@
     // The conveyor runs, as point lists in the direction they carry totes (for the views).
     preZoneLines() {
       const g = this.grid, x0 = g.loopX0, x1 = g.loopX1, y = this.ioConveyorY();
+      if (this.bots) return this.aisles.flatMap((aisle) => [[{ x: g.outX(aisle.a), y }, { x: g.outX(aisle.a), y: g.handY }], [{ x: g.inX(aisle.a), y: g.handY }, { x: g.inX(aisle.a), y }]]); // the stands
       const lines = [[{ x: x1, y: g.nearY }, { x: x0, y: g.nearY }], [{ x: x0, y: g.nearY }, { x: x0, y: g.farY }], [{ x: x0, y: g.farY }, { x: x1, y: g.farY }], [{ x: x1, y: g.farY }, { x: x1, y: g.nearY }]];
       for (const aisle of this.aisles) lines.push([{ x: g.outX(aisle.a), y }, { x: g.outX(aisle.a), y: g.nearY }], [{ x: g.inX(aisle.a), y: g.nearY }, { x: g.inX(aisle.a), y }]);
       for (const p of this.ports) lines.push([{ x: p.drop.x + 0.5, y: g.farY }, { x: p.drop.x + 0.5, y: g.D }], [{ x: p.drop.x + 1.5, y: g.D }, { x: p.drop.x + 1.5, y: g.farY }]);
@@ -140,6 +161,7 @@
     // infeed it joins the queue the aisle's machines take from (it stays on
     // the conveyor until one does).
     returnTote(port, bin) {
+      if (this.bots) return this.bots.toStub(port, bin);
       const dest = this.chooseSlot(bin);
       this.aisles[dest.a].resv[this.si(dest.l, dest.s, dest.b)] = true;
       const it = this.convey(bin, this.returnPath(port, dest.a), null, true, {
@@ -161,6 +183,7 @@
     // a station goes round once more and tries again; a returning tote goes
     // to the next aisle with room on its infeed, or round once more.
     routeConveyors() {
+      if (this.bots) return;
       for (const it of this.conv.slice()) {
         if (it.turn || !(it.port || it.dest)) continue;
         if (this.convTo(it, it.path.length - 2) - it.s > 1) continue;
@@ -210,7 +233,7 @@
       const g = this.grid, T = this.convTote(), p = 2 * T.d + T.gap;
       return Math.floor((g.nearY - p - this.ioEnd() - this.infeedHold) / p + 1e-6) + 1;
     }
-    infeedRoom(aisle) { return this.infeedCap() - (aisle.ioHeld || 0) - this.conv.filter((it) => it.turn && it.dest && it.dest.a === aisle.a).length; }
+    infeedRoom(aisle) { if (this.bots) return this.bots.inRoom(aisle); return this.infeedCap() - (aisle.ioHeld || 0) - this.conv.filter((it) => it.turn && it.dest && it.dest.a === aisle.a).length; }
     // From the turn-off a tote has passed, once more round the loop to the spur
     // at x ending at y: from the far line ('far', running right) or the near line.
     lapTail(line, x, y) {
@@ -243,10 +266,20 @@
       const g = this.grid, T = this.convTote(), len = 2 * (g.loopX1 - g.loopX0) + 2 * (g.farY - g.nearY);
       return Math.floor(share * len / (2 * T.w + T.gap)) - this.conv.filter((it) => !it.turn).length;
     }
-    portOutOk() { return this.loopRoom(0.9) > 0; }
+    portOutOk() { return this.bots ? true : this.loopRoom(0.9) > 0; }
+    // With robots every tote leaving a station waits at the end of its
+    // outfeed; the robot that takes it brings it on to the next station or back.
+    onPortOut(port, bin) {
+      if (!this.bots) return super.onPortOut(port, bin);
+      port.takeOut();
+      port.leaving = this.returnTote(port, bin);
+    }
     // Storage position for a returning tote: fast movers in the fastest
     // positions, spread over the aisles (and levels) with the least work queued.
-    aisleLoad(aisle) { return aisle.inQ.length + this.conv.filter((it) => it.back && !it.joined).length / this.cfg.aisles; }
+    aisleLoad(aisle) {
+      if (this.bots) return aisle.inQ.length + this.bots.heading(aisle.a);
+      return aisle.inQ.length + this.conv.filter((it) => it.back && !it.joined).length / this.cfg.aisles;
+    }
     levelLoad() { return 0; }
     chooseSlot(bin, ok) {
       const c = this.cfg, pol = c.putawayPolicy;

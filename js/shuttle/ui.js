@@ -23,23 +23,26 @@
         <div class="row2">${num('portInboundCap', 'Totes in flight per station', 1, 1, 12)}${num('toteSlots', 'Put-wall slots', 1, 2, 12)}</div>
         <div class="row2">${num('bufferSize', 'Level buffer (totes)', 1, 1, 4)}${num('stockedRatio', 'Share of totes stocked', 0.05, 0.1, 0.95)}</div>
         <div class="row2">${num('shuttleV', 'Shuttle speed (m/s)', 0.1, 0.5, 6)}${num('shuttleA', 'Shuttle accel. (m/s²)', 0.1, 0.3, 5)}</div>
-        <div class="row2">${num('liftV', 'Lift speed (m/s)', 0.1, 0.5, 8)}${num('liftA', 'Lift accel. (m/s²)', 0.1, 0.5, 10)}</div>`,
+        <div class="row2">${num('liftV', 'Lift speed (m/s)', 0.1, 0.5, 8)}${num('liftA', 'Lift accel. (m/s²)', 0.1, 0.5, 10)}</div>
+        ${WS.BotUI.settings(c, num, sel)}`,
         about: `Shuttle AS/RS: ${c.aisles} aisles of racking, ${c.levels} levels high and ${c.bays} bays long on each side, totes stored single deep. Every level has its own shuttle (captive); it pulls a tote, drives it to the front of the aisle and drops it in the level's outbound buffer, a short conveyor to the lift. The aisle's lift rolls it off onto the aisle's outfeed, and the one-way pre-zone loop carries it to a station; a tote whose station has no room goes round the loop again. Returning totes go to the aisle with the least work and queue on its infeed (when it is full, they go on to the next aisle with room); the lift brings the one at the head up to an inbound buffer and the shuttle puts it away. The lift serves the longest-waiting tote first and combines a put-away with a retrieval on the same level. Not modelled yet: roaming shuttles, double-deep storage, tote sequencing on the conveyor. Barcodes: GS1 GTIN-13 on items, GS1-128 GRAI on totes, GS1-128 SSCC on shipping labels.`,
       };
     },
     live: ['putawayPolicy', 'handlerTime', 'liftTransfer'],
     position(r) {
+      if (r.claims) return WS.BotUI.position(r);
       const g = r.sim.grid;
       if (r.axis === 'y') return `Aisle ${r.a + 1} · level ${r.l + 1} · bay ${Math.max(1, Math.round(r.pos + 0.5))}`;
       return `Aisle ${r.a + 1} · ${r.z <= g.ioZ + 0.05 ? 'at the conveyor (I/O)' : 'level ' + (Math.round((r.z - g.Z0) / g.LH) + 1)}`;
     },
-    speed(r) { const c = r.sim.cfg; return r.v * (r.axis === 'y' ? c.cellSize : 0.33); },
-    motion(r) { return r.axis === 'y' ? 'shuttle on rails' : 'lift'; },
-    mechanism(r) { return `<dt>${r.axis === 'y' ? 'Load handler' : 'Transfer'}</dt><dd>${r.state === 'HANDLING' ? 'moving a tote' : 'idle'}</dd>`; },
+    speed(r) { if (r.claims) return WS.BotUI.speed(r); const c = r.sim.cfg; return r.v * (r.axis === 'y' ? c.cellSize : 0.33); },
+    motion(r) { if (r.claims) return WS.BotUI.motion(r); return r.axis === 'y' ? 'shuttle on rails' : 'lift'; },
+    mechanism(r) { if (r.claims) return WS.BotUI.mechanism(r); return `<dt>${r.axis === 'y' ? 'Load handler' : 'Transfer'}</dt><dd>${r.state === 'HANDLING' ? 'moving a tote' : 'idle'}</dd>`; },
     power() { return 'rail powered, no charging'; },
     liftsLabel: 'totes delivered',
     taskText(ui, r) {
       const t = r.task, sim = ui.sim;
+      if (r.claims) return WS.BotUI.taskText(ui, r);
       if (t.type === 'RETRIEVE') return `Retrieve ${t.bin.id} → ${sim.ports[t.port].code}`;
       if (t.type === 'STORE') return `Put away ${t.bin.id}`;
       if (t.type === 'OUT') return `Bring ${t.bin.id} down`;

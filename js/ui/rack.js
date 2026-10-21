@@ -17,4 +17,31 @@
     depthTag(depth) { return 'bay ' + depth; },
     cellWord: 'rack position',
   };
+
+  // Transport robots between the racking and the stations (WS.ToteBots):
+  // what the fleet table and the robot inspector say about them.
+  WS.BotUI = {
+    // the transport setting, and the robots' when they carry the totes
+    settings(c, num, sel) {
+      return `<div class="row2">${sel('transport', 'Transport to the stations', [['loop', 'Conveyor loop'], ['robots', 'Mobile robots']])}${c.transport === 'robots' ? num('transportRobots', 'Robots per station', 0.5, 0.5, 8) : '<div></div>'}</div>
+        ${c.transport === 'robots' ? `<div class="row2">${num('standCap', 'Totes per stand', 1, 1, 3)}${num('transferTime', 'Tote on/off a robot (s)', 0.5, 1, 10)}</div>` : ''}`;
+    },
+    position(r) {
+      const sim = r.sim, g = sim.grid, C = WS.CELL, i = g.idx(r.x, r.y), t = g.type[i], a = Math.floor(r.x / 3) + 1;
+      if (t === C.HAND) return `At aisle ${a}'s ${r.x % 3 ? 'infeed' : 'outfeed'} stand`;
+      if (t === C.PORT || t === C.PORT_OUT || t === C.LANE) { const p = sim.ports[g.portOf[i]]; return t === C.LANE ? `Queueing for ${p.code}` : `At ${p.code}'s ${t === C.PORT ? 'infeed' : 'outfeed'}`; }
+      if (t === C.CHARGER) return 'On a charger';
+      if (t === C.PARK) return 'Parked';
+      return `On the ${r.y === g.wY ? 'west' : 'east'}bound lane · x ${r.x}`;
+    },
+    speed(r) { return r.v * r.sim.cfg.cellSize; },
+    motion(r) { return `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}`; },
+    mechanism(r) { return `<dt>Roller deck</dt><dd>${r.xfer ? (r.xfer.take ? 'taking a tote on' : 'rolling a tote off') : r.bin ? 'carrying a tote' : 'empty'}</dd>`; },
+    taskText(ui, r) {
+      const t = r.task, sim = ui.sim;
+      if (t.type !== 'CARRY') return { CHARGE: 'Charging', PARK: 'To a parking spot', YIELD: 'Making way' }[t.type] || t.type;
+      const from = t.fromPort != null ? sim.ports[t.fromPort].code : `aisle ${(t.fromKey.slice(1) | 0) + 1}`, to = t.toPort != null ? sim.ports[t.toPort].code : `aisle ${t.toStand + 1}`;
+      return `${t.bin.id}: ${from} → ${to}${t.took ? '' : ' (collecting)'}`;
+    },
+  };
 })((globalThis.WS = globalThis.WS || {}));

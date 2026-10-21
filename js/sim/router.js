@@ -24,6 +24,7 @@
     plan(r, gx, gy, avoidStopped) {
       const sim = this.sim, g = sim.grid, W = g.W, n = W * g.D;
       const start = g.idx(r.x, r.y), goal = g.idx(gx, gy);
+      if (g.oneRoute) avoidStopped = false; // a floor with one route only (a one-way ring): planning round stopped robots finds none
       if (start === goal) return [{ x: r.x, y: r.y }];
       const robots = sim.fleet;
       const cellCost = 1 / this.vmax;
@@ -46,7 +47,10 @@
         return c;
       };
       const S = n * 5; // state = cell*5 + dir (4 = no heading yet)
-      const gs = new Float32Array(S).fill(Infinity);
+      // Float32 costs make the search skip entries as stale on long routes
+      // (above about 30 s); the one-way ring needs exact ones. The other
+      // floors keep Float32 so their runs stay as they are.
+      const gs = new (g.oneRoute ? Float64Array : Float32Array)(S).fill(Infinity);
       const prev = new Int32Array(S).fill(-1);
       const h = (i) => (Math.abs((i % W) - gx) + Math.abs(((i / W) | 0) - gy)) * cellCost;
       const heap = new WS.U.Heap((a, b) => a[0] - b[0]);
