@@ -8,7 +8,7 @@
   'use strict';
   const CZ = 2.2, AZ = 2.3, RZ = 2.6, TZ = 0.95; // conveyor height, A-frame belt, tote return, order start under the A-frame (render levels)
   const RACK = [0.5, 1.4, 2.3, 3.2], RTOP = 4.05, BZ = 4.5; // the flow racks' levels, their return lane, the empty bin conveyor
-  const CUBZ = (l) => 0.3 + l * 0.58; // a level of the Cuby
+  const STOREZ = (l) => 0.3 + l * 0.58; // a level of the shuttle store
   const TOTE = { order: '#2563eb', rf: '#f59e0b', empty: '#64748b' };
   const hue = (gtin) => (parseInt(gtin.slice(7, 12), 10) * 47) % 360;
 
@@ -35,7 +35,7 @@
       this.addClosing(add);
       this.addLanes(add);
       this.addStart(add);
-      this.addCuby(add);
+      this.addStore(add);
       // order totes on the belts
       for (const b of sim.net.belts) for (const t of b.totes) {
         const x = t.px + (t.x - t.px) * alpha, y = t.py + (t.y - t.py) * alpha, z = this.beltZ(b, t.s);
@@ -465,51 +465,65 @@
       add(rx + ry, () => { for (let k = 0; k < Math.min(12, Math.ceil(r / 8)); k++) this.box(rx - 0.3, ry - 0.4, 0.1 + k * 0.28, rx + 0.3, ry + 0.4, 0.36 + k * 0.28, '#475569', { top: '#64748b' }); });
     }
 
-    // ---------------------------------------------------------------- the Cuby
-    // The shuttle store: per aisle a rack either side, a yellow shuttle on
-    // each level, the lift at the west end; the bin conveyors to the backs of
-    // the flow racks and the bins on them.
-    addCuby(add) {
-      const sim = this.sim, g = sim.grid, c = sim.cfg, cb = sim.cuby, now = sim.time, x0 = g.CX0, x1 = g.CX1, lift = g.CX0 - 0.5, top = CUBZ(c.cubyLevels);
-      const busy = new Map();
-      for (const j of cb.jobs) if (now >= j.t0 && now <= j.t1) busy.set(j.a * 100 + j.level, j);
-      for (let a = 0; a < c.cubyAisles; a++) {
-        const ay = g.CY0 + g.CW * (a + 0.5);
+    // ---------------------------------------------------------------- the shuttle store
+    // Per aisle a rack either side, a shuttle on each level and a lift at
+    // each end, where the simulation's timelines put them; the bin conveyors
+    // to the backs of the flow racks and to the zones' replenishment point,
+    // and the bins on them.
+    addStore(add) {
+      const sim = this.sim, g = sim.grid, c = sim.cfg, st = sim.store, now = sim.time, x0 = g.CX0, x1 = g.CX1, top = STOREZ(c.storeLevels);
+      for (const A of st.aisles) {
+        const ay = A.y;
         for (const s of [-1, 1]) {
           const ya = ay + s * 0.45, yb = ay + s * 1.25;
           for (let bx = x0; bx < x1 - 1e-6; bx += 2) {
             const xb = Math.min(x1, bx + 2);
             add(bx + Math.max(ya, yb) - 0.2, () => {
               this.box(bx, Math.min(ya, yb), 0, xb, Math.max(ya, yb), top, '#8e98a5', { top: '#a3acb7', left: '#7c8794', right: '#6b7683' });
-              for (let l = 1; l < c.cubyLevels; l += 1) this.line(this.P(bx, s > 0 ? yb : ya, CUBZ(l)), this.P(xb, s > 0 ? yb : ya, CUBZ(l)), 'rgba(15,23,42,0.35)', 1);
+              for (let l = 1; l < c.storeLevels; l++) this.line(this.P(bx, s > 0 ? yb : ya, STOREZ(l)), this.P(xb, s > 0 ? yb : ya, STOREZ(l)), 'rgba(15,23,42,0.35)', 1);
             });
           }
         }
-        // the shuttles on the top levels show over the racks; the rest in the aisle
+        // the shuttles in the aisle and the lifts' carriages
         add(x0 + ay + 0.1, () => {
-          for (let l = 0; l < c.cubyLevels; l++) {
-            const j = busy.get(a * 100 + l), home = x0 + 0.35 + (((a * 7 + l * 5) % 9) / 9) * (x1 - x0 - 1);
-            let x = home;
-            if (j) { const half = (j.t1 - j.t0 - 5) / 2, t = now - j.t0; x = t < half ? x0 + 0.35 + (j.sx - x0 - 0.35) * (t / half) : t < 2 * half ? j.sx + (x0 + 0.35 - j.sx) * ((t - half) / half) : x0 + 0.35; }
-            this.box(x - 0.3, ay - 0.36, CUBZ(l) + 0.05, x + 0.3, ay + 0.36, CUBZ(l) + 0.25, '#ca8a04', { top: '#facc15' });
+          for (const S of A.shuttles) {
+            const q = sim.storeAt(S, now), z = STOREZ(S.lv) + 0.05;
+            this.box(q.p - 0.3, ay - 0.36, z, q.p + 0.3, ay + 0.36, z + 0.2, '#0f766e', { top: '#2dd4bf' });
+            if (q.bin) this.box(q.p - 0.2, ay - 0.16, z + 0.2, q.p + 0.2, ay + 0.16, z + 0.6, '#8e98a5', { top: q.bin.full ? `hsl(${hue(q.bin.gtin)},45%,58%)` : '#a3acb7' });
           }
-          this.box(lift - 0.4, ay - 0.45, 0, lift + 0.4, ay + 0.45, top + 0.5, '#b91c1c', { top: '#dc2626' });
+        });
+        for (const L of [A.lifts.w, A.lifts.e]) add(L.x + ay + 0.5, () => {
+          for (const dy of [-0.4, 0.4]) this.box(L.x - 0.06, ay + dy - 0.06, 0, L.x + 0.06, ay + dy + 0.06, top + 0.55, '#64748b');
+          const q = sim.storeAt(L, now), z = STOREZ(q.p);
+          this.box(L.x - 0.34, ay - 0.36, z - 0.14, L.x + 0.34, ay + 0.36, z, '#334155', { top: '#475569' });
+          if (q.bin) this.box(L.x - 0.2, ay - 0.16, z, L.x + 0.2, ay + 0.16, z + 0.4, '#8e98a5', { top: q.bin.full ? `hsl(${hue(q.bin.gtin)},45%,58%)` : '#a3acb7' });
         });
       }
       // the bin conveyors, full bins low and empty ones high
-      const cy = (a) => g.CY0 + g.CW * (a + 0.5), last = cy(c.cubyAisles - 1);
+      const cy = (a) => g.CY0 + g.CW * (a + 0.5), na = c.storeAisles, last = cy(na - 1), lift = g.CX0 - 0.5;
+      const conv = (pts, z) => add(Math.min(pts[0].x + pts[0].y, pts[1].x + pts[1].y) - 0.3, () => this.conveyor(pts, 0.5, z, '#3b4a5e', { legs: true }));
       for (const [x, z] of [[g.BX, CZ], [g.EX, BZ]]) {
-        const lines = [[{ x, y: last }, { x, y: g.AY - g.BK }], ...[-1, 1].map((s) => [{ x, y: g.AY + s * g.BK }, { x: x1 + 0.3, y: g.AY + s * g.BK }])];
-        for (let a = 0; a < c.cubyAisles; a++) lines.push([{ x: lift - 0.3, y: cy(a) }, { x, y: cy(a) }]);
-        for (const pts of lines) add(Math.min(pts[0].x + pts[0].y, pts[1].x + pts[1].y) - 0.3, () => this.conveyor(pts, 0.5, z, '#3b4a5e', { legs: true }));
+        conv([{ x, y: last }, { x, y: g.AY - g.BK }], z);
+        for (const s of [-1, 1]) conv([{ x, y: g.AY + s * g.BK }, { x: x1 + 0.3, y: g.AY + s * g.BK }], z);
+        for (let a = 0; a < na; a++) conv([{ x: lift - 0.3, y: cy(a) }, { x, y: cy(a) }], z);
       }
-      for (const m of cb.moving) {
+      for (const z of [CZ, BZ]) {
+        for (let a = 0; a < na; a++) conv([{ x: g.CX1 + 0.8, y: cy(a) }, { x: g.ZX, y: cy(a) }], z);
+        conv([{ x: g.ZX, y: cy(0) }, { x: g.ZX, y: g.ZY }], z); conv([{ x: g.ZX, y: g.ZY }, { x: g.ZEND, y: g.ZY }], z);
+      }
+      add(g.ZEND + g.ZY, () => {
+        this.box(g.ZEND, g.ZY - 0.35, CZ - 0.3, g.ZEND + 1.6, g.ZY + 0.35, CZ - 0.05, '#334155', { top: '#475569' });
+        st.point.forEach((p, k) => { if (k < 3) this.box(g.ZEND + 0.1 + k * 0.5, g.ZY - 0.16, CZ, g.ZEND + 0.5 + k * 0.5, g.ZY + 0.16, CZ + 0.4, '#8e98a5', { top: `hsl(${hue(p.gtin)},45%,58%)` }); });
+      });
+      for (const m of st.moving) {
         if (now < m.t0) continue;
         let d = Math.min(m.len, ((now - m.t0) / (m.t1 - m.t0)) * m.len), k = 1;
         const seg = (k) => Math.hypot(m.path[k].x - m.path[k - 1].x, m.path[k].y - m.path[k - 1].y);
         while (k < m.path.length - 1 && d > seg(k)) { d -= seg(k); k++; }
         const p0 = m.path[k - 1], p1 = m.path[k], f = Math.min(1, d / (seg(k) || 1)), x = p0.x + (p1.x - p0.x) * f, y = p0.y + (p1.y - p0.y) * f;
-        const lane = m.full ? k === m.path.length - 1 : k === 1, zl = m.full ? RACK[m.ch.slot % 4] : RTOP, z = lane ? (m.full ? CZ + (zl - CZ) * f : zl + (BZ - zl) * f) : m.full ? CZ : BZ, hh = hue(m.ch.comps[0].gtin);
+        let z = m.full ? CZ : BZ;
+        if (m.to === 'af') { const lane = m.full ? k === m.path.length - 1 : k === 1, zl = m.full ? RACK[m.ch.slot % 4] : RTOP; if (lane) z = m.full ? CZ + (zl - CZ) * f : zl + (BZ - zl) * f; }
+        const hh = hue(m.gtin);
         add(x + y + 0.3, () => this.box(x - 0.2, y - 0.16, z, x + 0.2, y + 0.16, z + 0.4, '#8e98a5', { top: m.full ? `hsl(${hh},45%,58%)` : '#a3acb7' }));
       }
     }
@@ -517,7 +531,7 @@
     drawLabels() {
       const sim = this.sim, g = sim.grid, bg = 'rgba(15,23,42,0.82)';
       this.text(`A-FRAME · ${sim.channels.length} channels${sim.afRunning || !sim.windows.length ? '' : ' · BELT WAITING'}`, g.AX + g.afLen / 2, g.AY, 7.4, { size: 10, bg, color: '#7dd3fc' });
-      this.text('CUBY', g.CX0 + 2, g.CY0 + 0.3, CUBZ(sim.cfg.cubyLevels) + 0.8, { size: 10, bg, color: '#fde047' });
+      this.text('SHUTTLE STORE', g.CX0 + 2, g.CY0 + 0.3, STOREZ(sim.cfg.storeLevels) + 0.8, { size: 10, bg, color: '#5eead4' });
       this.text('ORDER START', g.OSX, g.AY + 1.2, 0.5, { size: 10, bg, color: '#86efac' });
       for (const z of sim.zones) this.text(`${z.port.code} · ${z.kind === 'carousel' ? 'CAROUSELS' : z.idx === 0 ? 'PICK-TO-LIGHT · COMPLETION' : 'PICK-TO-LIGHT'} · ${z.in.totes.length}/${sim.cfg.spurTotes}${z.port.away ? ' · BREAK' : ''}`, z.dx - 1.5, g.LB + 1.2, 3.8, { size: 10, bg, color: '#fdba74' });
       this.text(`LOOP ${Math.round(sim.loopFill() * 100)}%`, g.LX + 2, g.LB - 0.5, 3.2, { size: 10, bg, color: '#e2e8f0' });

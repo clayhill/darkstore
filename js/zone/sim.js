@@ -25,7 +25,8 @@
   };
   const TIP = 1.0, PUT = 2.0, CHANNEL_PITCH = 0.1; // s the window takes to tip into the tote; s an RF picker takes to put a tote on the belt; m per A-frame channel
   const CARO_PITCH = 0.4; // m of carousel ring per carrier (one product each)
-  const FETCH = 6; // s of a refill the operator takes to get the carton from the reserve rack
+  const FETCH = 6; // s of a refill the operator takes to get the bin from the flow rack
+  const LEVEL_H = 0.35, CONV_LV = 3.28, BACK_LV = 7.24; // m between the shuttle store's levels; the levels at which the bin conveyors and the empty-bin conveyors meet its lifts
 
   // ---------------------------------------------------------------- catalogue
   const BASES = ['Paracetamol 500 mg', 'Paracetamol 1 g', 'Ibuprofen 200 mg', 'Ibuprofen 400 mg', 'Acetylsalicylic acid 100 mg', 'Naproxen 250 mg', 'Diclofenac gel 1%', 'Omeprazole 20 mg', 'Pantoprazole 40 mg', 'Esomeprazole 20 mg',
@@ -47,7 +48,7 @@
   // from the back: the tote return conveyor, the A-frame with a walkway on
   // each side for the refill operators, behind each walkway a flow rack of
   // reserve bins with the bin conveyors behind it, and below the A-frame the
-  // Cuby shuttle store the bins come from. Order start is past the end of
+  // shuttle store the bins come from. Order start is past the end of
   // the A-frame: its totes pass under the A-frame's hopper on their way to
   // the loop, with the zone spurs below it; to its right
   // the merge, the closing line and the shipping sorter with the route
@@ -57,16 +58,17 @@
       const cs = cfg.cellSize, afLen = (2 + (cfg.afChannels / 2) * CHANNEL_PITCH) / cs, AX = 4, tipX = AX + afLen + 0.7;
       const nz = cfg.ptlZones + (cfg.carousels > 0 ? 1 : 0), LX = Math.max(26, Math.ceil(tipX) - 2), RX = LX + 8 * nz + 8, LT = 7, LB = 13, SD = 4;
       const SX = RX + 25, laneY = (r) => LT + 3 + 2.8 * r, na = cfg.rfAisles, rfLevels = 5, bays = Math.max(2, Math.ceil(cfg.rfLocations / (na * 2 * rfLevels)));
-      const AY = 4.5, CY0 = AY + 6.4, CW = 2.6; // the A-frame's belt; the Cuby's first aisle and aisle pitch
+      const AY = 4.5, CY0 = AY + 6.4, CW = 2.6; // the A-frame's belt; the shuttle store's first aisle and aisle pitch
       const RFX = RX + 3, RFY = LB + 1, caroEnd = LB + SD + 1.7 + 1.6 + Math.max(1, (cfg.carouselShelves * CARO_PITCH / cs - 2 * Math.PI * 0.8) / 2);
-      const W = Math.ceil(SX + 20), D = Math.ceil(Math.max(laneY(cfg.routes - 1) + 3, RFY + bays + 5, LB + SD + 9, cfg.carousels > 0 ? caroEnd + 1.5 : 0, CY0 + CW * cfg.cubyAisles + 1));
+      const W = Math.ceil(SX + 20), D = Math.ceil(Math.max(laneY(cfg.routes - 1) + 3, RFY + bays + 5, LB + SD + 9, cfg.carousels > 0 ? caroEnd + 1.5 : 0, CY0 + CW * cfg.storeAisles + 2));
       super(W, D, M.FLOOR);
       Object.assign(this, { cfg, AX, afLen, tipX, nz, LX, RX, LT, LB, SD, SX, RFX, RFY, na, rfLevels, bays, laneY, caroEnd });
       this.AY = AY; this.SY = AY + 1.6; // A-frame belt; the feed from the tip position to the loop
       this.WK = 1.35; this.RK = 2.2; this.BK = 2.9; // the walkways, the reserve flow racks and the bin conveyors behind them, either side of the A-frame
       this.OSX = tipX + 3; // order start: the de-stacker, past the end of the A-frame
-      // the Cuby: aisles along the A-frame, a lift at the west end of each; the bin conveyor out of it and the one for empty bins back
-      Object.assign(this, { CY0, CW, CX0: AX, CX1: AX + afLen, BX: 1.6, EX: 0.9 });
+      // the shuttle store: aisles along the A-frame, a lift at each end; the bin conveyor out of the west lifts and the one for empty bins
+      // back; from the east lifts the conveyor to the zones' replenishment point
+      Object.assign(this, { CY0, CW, CX0: AX, CX1: AX + afLen, BX: 1.6, EX: 0.9, ZX: AX + afLen + 1.6, ZY: CY0 + CW * cfg.storeAisles + 0.8, ZEND: LX + 1.5 });
       this.what = new Int16Array(W * D).fill(-1); // what a map cell shows: index into sim.things
       // the zones on the loop, then the other places where people or machines work, as stations
       const box = (x0, y0, x1, y1) => [{ x: Math.floor(x0), y: Math.floor(y0) }, { x: Math.floor(x1), y: Math.floor(y1) }];
@@ -354,7 +356,14 @@
       // tote return: back along the far wall to the tote-emptying machine and the de-stacker
       B.ret = net.belt('tote return', [{ x: SX + 9, y: 0.6 }, { x: g.OSX + 0.8, y: 0.6 }], { exit: (t) => this.atEmptier(t), kind: 'return' });
       this.emptier = { x: g.OSX, y: 0.6, tote: null, t: 0, cycles: 0 };
-      this.cuby = { aisles: [...Array(cfg.cubyAisles)].map((_, a) => ({ a, y: g.CY0 + g.CW * (a + 0.5), free: 0, out: 0 })), queue: [], jobs: [], moving: [], retrieved: 0, stored: 0 };
+      this.store = {
+        aisles: [...Array(cfg.storeAisles)].map((_, a) => ({
+          a, y: g.CY0 + g.CW * (a + 0.5),
+          lifts: { w: { lift: true, x: g.CX0 - 0.5, lv: CONV_LV, free: 0, segs: [] }, e: { lift: true, x: g.CX1 + 0.5, lv: CONV_LV, free: 0, segs: [] } },
+          shuttles: [...Array(cfg.storeLevels)].map((_, l) => ({ lv: l, x: g.CX0 + 0.5 + (((a * 7 + l * 5) % 9) / 9) * (g.CX1 - g.CX0 - 1), free: 0, segs: [] })),
+        })),
+        queue: [], zq: [], moving: [], point: [], out: 0, stored: 0, n: 0,
+      };
       this.markFloor();
     }
     rfDepot() { const g = this.grid; return { x: g.RFX + 0.6, y: g.RFY - 0.6 }; }
@@ -376,10 +385,11 @@
       for (const lane of this.lanes) g.mark(g.SX + 0.5, lane.y - 0.8, g.SX + 11, lane.y + 1.2, M.LANE, thing({ kind: 'lane', lane, fill: (mix) => mix('#2a2208', '#f59e0b', Math.min(1, lane.stack.length / this.cfg.vanCapacity)) }));
       g.mark(g.OSX - 0.6, g.AY - 0.7, g.OSX + 0.6, g.AY + 0.7, M.STACK, thing({ kind: 'start' }));
       g.mark(g.OSX - 0.7, 0, g.OSX + 0.6, 1.2, M.MACHINE, thing({ kind: 'start' }));
-      // the Cuby with its lifts, and the bin conveyors round to the backs of the flow racks
-      const cb = thing({ kind: 'cuby' });
-      g.mark(g.CX0 - 0.9, g.CY0, g.CX1, g.CY0 + g.CW * this.cfg.cubyAisles, M.SHELF, cb);
-      for (const [x0, y0, x1, y1] of [[g.EX - 0.3, g.AY - g.BK, g.BX + 0.3, g.CY0 + g.CW * this.cfg.cubyAisles], [g.EX - 0.3, g.AY - g.BK - 0.3, g.CX1 + 0.3, g.AY - g.BK + 0.3], [g.EX - 0.3, g.AY + g.BK - 0.3, g.CX1 + 0.3, g.AY + g.BK + 0.3]]) g.mark(x0, y0, x1, y1, M.BELT, cb);
+      // the shuttle store with its lifts, the bin conveyors round to the backs of the flow racks and to the zones' replenishment point
+      const cb = thing({ kind: 'store' }), ye = g.CY0 + g.CW * this.cfg.storeAisles;
+      g.mark(g.CX0 - 0.9, g.CY0, g.CX1 + 0.9, ye, M.SHELF, cb);
+      g.mark(g.CX1 + 0.9, g.CY0, g.ZX + 0.3, g.ZY + 0.3, M.BELT, cb); g.mark(g.ZX - 0.3, g.ZY - 0.3, g.ZEND + 0.6, g.ZY + 0.5, M.BELT, cb);
+      for (const [x0, y0, x1, y1] of [[g.EX - 0.3, g.AY - g.BK, g.BX + 0.3, ye], [g.EX - 0.3, g.AY - g.BK - 0.3, g.CX1 + 0.3, g.AY - g.BK + 0.3], [g.EX - 0.3, g.AY + g.BK - 0.3, g.CX1 + 0.3, g.AY + g.BK + 0.3]]) g.mark(x0, y0, x1, y1, M.BELT, cb);
       g.mark(g.SX + 11.2, 0, g.W, g.D, M.DOCK);
     }
 
@@ -607,44 +617,102 @@
       }
     }
 
-    // ---------------------------------------------------------------- the Cuby
-    // The shuttle store with the reserve bins of the A-frame's products: a
-    // shuttle on every level of each aisle, a lift at the aisle's end. A flow
-    // rack lane that has given up a bin asks for another; the aisle whose lift
-    // is free first sends it (its shuttle fetches the bin, the lift brings it
-    // down) and the bin conveyor carries it round to the back of the lane.
-    // Empty bins go back along the conveyor over it. The Cuby's own stock is
-    // not modelled: it always has the bin.
-    requestBin(ch) { ch.incoming++; this.cuby.queue.push(ch); }
-    stepCuby() {
-      const c = this.cfg, cb = this.cuby, g = this.grid;
-      while (cb.queue.length) {
-        const ch = cb.queue.shift(), A = cb.aisles.reduce((m, x) => (x.free < m.free ? x : m), cb.aisles[0]);
-        const t0 = Math.max(this.time, A.free), t1 = t0 + c.cubyRetrieve, level = (ch.slot * 7 + ch.refills * 3 + ch.side) % c.cubyLevels;
-        const sx = g.CX0 + 1 + (((ch.slot * 37 + ch.side * 53 + ch.refills * 11) % 100) / 100) * (g.CX1 - g.CX0 - 2);
-        A.free = t0 + c.cubyCycle; A.out++;
-        cb.jobs.push({ a: A.a, level, sx, t0, t1, ch });
-        const path = this.binPath(A, ch, true), len = this.pathLen(path), v = c.conveyorSpeed / c.cellSize;
-        const m = { ch, full: true, path, len, t0: t1, t1: t1 + len / v };
-        cb.moving.push(m);
-        this.schedule(m.t1 - this.time, () => { ch.res++; ch.incoming--; cb.retrieved++; cb.moving.splice(cb.moving.indexOf(m), 1); });
+    // ---------------------------------------------------------------- the shuttle store
+    // The store with the reserve bins: in each aisle a shuttle on every level
+    // and a lift at each end. A bin out: the level's shuttle drives to it,
+    // takes it and brings it to the lift, which comes up to meet it and takes
+    // it down to the conveyor. A bin in: the lift takes it up to a level,
+    // where that level's shuttle meets it and drives it to its place. The
+    // west lifts serve the A-frame's flow racks (a flow rack lane that has
+    // given up a bin asks for another), the east lifts the zones' top-ups,
+    // which go to the replenishment point by the zones. Every bin comes back
+    // empty and is put away again. The store's own stock is not modelled: it
+    // always has the bin, and a place for it.
+    requestBin(ch) { ch.incoming++; this.store.queue.push(ch); }
+    stepStore() {
+      const c = this.cfg, st = this.store, v = c.conveyorSpeed / c.cellSize;
+      while (st.queue.length) {
+        const ch = st.queue.shift(), out = this.retrieve('w', { gtin: ch.comps[0].gtin, full: true });
+        const path = this.binPath(out.A, ch, true), m = { ch, gtin: ch.comps[0].gtin, full: true, to: 'af', path, len: this.pathLen(path), t0: out.t };
+        m.t1 = m.t0 + m.len / v; st.moving.push(m);
+        this.schedule(m.t1 - this.time, () => { ch.res++; ch.incoming--; st.moving.splice(st.moving.indexOf(m), 1); });
       }
-      while (cb.jobs.length && cb.jobs[0].t1 < this.time - 1) cb.jobs.shift();
+      while (st.zq.length) {
+        const gtin = st.zq.shift(), out = this.retrieve('e', { gtin, full: true });
+        const path = this.zonePath(out.A), m = { gtin, full: true, to: 'zone', path, len: this.pathLen(path), t0: out.t };
+        m.t1 = m.t0 + m.len / v; st.moving.push(m);
+        this.schedule(m.t1 - this.time, () => { st.moving.splice(st.moving.indexOf(m), 1); st.point.push({ gtin, t: this.time }); });
+        // the replenisher takes it to the location; it comes back empty when the location has been topped up
+        this.schedule(c.zoneRefill, () => this.binBackFrom('e', gtin, (A) => this.zonePath(A).reverse()));
+      }
+      while (st.point.length && st.point[0].t < this.time - 90) st.point.shift();
+      const prune = (o) => { while (o.segs.length && o.segs[0].t1 < this.time - 1) o.segs.shift(); };
+      for (const A of st.aisles) { A.shuttles.forEach(prune); prune(A.lifts.w); prune(A.lifts.e); }
     }
-    // an empty bin from the top of the rack back to its aisle's lift
-    binBack(ch) {
-      const c = this.cfg, cb = this.cuby, A = cb.aisles[(ch.slot + ch.side) % cb.aisles.length], path = this.binPath(A, ch, false), len = this.pathLen(path);
-      const m = { ch, full: false, path, len, t0: this.time, t1: this.time + len / (c.conveyorSpeed / c.cellSize) };
-      cb.moving.push(m);
-      this.schedule(m.t1 - this.time, () => { cb.stored++; cb.moving.splice(cb.moving.indexOf(m), 1); });
+    shuttleTime(x0, x1) { return Math.abs(x1 - x0) > 1e-6 ? 1 + (Math.abs(x1 - x0) * this.cfg.cellSize) / this.cfg.shuttleSpeed : 0; }
+    liftTime(l0, l1) { return Math.abs(l1 - l0) > 1e-6 ? 0.8 + (Math.abs(l1 - l0) * LEVEL_H) / this.cfg.liftSpeed : 0; }
+    // a move of a shuttle (along x) or a lift (through levels) from time t, carrying bin or not; returns when it ends
+    shuttleTo(S, t, x, bin) { const t1 = t + this.shuttleTime(S.x, x); S.segs.push({ t0: t, t1, a: S.x, b: x, bin }); S.x = x; S.free = t1; return t1; }
+    liftTo(L, t, lv, bin) { const t1 = t + this.liftTime(L.lv, lv); L.segs.push({ t0: t, t1, a: L.lv, b: lv, bin }); L.lv = lv; L.free = t1; return t1; }
+    hold(o, t0, t1, bin) { if (t1 > t0) { const p = o.lift ? o.lv : o.x; o.segs.push({ t0, t1, a: p, b: p, bin }); o.free = t1; } }
+    storeSlot() { const g = this.grid, n = this.store.n++; return g.CX0 + 0.8 + (((n * 37 + 11) % 97) / 97) * (g.CX1 - g.CX0 - 1.6); }
+    // a bin out through the lift at the given end: the aisle whose lift is free first, the shuttle that is free first
+    retrieve(end, bin) {
+      const h = this.cfg.storeHand, st = this.store, A = st.aisles.reduce((m, x) => (x.lifts[end].free < m.lifts[end].free ? x : m)), L = A.lifts[end];
+      const S = A.shuttles.reduce((m, x) => (x.free < m.free ? x : m));
+      const t = this.shuttleTo(S, Math.max(this.time, S.free), this.storeSlot(), null);
+      this.hold(S, t, t + h, bin);
+      const at = this.shuttleTo(S, t + h, L.x, bin);
+      // the lift comes to the shuttle's level to be there when it arrives (or as soon as it can)
+      const up = this.liftTo(L, Math.max(this.time, L.free, at - this.liftTime(L.lv, S.lv)), S.lv, null), tx = Math.max(at, up) + h;
+      this.hold(S, at, tx, bin); this.hold(L, up, tx, null);
+      const down = this.liftTo(L, tx, CONV_LV, bin) + h;
+      this.hold(L, down - h, down, bin);
+      st.out++;
+      return { A, t: down };
     }
+    // a bin in through the lift at the given end, arriving at level inLv at time tIn; returns when the lift has it
+    putAway(end, A, bin, tIn, inLv) {
+      const h = this.cfg.storeHand, L = A.lifts[end], S = A.shuttles.reduce((m, x) => (x.free < m.free ? x : m));
+      let t = Math.max(this.time, L.free);
+      if (Math.abs(L.lv - inLv) > 1e-6) t = this.liftTo(L, Math.max(t, tIn - this.liftTime(L.lv, inLv)), inLv, null);
+      const load = Math.max(t, tIn) + h;
+      this.hold(L, t, load, null);
+      const up = this.liftTo(L, load, S.lv, bin);
+      const at = this.shuttleTo(S, Math.max(this.time, S.free, up - this.shuttleTime(S.x, L.x)), L.x, null), tx = Math.max(up, at) + h;
+      this.hold(L, up, tx, bin); this.hold(S, at, tx, null);
+      const end2 = this.shuttleTo(S, tx, this.storeSlot(), bin);
+      this.hold(S, end2, end2 + h, bin);
+      this.store.stored++;
+      return load;
+    }
+    // an empty bin back to the store: along its path to the lift of the aisle that is free first, and put away
+    binBackFrom(end, gtin, pathFor) {
+      const c = this.cfg, st = this.store, A = st.aisles.reduce((m, x) => (x.lifts[end].free < m.lifts[end].free ? x : m)), path = pathFor(A);
+      const m = { gtin, full: false, to: end === 'w' ? 'af' : 'zone', path, len: this.pathLen(path), t0: this.time };
+      m.t1 = m.t0 + m.len / (c.conveyorSpeed / c.cellSize);
+      m.until = this.putAway(end, A, { gtin, full: false }, m.t1, BACK_LV);
+      st.moving.push(m);
+      this.schedule(m.until - this.time, () => st.moving.splice(st.moving.indexOf(m), 1));
+    }
+    binBack(ch) { this.binBackFrom('w', ch.comps[0].gtin, (A) => this.binPath(A, ch, false)); }
     // out of the lift, along the bin conveyor to the back of the channel's lane and into it; or the way back for an empty one
     binPath(A, ch, full) {
-      const g = this.grid, s = ch.side ? 1 : -1, yb = g.AY + s * g.BK, yr = g.AY + s * g.RK, lift = g.CX0 - 0.5, x = full ? g.BX : g.EX;
+      const g = this.grid, s = ch.side ? 1 : -1, yb = g.AY + s * g.BK, yr = g.AY + s * g.RK, lift = A.lifts.w.x, x = full ? g.BX : g.EX;
       const p = [{ x: lift, y: A.y }, { x, y: A.y }, { x, y: yb }, { x: ch.wx, y: yb }, { x: ch.wx, y: yr }];
       return full ? p : p.reverse();
     }
+    // from an east lift to the replenishment point by the zones
+    zonePath(A) { const g = this.grid; return [{ x: A.lifts.e.x, y: A.y }, { x: g.ZX, y: A.y }, { x: g.ZX, y: g.ZY }, { x: g.ZEND, y: g.ZY }]; }
     pathLen(p) { let n = 0; for (let k = 1; k < p.length; k++) n += Math.hypot(p[k].x - p[k - 1].x, p[k].y - p[k - 1].y); return n; }
+    // where a shuttle (x) or lift (level) is at time t, eased, and the bin it carries
+    storeAt(o, t) {
+      for (const sg of o.segs) {
+        if (t < sg.t0) return { p: sg.a, bin: null };
+        if (t <= sg.t1) { const u = sg.t1 > sg.t0 ? (t - sg.t0) / (sg.t1 - sg.t0) : 1; return { p: sg.a + (sg.b - sg.a) * u * u * (3 - 2 * u), bin: sg.bin }; }
+      }
+      return { p: o.lift ? o.lv : o.x, bin: null };
+    }
 
     // ---------------------------------------------------------------- the loop
     needs(t, zone) { return t.zones.has(zone.id) && !t.done.has(zone.id); }
@@ -765,7 +833,7 @@
     ringDelta(cr, s) { const d = s * CARO_PITCH - cr.pos, R = cr.ring; return ((d % R) + R * 1.5) % R - R / 2; }
     ringDist(cr, s) { return Math.abs(this.ringDelta(cr, s)); }
 
-    // stock leaves a location; a zone location running low is topped up from the reserve store later
+    // stock leaves a location; a zone location running low is topped up from the shuttle store later
     takeUnits(bin, qty) {
       const cp = bin.comps[0], p = this.inv.byGtin.get(cp.gtin), q = Math.min(qty, cp.qty);
       cp.qty -= q; p.onHand -= q;
@@ -774,6 +842,7 @@
         const n = bin.cap - cp.qty - cp.incoming;
         cp.incoming += n; p.incoming += n;
         this.schedule(this.cfg.zoneRefill, () => { cp.incoming -= n; p.incoming -= n; cp.qty += n; p.onHand += n; });
+        this.store.zq.push(cp.gtin); // a bin of it out of the shuttle store
       }
       return q;
     }
@@ -1098,7 +1167,7 @@
       this.stepMachines(dt);
       this.stepVans();
       this.stepRefillers(dt);
-      this.stepCuby();
+      this.stepStore();
       this.stepPickers(dt);
       this.updateStatuses();
     }

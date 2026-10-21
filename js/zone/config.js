@@ -30,11 +30,11 @@
     refillTime: 30, refillOps: 2, // s to take a reserve bin from the flow rack and fill a channel from it; refill operators
     walkSpeed: 1.1, // m/s
     // Reserve: each channel's lane in the flow rack behind the walkway holds
-    // bins of its product; the Cuby shuttle store sends a new one for each
-    // bin taken
+    // bins of its product; the shuttle store sends a new one for each bin
+    // taken, and the bins for the zones' top-ups
     reserveBins: 2, // bins a lane holds
-    cubyAisles: 3, cubyLevels: 10, // shuttle aisles (each with its lift), levels (a shuttle each)
-    cubyRetrieve: 25, cubyCycle: 8, // s from a request to the bin leaving the lift; s between bins out of one lift
+    storeAisles: 3, storeLevels: 10, // shuttle store aisles (a lift at each end), levels (a shuttle each)
+    shuttleSpeed: 2, liftSpeed: 1.5, storeHand: 2, // m/s, m/s, s to hand a bin over
 
     // Order start: the de-stacker feeds an empty tote and a printer labels it
     startTime: 4, // s per tote

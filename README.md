@@ -536,13 +536,13 @@ following a robot through the aisle, pick carts, picker breaks.
 
 ### ZoneHop — pharmacy wholesale
 
-![ZoneHop: the A-frame with its flow racks and the Cuby at the back, order start past its end, the conveyor loop with the pick-to-light zones and the carousels, the RF shelving, the closing line and the route lanes with the vans](docs/screenshots/zone-floor.png)
+![ZoneHop: the A-frame with its flow racks and the shuttle store at the back, order start past its end, the conveyor loop with the pick-to-light zones and the carousels, the RF shelving, the closing line and the route lanes with the vans](docs/screenshots/zone-floor.png)
 
 | | |
 |---|---|
 | ![Close-up: the A-frame, the loop and the pick-to-light zones with their operators](docs/screenshots/zone-closeup.png) | ![ZoneHop control room: totes out, lines per hour, the A-frame's share, recirculation, merge wait, vans and the zone cards](docs/screenshots/zone-control.png) |
 | **Close-up:** totes leave the A-frame and turn off the loop into the zones they need | **Control room:** the conveyor map with every tote, zone cards with how often each is skipped |
-| ![ZoneHop in 3D: the loop, the zones, the carousels, the RF shelving and the vans at their doors](docs/screenshots/zone-3d.png) | ![The A-frame in 3D: white channels on its steep faces, the flow racks of reserve bins either side, the Cuby shuttle store in front and order start past its end](docs/screenshots/zone-3d-closeup.png) |
+| ![ZoneHop in 3D: the loop, the zones, the carousels, the RF shelving and the vans at their doors](docs/screenshots/zone-3d.png) | ![The A-frame in 3D: white channels on its steep faces, the flow racks of reserve bins either side, the shuttle store in front and order start past its end](docs/screenshots/zone-3d-closeup.png) |
 | **3D:** the whole system, from the A-frame to the vans | **3D close-up:** the A-frame, each channel's stack going down as it dispenses |
 
 ZoneHop is not goods-to-person: nothing travels to a picker, the order tote travels past the stock.
@@ -562,10 +562,11 @@ dispenser ejects the units into it (0.25 s each); at the end of the belt the win
 the hopper into the order's tote, and without its tote the belt stops. Two refill operators walk the
 walkways either side and refill channels at 20 units, the one that runs out first first: they take
 the product's bin from the flow rack behind them, set it on the ledge at the foot of the A-frame,
-fill the channel from it (30 s in all) and put the empty bin on the rack's return lane. A Cuby
-shuttle store (3 aisles, a shuttle on each of 10 levels, a lift per aisle) sends a new bin to the
-lane for every bin taken, on a conveyor round to the back of the flow racks, and takes the empty
-ones back. A line whose channel is empty goes short, and the tote goes to the completion zone.
+fill the channel from it (30 s in all) and put the empty bin on the rack's return lane. A shuttle
+store (3 aisles, a shuttle on each of 10 levels, a lift at each end of an aisle) sends a new bin to
+the lane for every bin taken, on a conveyor round to the back of the flow racks, and takes the
+empty ones back: the shuttle drives to the bin and brings it to the lift, which comes up to meet it
+(2 m/s, 1.5 m/s, 2 s for each handover). A line whose channel is empty goes short, and the tote goes to the completion zone.
 
 **The loop and the zones.** The tote rides a loop and turns into every zone its order has lines
 in, and only those: three pick-to-light zones with a flow rack wall behind the operator (2 s a line,
@@ -575,7 +576,8 @@ operator picks from the other one. A spur holds 4 totes; with it full the tote g
 Order start holds while the loop is three quarters full. Products are slotted by units a day: the
 fastest that fit the A-frame go there, the next ones to pick-to-light (shared out so each zone has
 about as many lines), then the carousels, the long tail to the RF shelving. Zone stock is topped up
-from a reserve store after 15 minutes.
+after 15 minutes: the bin comes out of the shuttle store's east lifts to the replenishment point by
+the zones and comes back empty once the location is topped up.
 
 **RF shelving and the merge.** Three RF pickers take the slow movers of a batch of up to 8 orders,
 walk an S-shaped route through the shelving with a tote per order on their cart (8 s a line) and
