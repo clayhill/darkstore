@@ -7,7 +7,9 @@
  * order is. In SortHub the camera follows a parcel instead: from the feed
  * belt through the induct, on a tray or a robot, into its chute.
  * When the order ships (the parcel is sorted) the camera moves on to the
- * next one. These are methods of WS.View3D. */
+ * next one. A type can follow its own way (ZoneHop: the A-frame window,
+ * the totes, the merge, the van) with orderFocus and followSteps.
+ * These are methods of WS.View3D. */
 (function (WS) {
   'use strict';
   const V = WS.View3D.prototype, esc = WS.U.esc;
@@ -199,7 +201,7 @@
   V.followKey = function () { const F = this.follow; return F ? (F.order ? F.order.id : F.parcel.id) : ''; };
   V.hudHTML = function () {
     const F = this.follow, f = this.followNow || { step: 0, text: '' }, parcel = !F.order;
-    const steps = parcel ? PARCEL_STEPS : STEPS;
+    const steps = parcel ? PARCEL_STEPS : this.followSteps || STEPS;
     const chips = steps.map((s, k) => `<span class="${k < f.step || f.done ? 'done' : k === f.step ? 'now' : ''}">${s}</span>`).join('<i></i>');
     let head, meta;
     if (parcel) {

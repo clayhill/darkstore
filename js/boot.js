@@ -49,7 +49,7 @@
       sim: ['js/acr/config.js', 'js/acr/sim.js', 'js/climb/config.js', 'js/climb/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js', 'js/climb/render.js', 'js/climb/ui.js'],
     },
     zone: {
-      name: 'ZoneHop', sub: 'Pharmacy wholesale', scan: 'tote, order, location', click: 'zones, the A-frame, machines, lanes',
+      name: 'ZoneHop', sub: 'Pharmacy wholesale', scan: 'tote, order, location', click: 'totes, zones, the A-frame, machines, lanes', three: ['js/zone/render3d.js'], ride: 'tote',
       map: 'Conveyors', stations: 'Zones', flow: 'Order totes out', fleet: 'Tote',
       tabs: [['orders', 'Orders'], ['zones', 'Zones'], ['inventory', 'Stock'], ['routes', 'Routes'], ['settings', 'Settings']],
       sim: ['js/zone/config.js', 'js/zone/belts.js', 'js/zone/sim.js'], view: ['js/zone/render.js', 'js/zone/ui.js'],
@@ -103,7 +103,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
           <button id="btn-sound" title="Sound made live from what the machines do: motors, forks, rollers, scanners. Louder near where you look.">Sound</button>
-${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">Robot cam</option><option value="chase">Chase a robot</option><option value="station">Stations</option><option value="order">' + (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order') + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order') + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
