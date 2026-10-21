@@ -97,6 +97,7 @@
     amr: () => ({ Sim: WS.AmrSim, Renderer: WS.AmrRenderer, Renderer3D: WS.AmrRenderer3D }),
     pallet: () => ({ Sim: WS.PalletSim, Renderer: WS.PalletRenderer, Renderer3D: WS.PalletRenderer3D }),
     climb: () => ({ Sim: WS.ClimbSim, Renderer: WS.ClimbRenderer, Renderer3D: WS.ClimbRenderer3D }),
+    zone: () => ({ Sim: WS.ZoneSim, Renderer: WS.ZoneRenderer, Renderer3D: WS.ZoneRenderer3D }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

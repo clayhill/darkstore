@@ -19,6 +19,7 @@ const RUNS = {
   amr: ['amr', {}], 'amr-nozones': ['amr', { zonePicking: 'off' }],
   climb: ['climb', {}],
   pallet: ['pallet', {}], 'pallet-small': ['pallet', { palletVolume: 25 }],
+  zone: ['zone', {}],
 };
 
 // Child mode: run one type and print its fingerprint lines.

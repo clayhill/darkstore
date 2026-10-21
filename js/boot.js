@@ -48,6 +48,12 @@
       map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
       sim: ['js/acr/config.js', 'js/acr/sim.js', 'js/climb/config.js', 'js/climb/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js', 'js/climb/render.js', 'js/climb/ui.js'],
     },
+    zone: {
+      name: 'ZoneHop', sub: 'Pharmacy wholesale', scan: 'tote, order, location', click: 'zones, the A-frame, machines, lanes',
+      map: 'Conveyors', stations: 'Zones', flow: 'Order totes out', fleet: 'Tote',
+      tabs: [['orders', 'Orders'], ['zones', 'Zones'], ['inventory', 'Stock'], ['routes', 'Routes'], ['settings', 'Settings']],
+      sim: ['js/zone/config.js', 'js/zone/belts.js', 'js/zone/sim.js'], view: ['js/zone/render.js', 'js/zone/ui.js'],
+    },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',

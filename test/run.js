@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -94,6 +94,29 @@ function checkSorter() {
   if (n !== sim.stats.arrived) throw new Error(`t=${sim.time.toFixed(1)} parcels: ${n} accounted for, ${sim.stats.arrived} arrived`);
   for (const ch of sim.chutes) if (ch.count > sim.cfg.bagCapacity) throw new Error(`${ch.name} holds ${ch.count}`);
   for (const r of sim.fleet.filter((x) => x.claims)) if (g.claim[g.idx(r.x, r.y)] !== r.id) throw new Error(`${r.name} cell not claimed`);
+}
+// ZoneHop: every tote in exactly one place (the de-stacker's stack, a belt,
+// the merge, an RF picker's cart, a van or the return dock); totes on a belt
+// keep their distance; a zone works only a tote at its pick position; no
+// order line gets more units than ordered
+function checkZone() {
+  const where = new Map(), put = (t, w) => { if (where.has(t)) throw new Error(`t=${sim.time.toFixed(1)} tote ${t.id} in ${where.get(t)} and ${w}`); where.set(t, w); };
+  sim.oms.freeTotes.forEach((t) => put(t, 'stack'));
+  for (const b of sim.net.belts) b.totes.forEach((t, k) => {
+    put(t, b.name);
+    if (t.belt !== b) throw new Error(`${t.id} on ${b.name} thinks it is on ${t.belt && t.belt.name}`);
+    if (k && b.totes[k - 1].s - t.s < sim.net.pitch - 1e-6) throw new Error(`t=${sim.time.toFixed(1)} totes ${b.totes[k - 1].id} and ${t.id} too close on ${b.name}`);
+    if (t.s < -1e-9 || t.s > b.len + 1e-9) throw new Error(`${t.id} off the end of ${b.name}`);
+  });
+  sim.merge.totes.forEach((t) => put(t, 'merge')); sim.merge.rf.forEach((t) => put(t, 'merge RF'));
+  for (const pk of sim.pickers) if (pk.job) pk.job.totes.slice(pk.job.put).forEach((t) => put(t, pk.name));
+  for (const v of sim.vansOut) v.totes.forEach((t) => put(t, 'van ' + v.route.name));
+  sim.lanes.forEach((l) => l.stack.forEach((t) => put(t, 'lane ' + l.route.name)));
+  sim.returnDock.forEach((t) => put(t, 'return dock')); sim.recycling.forEach((r) => put(r.t, 'recycling'));
+  for (const t of sim.oms.totes) if (!where.has(t)) throw new Error(`t=${sim.time.toFixed(1)} tote ${t.id} (${t.at}) is nowhere`);
+  if (where.size !== sim.oms.totes.length) throw new Error('tote count');
+  for (const z of sim.zones) if (z.job && z.in.front !== z.job.tote) throw new Error(`${z.id} works a tote that is not at its pick position`);
+  for (const o of sim.oms.orders) for (const l of o.lines) if (l.picked > l.qty) throw new Error(`${o.id} ${l.gtin} picked ${l.picked} of ${l.qty}`);
 }
 // shelving: locations never move; every released order tote is staged at
 // exactly one station or rides on exactly one robot; no robot waits for ever

@@ -59,7 +59,7 @@
         else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
       });
       const legend = this.sim.legendStates ? [...this.sim.legendStates, 'DOWN'] : [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
-      $('#legend').innerHTML = legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') + (this.type.legendExtra ? this.type.legendExtra(this) :
+      $('#legend').innerHTML = this.type.legend ? this.type.legend(this) : legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') + (this.type.legendExtra ? this.type.legendExtra(this) :
         `<span class="faint">· ABC: <i style="background:${WS.CLASS_COLORS.A}"></i> A <i style="background:${WS.CLASS_COLORS.B}"></i> B <i style="background:${WS.CLASS_COLORS.C}"></i> C</span>`);
       this.setTab($('#tabs').children[0].dataset.tab);
     }

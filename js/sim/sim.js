@@ -81,7 +81,7 @@
       this.disrupt = new WS.Disruptions(this);
       this.fleet = [];
       this.seed();
-      this.oms = new WS.OMS(this);
+      this.oms = this.createOMS();
       this.dispatchTimer = 0; this.heatTimer = 0;
       this.log('system', this.describe());
     }
@@ -92,6 +92,7 @@
     // and fetchCost(unit). The order flow, ports, inventory, router and KPIs
     // are shared.
     createLayout() { return new Layout(this); }
+    createOMS() { return new WS.OMS(this); }
     createPort(k, def) { return new WS.Port(this, k, def); }
     // whether pick stations can have a robot arm (a type without goods-to-person stations says no)
     get armsAllowed() { return true; }
