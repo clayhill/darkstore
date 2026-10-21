@@ -78,7 +78,7 @@
       if (t.lid) this.box(x - w - 0.02, y - d - 0.02, z + h, x + w + 0.02, y + d + 0.02, z + h + 0.12, WS.shade(col, -0.1), { top: WS.shade(col, 0.15) });
       if (t.sscc) { if (alongX) this.faceY(y + d + 0.003, x - w * 0.4, x + w * 0.5, z + 0.2, z + 0.65, '#f8fafc'); else this.faceX(x + w + 0.003, y - d * 0.4, y + d * 0.5, z + 0.2, z + 0.65, '#f8fafc'); }
       const s = this.selected;
-      if (s && s.kind === 'cell' && t.order && this.selectedOrder === t.order) this.quadTop(x - w - 0.05, y - d - 0.05, x + w + 0.05, y + d + 0.05, z + h + 0.15, null, '#38bdf8', 2);
+      if (s && s.tote && (s.tote === t || (t.order && s.tote.order === t.order))) { this.quadTop(x - w - 0.06, y - d - 0.06, x + w + 0.06, y + d + 0.06, z + h + 0.16, null, '#38bdf8', s.tote === t ? 3 : 1.5); if (s.tote === t) this.glow(x, y, z + h + 0.5, 22, '#38bdf8', 0.5); }
     }
 
     // ---------------------------------------------------------------- A-frame
@@ -166,6 +166,28 @@
         if (cur && cur.completion) this.text('completion', z.dx - 1.5, ry - 0.4, 6.0, { size: 9, color: '#fde68a', bg: 'rgba(15,23,42,0.85)' });
       });
       this.addZoneOperator(z, add, cur ? (cur.bin ? cur.bin.wx : z.dx + 0.6) : null);
+      this.addZoneScreen(z, add);
+    }
+    // the operator's screen on a post beside the pick position, and the zone's outline when selected
+    addZoneScreen(z, add) {
+      const sim = this.sim, g = sim.grid, sx = z.pick.x + 1.15, sy = g.LB + g.SD + 0.7;
+      add(sx + sy + 0.2, () => {
+        this.box(sx - 0.03, sy - 0.03, 0, sx + 0.03, sy + 0.03, 3.4, '#475569');
+        this.box(sx - 0.3, sy - 0.06, 3.3, sx + 0.3, sy + 0.04, 4.6, '#0f172a');
+        this.screenFace('zone' + z.id, sx - 0.26, sx + 0.26, sy + 0.045, 3.4, 4.5, this.zoneScreen(z));
+      });
+      const s = this.selected;
+      if (s && s.kind === 'port' && s.id === z.port.idx) add(-100, () => this.quadTop(z.dx - 4.4, g.LB + 1, z.dx + 1.4, z.kind === 'carousel' ? g.caroEnd + 0.3 : g.LB + g.SD + 2.3, null, '#38bdf8', 2.5));
+    }
+    // What a zone's screen shows (WS.paintScreen): the line to pick, from where, for which order.
+    zoneScreen(z) {
+      const sim = this.sim, p = z.port, j = z.job, title = `${p.code} · ${z.kind === 'carousel' ? 'Carousels' : 'Pick-to-light'}`;
+      if (p.away) return WS.awayScreen(p, title);
+      if (!j) { const n = z.in.totes.length; return { title, accent: n ? '#38bdf8' : '#64748b', big: n ? 'Tote coming' : 'Idle', name: n ? `${n} on the spur` : 'No tote for this zone', info: [] }; }
+      const o = j.tote.order, left = j.queue.length + (j.queues ? j.queues.reduce((a, q) => a + q.length, 0) : 0), done = j.n - left - (j.cur ? 1 : 0);
+      if (!j.cur) return { title, tag: `TOTE ${j.tote.id}`, accent: '#38bdf8', big: z.kind === 'carousel' ? 'Turning…' : 'Next line', name: o.id, info: [o.customer], bar: done / j.n };
+      const x = j.cur, prod = sim.inv.byGtin.get(x.line.gtin), from = x.completion ? 'completion: from the reserve' : z.kind === 'carousel' ? `carousel ${x.bin.caro + 1} · shelf ${x.bin.shelf + 1}` : `location ${x.bin.code}`;
+      return { title, tag: `TOTE ${j.tote.id}`, accent: x.completion ? '#fbbf24' : '#4ade80', big: `Pick ${x.qty}`, name: prod.name, info: [from, `${o.id} · ${o.customer}`], bar: done / j.n, foot: `Line ${done + 1} of ${j.n} · ${o.route.name}` };
     }
     // the operator walks between the location and the tote at the pick position
     addZoneOperator(z, add, binX) {
@@ -203,6 +225,7 @@
         if (cr.target != null) add(cr.x + cr.y - 0.5, () => this.glow(cr.x, cr.y, 0.2, 14, '#38bdf8', 0.6));
       }
       this.addZoneOperator(z, add, null);
+      this.addZoneScreen(z, add);
     }
 
     // ---------------------------------------------------------------- RF shelving
@@ -212,14 +235,15 @@
         const x = g.RFX + 3 * a + (side ? 2 : 0);
         add(x + g.RFY + 1, () => {
           const y0 = g.RFY + 1, y1 = g.RFY + 1 + g.bays;
-          for (const yy of [y0, y1 - 0.08]) for (const xx of [x, x + 0.92]) this.box(xx, yy, 0, xx + 0.08, yy + 0.08, 5.4, '#1d4ed8');
-          for (let lv = 0; lv < g.rfLevels; lv++) this.box(x, y0, 0.3 + lv * 1.05, x + 1, y1, 0.42 + lv * 1.05, '#f97316', { top: '#475569' });
+          for (let yy = y0; yy <= y1 - 0.05; yy += Math.max(1, (y1 - y0) / 4)) for (const xx of [x + 0.05, x + 0.87]) this.box(xx, Math.min(yy, y1 - 0.08), 0, xx + 0.08, Math.min(yy, y1 - 0.08) + 0.08, 5.5, '#1d4ed8');
+          for (let lv = 0; lv < g.rfLevels; lv++) this.box(x + 0.05, y0, 0.3 + lv * 1.05, x + 0.95, y1, 0.36 + lv * 1.05, '#64748b', { top: '#475569', left: '#f97316', right: '#c2410c' });
         });
       }
       for (const b of sim.rfBins) {
         if (b.comps[0].qty <= 0) continue;
         const x = g.RFX + 3 * b.aisle + (b.side ? 2 : 0), hh = hue(b.comps[0].gtin), zz = 0.42 + b.level * 1.05;
-        add(x + b.wy + 0.9, () => this.box(x + 0.15, b.wy - 0.35, zz, x + 0.85, b.wy + 0.35, zz + 0.5, '#888', { top: `hsl(${hh},40%,60%)`, left: `hsl(${hh},35%,48%)`, right: `hsl(${hh},30%,36%)` }));
+        const f = Math.max(0.25, Math.min(1, b.comps[0].qty / b.cap));
+        add(x + b.wy + 0.9, () => this.box(x + 0.22, b.wy - 0.3, zz + 0.06, x + 0.22 + 0.56 * f, b.wy + 0.3, zz + 0.42, '#888', { top: `hsl(${hh},40%,60%)`, left: `hsl(${hh},35%,48%)`, right: `hsl(${hh},30%,36%)` }));
       }
       // the depot: a stack of empty totes for the carts
       const d = sim.rfDepot();
@@ -344,9 +368,14 @@
       }
     }
 
-    // Clicks: a zone, the A-frame, a machine, a lane, or any map cell.
+    // Clicks: a tote, a zone, the A-frame, a machine, a lane, or any map cell.
     pick(sx, sy) {
       const sim = this.sim, g = sim.grid;
+      let best = null, bd = 14 * Math.max(1, this.cam.zoom);
+      const near = (t, x, y, z) => { const [px, py] = this.P(x, y, z); const d = Math.hypot(this.cam.x + px * this.cam.zoom - sx, this.cam.y + py * this.cam.zoom - sy); if (d < bd) { bd = d; best = t; } };
+      for (const b of sim.net.belts) for (const t of b.totes) near(t, t.x, t.y, (b.kind === 'return' ? RZ : CZ) + 0.5);
+      sim.merge.totes.forEach((t, k) => { const q = this.mergeSpot(k); near(t, q.x, q.y, CZ + 0.5); });
+      if (best) return { kind: 'cell', id: g.idx(Math.floor(best.x ?? 0), Math.floor(best.y ?? 0)), tote: best };
       for (const z of [CZ + 1, CZ, 1, 0]) {
         const w = this.toWorld(sx, sy, z), x = Math.floor(w.x), y = Math.floor(w.y);
         if (!g.inside(x, y)) continue;

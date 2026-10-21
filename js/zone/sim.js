@@ -83,7 +83,7 @@
       if (th && th.fill) return th.fill(mix);
       return { [M.BELT]: '#1b2536', [M.LOOP]: '#1d2b42', [M.AFRAME]: '#16324f', [M.RACK]: '#1f3a2c', [M.MACHINE]: '#2b2440', [M.LANE]: '#2a2208', [M.SHELF]: '#23303f', [M.DOCK]: '#0f1a12', [M.CAROUSEL]: '#1f3a2c', [M.STACK]: '#1e293b', [M.MERGE]: '#26203a' }[t] || '#070b12';
     }
-    get mapTitle() { return 'CONVEYORS · dots: order totes, coloured as in Tote time split · zones and machines by state · lanes by fill'; }
+    get mapTitle() { return 'CONVEYORS · dots: totes, as in the tote time split · lanes by fill'; }
   }
 
   // ---------------------------------------------------------------- orders
@@ -273,7 +273,7 @@
       const nodes = [{ u: U(J, 0), kind: 'J' }, { u: X, kind: 'X' }];
       zdefs.forEach((zd, k) => { const dx = RX - 5 - 8 * k; nodes.push({ u: U(dx, 1), kind: 'd', z: k }, { u: U(dx - 3, 1), kind: 'r', z: k }); zd.dx = dx; });
       nodes.sort((a, b) => a.u - b.u);
-      const segs = nodes.map((n, k) => { const m = nodes[(k + 1) % nodes.length]; return net.belt('loop ' + k, arc(n.u, m.u), { kind: 'loop' }); });
+      const segs = nodes.map((n, k) => { const m = nodes[(k + 1) % nodes.length]; return net.belt('the loop', arc(n.u, m.u), { kind: 'loop' }); });
       B.loop = segs;
       const after = (kind, z) => segs[nodes.findIndex((n) => n.kind === kind && n.z === z)]; // the segment that starts at a node
       const before = (kind, z) => segs[(nodes.findIndex((n) => n.kind === kind && n.z === z) + nodes.length - 1) % nodes.length]; // the one that ends there
@@ -281,8 +281,8 @@
       zdefs.forEach((zd, k) => {
         const dx = zd.dx, py = LB + SD, port = this.ports[k];
         const zone = Object.assign(zd, { idx: k, port, bins: [], job: null, done: 0, lines: 0, units: 0, skipped: 0, visits: 0, pick: { x: dx - 1.5, y: py } });
-        zone.in = net.belt(zd.id + ' in', [{ x: dx, y: LB }, { x: dx, y: py }, { x: dx - 1.5, y: py }], { exit: (t) => (t.done.has(zd.id) ? zone.out : null) });
-        zone.out = net.belt(zd.id + ' out', [{ x: dx - 1.5, y: py }, { x: dx - 3, y: py }, { x: dx - 3, y: LB }]);
+        zone.in = net.belt(zd.id + ' spur', [{ x: dx, y: LB }, { x: dx, y: py }, { x: dx - 1.5, y: py }], { exit: (t) => (t.done.has(zd.id) ? zone.out : null) });
+        zone.out = net.belt(zd.id + ' spur, back to the loop', [{ x: dx - 1.5, y: py }, { x: dx - 3, y: py }, { x: dx - 3, y: LB }]);
         port.zoneRef = zone;
         this.zones.push(zone);
       });
@@ -392,12 +392,14 @@
       this.channelsByB = this.channels.slice().sort((a, b) => a.b - b.b);
       const rest = byDemand.filter((p) => !p.loc);
       let k = 0;
-      // pick-to-light: shared out over the zones, the fastest first
-      const ptl = this.zones.filter((z) => z.kind === 'ptl');
-      // a flow rack wall behind the operator: bays across, five levels
-      const nb = Math.ceil(cfg.ptlLocations / 5);
+      // pick-to-light: shared out over the zones so each has about as many
+      // lines to pick, on a flow rack wall behind the operator (bays across, five levels)
+      const ptl = this.zones.filter((z) => z.kind === 'ptl'), load = ptl.map(() => 0), nb = Math.ceil(cfg.ptlLocations / 5);
       for (let n = 0; n < ptl.length * cfg.ptlLocations && k < rest.length; n++, k++) {
-        const z = ptl[n % ptl.length], j = z.bins.length, lv = j % 5, bay = Math.floor(j / 5), x = z.dx - 4.2 + ((bay + 0.5) * 5.4) / nb;
+        let zi = -1;
+        ptl.forEach((z, i) => { if (z.bins.length < cfg.ptlLocations && (zi < 0 || load[i] < load[zi])) zi = i; });
+        const z = ptl[zi], j = z.bins.length, lv = j % 5, bay = Math.floor(j / 5), x = z.dx - 4.2 + ((bay + 0.5) * 5.4) / nb;
+        load[zi] += rest[k].demand;
         z.bins.push(loc(rest[k], z.id, `${z.id}-${String(bay + 1).padStart(2, '0')}-${lv + 1}`, x, g.LB + g.SD + 1.8, zoneCap(rest[k]), { bay, level: lv, bays: nb }));
       }
       // carousels: one product per shelf
@@ -984,6 +986,15 @@
       if (req > this.refillers.length * 4 || empty) out.push({ sev: empty ? 'critical' : 'warning', key: 'refill', title: 'A-frame refills behind', msg: `${req} channel${req === 1 ? '' : 's'} waiting for a refill${empty ? ` · ${empty} empty` : ''}` });
       if (this.merge.totes.length >= c.mergeBuffer) out.push({ sev: 'warning', key: 'merge', title: 'Merge full', msg: `${this.merge.totes.length} order totes waiting · totes go round the loop again` });
       if (this.waiting.length > 60) out.push({ sev: this.waiting.length > 200 ? 'critical' : 'warning', key: 'backlog', title: 'Order backlog', msg: `${this.waiting.length} orders waiting for order start` });
+      return out;
+    }
+
+    // ---------------------------------------------------------------- sound (js/render/sound.js)
+    soundPos(p) { const z = p.zoneRef; if (z) return { x: z.pick.x, y: z.pick.y }; const c = p.cells[0]; return { x: c.x + 1, y: c.y + 1 }; }
+    soundEvents(t0, t1) {
+      const out = [];
+      for (const e of this.ejects) if (e.t > t0 && e.t <= t1) out.push({ kind: 'beep', p: { x: e.ch.wx, y: e.ch.wy }, w: 0.35 });
+      for (const e of this.tips) if (e.t > t0 && e.t <= t1) out.push({ kind: 'slide', p: { x: this.grid.tipX, y: this.grid.SY }, w: 0.9 });
       return out;
     }
 
