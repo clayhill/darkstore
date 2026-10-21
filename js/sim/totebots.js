@@ -9,10 +9,10 @@
  *                  the left rack's column, the infeed on the right one's
  *   handY = B+3    handover cells in front of the stands, parking in front
  *                  of the lifts and past the racking
- *   wY = B+4       a highway running left (west)
- *   eY = B+5       a highway running right (east), joined to the first at
- *                  both ends: together a one-way ring, as the loop was
- *   portY = B+6    each station's queue lane (two cells), its infeed cell
+ *   west           a highway running left (west), cfg.botLanes lanes wide
+ *   east           a highway running right (east), as wide, joined to the
+ *                  first at both ends and by crossings (passable())
+ *   portY          each station's queue lane (four cells), its infeed cell
  *                  (a robot leaves a tote on the infeed) and its outfeed
  *                  cell (a robot takes one off the outfeed); parking and
  *                  chargers between the stations and past the last one
@@ -25,7 +25,8 @@
 (function (WS) {
   'use strict';
   const CELL = Object.assign(WS.CELL, { PARK: 7, STAND: 8, HAND: 9, PORT_OUT: 10 });
-  const LANE = 2; // queue cells in front of a station's infeed cell
+  const LANE = 4; // queue cells in front of a station's infeed cell
+  const CROSS_GAP = 6; // cells between the last crossing down (west to east highway) and the first crossing up
 
   // ---------------------------------------------------------------- floor
   // WS.Racking with a robot floor in front of it, for the router: type,
@@ -35,20 +36,31 @@
       super(cfg, o);
       const A = this.A, B = this.B, L = this.L, nPorts = this.ports.length;
       this.robots = true; this.oneRoute = true;
-      this.standY = B + 1; this.handY = B + 3; this.wY = B + 4; this.eY = B + 5; this.portY = B + 6; this.D = B + 7;
+      const n = Math.max(1, cfg.botLanes | 0);
+      this.standY = B + 1; this.handY = B + 3;
+      this.west = []; this.east = []; // highway rows, the one next to the stands or the stations first
+      for (let k = 0; k < n; k++) { this.west.push(this.handY + 1 + k); this.east.push(this.handY + 2 * n - k); }
+      this.wY = this.west[0]; this.eY = this.east[0]; this.portY = this.handY + 2 * n + 1; this.D = this.portY + 1;
       this.standEnd = this.handY - 0.3; // where a tote stands at the front of a stand, for a robot to take
-      this.W = Math.max(A * 3, nPorts * 6) + 1;
-      const n = this.W * this.D;
-      this.type = new Uint8Array(n).fill(CELL.BLOCKED);
-      this.claim = new Int16Array(n).fill(-1);
-      this.colLock = new Int16Array(n).fill(-1);
-      this.waitHeat = new Float32Array(n); this.passHeat = new Float32Array(n);
-      this.portOf = new Int8Array(n).fill(-1); // station of a lane, infeed or outfeed cell
-      this.laneIdx = new Int8Array(n).fill(-1); // 0, 1 = the lane, 2 = the infeed cell
+      // wide enough for a parking spot for every robot and a charger per six:
+      // in front of the lifts, between the stations and past both
+      this.nCharge = Math.max(1, Math.ceil(WS.botCount(cfg) / 6));
+      const spots = (W) => A + (W - A * 3) + (W - 1 - nPorts * 6);
+      this.W = Math.max(A * 3, nPorts * 6 + 1) + 1;
+      // with two lanes, robots change to the inner lane at odd x: the east end must be one
+      while (spots(this.W) < WS.botCount(cfg) + this.nCharge + 2 || (n > 1 && this.W % 2)) this.W++;
+      this.crossX = Math.round((this.W - 1 - CROSS_GAP) / 2);
+      const N = this.W * this.D;
+      this.type = new Uint8Array(N).fill(CELL.BLOCKED);
+      this.claim = new Int16Array(N).fill(-1);
+      this.colLock = new Int16Array(N).fill(-1);
+      this.waitHeat = new Float32Array(N); this.passHeat = new Float32Array(N);
+      this.portOf = new Int8Array(N).fill(-1); // station of a lane, infeed or outfeed cell
+      this.laneIdx = new Int8Array(N).fill(-1); // 0 … LANE - 1 = the lane, LANE = the infeed cell
       const set = (x, y, t) => (this.type[this.idx(x, y)] = t);
       for (let x = 0; x < this.W; x++) {
         set(x, this.standY, CELL.STAND); set(x, this.standY + 1, CELL.STAND);
-        set(x, this.wY, CELL.HIGHWAY); set(x, this.eY, CELL.HIGHWAY);
+        for (const y of [...this.west, ...this.east]) set(x, y, CELL.HIGHWAY);
         set(x, this.handY, x < A * 3 && x % 3 !== 1 ? CELL.HAND : CELL.PARK);
         set(x, this.portY, CELL.PARK);
       }
@@ -56,17 +68,22 @@
       for (let a = 0; a < A; a++) set(a * 3 + 1, this.standY, CELL.BLOCKED), set(a * 3 + 1, this.standY + 1, CELL.BLOCKED);
       // stations: lane, infeed and outfeed cell, the infeed above the station's infeed conveyor
       this.ports = this.ports.map((p, k) => {
-        const sx = 2 + k * 6, y = this.portY, mapY = L + y - B;
-        const lane = [{ x: sx - 2, y }, { x: sx - 1, y }], end = { x: sx, y }, out = { x: sx + 1, y };
+        const sx = 1 + LANE + k * 6, y = this.portY, mapY = L + y - B, lane = [];
+        for (let j = LANE; j > 0; j--) lane.push({ x: sx - j, y });
+        const end = { x: sx, y }, out = { x: sx + 1, y };
         lane.concat([end]).forEach((c, j) => { const i = this.idx(c.x, c.y); this.type[i] = j < LANE ? CELL.LANE : CELL.PORT; this.portOf[i] = k; this.laneIdx[i] = j; });
         set(out.x, out.y, CELL.PORT_OUT); this.portOf[this.idx(out.x, out.y)] = k;
         return Object.assign({}, p, {
           drop: { x: sx, y: this.D - 1 }, lift: { x: sx + 1, y: this.D - 1 },
-          dock: { lane, entry: { x: sx - 2, y: this.eY }, end, cells: lane.concat([end]) }, out,
+          dock: { lane, entry: { x: sx - LANE, y: this.eY }, end, cells: lane.concat([end]) }, out,
           cells: [...lane, end, out].map((c) => ({ x: c.x, y: mapY })), // control-room map cells (WS.RobotRackMap)
         });
       });
-      this.nCharge = Math.max(1, Math.ceil(WS.botCount(cfg) / 6));
+      // parking or highway cells a robot cannot reach or get away from
+      // (corners at the ends of two-lane highways) are none
+      const any = this.idx(this.ports[0].dock.end.x, this.ports[0].dock.end.y), back = this.distTo(any);
+      for (let i = 0; i < N; i++) if ((this.type[i] === CELL.PARK || this.type[i] === CELL.HIGHWAY) && (back[i] < 0 || this.distTo(i)[any] < 0)) this.type[i] = CELL.BLOCKED;
+      this.dists = null;
       // chargers at the east end, on the station row first, then the handover row
       this.chargers = [];
       for (let x = this.W - 1; x >= 0 && this.chargers.length < this.nCharge; x--) {
@@ -84,14 +101,32 @@
 
     // ---------- traffic rules (used by the router) ----------
     // The west highway runs left, the east one right; the west one turns
-    // into the east one at x = 0 and back at the east end. A robot leaves a
-    // cell off the ring onto the highway next to it.
+    // into the east one at x = 0 and back at the east end. A robot may also
+    // cross down from the west highway to the east one anywhere in the west
+    // part (x ≤ crossX) and up from the east one to the west one anywhere in
+    // the east part (x ≥ crossX + CROSS_GAP). Every loop a robot can drive
+    // round is then at least 2 · CROSS_GAP + 2 cells long, too long for the
+    // robots in it to block each other all round. On a highway two lanes
+    // wide a robot changes lanes away from the stands or stations at even x
+    // and towards them at odd x, so two robots never want each other's cell.
+    // A robot leaves a cell off the ring onto the highway next to it.
+    crossDown(x) { return x <= this.crossX; }
+    crossUp(x) { return x >= this.crossX + CROSS_GAP || x === this.W - 1; }
     passable(i, r, from) {
       const t = this.type[i], x = this.cx(i), y = this.cy(i);
       if (from == null) return t === CELL.HIGHWAY;
       const fx = this.cx(from), fy = this.cy(from);
-      if (y === this.wY) return (fy === y && fx === x + 1) || (fx === x && (fy === this.handY || (fy === this.eY && x === this.W - 1)));
-      if (y === this.eY) return (fy === y && fx === x - 1) || (fx === x && (fy === this.portY || (fy === this.wY && x === 0)));
+      for (const [rows, dir, side, other, cross] of [[this.west, -1, this.handY, this.east, this.crossUp(x)], [this.east, 1, this.portY, this.west, this.crossDown(x)]]) {
+        const k = rows.indexOf(y), n = rows.length;
+        if (k < 0) continue;
+        if (t !== CELL.HIGHWAY) return false;
+        if (fy === y) return fx === x - dir;
+        if (fx !== x) return false;
+        if (fy === side) return k === 0; // off the ring onto the lane next to it
+        if (fy === rows[k - 1]) return x % 2 === 0; // a lane further out
+        if (fy === rows[k + 1]) return x % 2 === 1; // a lane further in
+        return k === n - 1 && fy === other[n - 1] && cross;
+      }
       if (t === CELL.LANE) return this.laneEnter(i, from);
       if (t === CELL.PARK) return this.fromRing(i, from); // a robot may step aside onto a parking cell
       return false;
@@ -116,6 +151,30 @@
       return false;
     }
     canPark(i) { return this.type[i] === CELL.PARK; }
+    // Cells to drive from every cell to cell `to` on an empty floor (by the
+    // traffic rules), cached per target.
+    distTo(to) {
+      this.dists = this.dists || new Map();
+      let d = this.dists.get(to);
+      if (d) return d;
+      d = new Int16Array(this.W * this.D).fill(-1);
+      d[to] = 0;
+      const q = [to];
+      for (let h = 0; h < q.length; h++) {
+        const ci = q[h], x = this.cx(ci), y = this.cy(ci);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (!this.inside(nx, ny)) continue;
+          const ni = this.idx(nx, ny);
+          if (d[ni] >= 0 || this.type[ni] === CELL.BLOCKED || this.type[ni] === CELL.STAND) continue;
+          if (!(ci === to ? this.enterGoal(ci, null, ni) : this.passable(ci, null, ni))) continue; // a step from ni into ci
+          d[ni] = d[ci] + 1; q.push(ni);
+        }
+      }
+      this.dists.set(to, d);
+      return d;
+    }
+    drive(a, b) { const d = this.distTo(this.idx(b.x, b.y))[this.idx(a.x, a.y)]; return d < 0 ? 999 : d; }
   }
 
   // Control-room map: the racking as levels × aisles (three columns per
@@ -190,13 +249,24 @@
     yield { op: 'wait', t: cfg.transferTime };
     r.xfer = null; r.busy = false;
     bots.dropped(r, t);
+    // At a station: wait at its outfeed for the next tote that leaves it,
+    // unless another robot is there, rather than drive off empty.
+    const p = t.toPort != null && sim.ports[t.toPort];
+    if (p && bots.waitOut(p, r)) {
+      t.holdOut = p.idx;
+      r.state = 'MOVING_TO_TARGET';
+      yield { op: 'move', x: p.out.x, y: p.out.y };
+      const until = sim.time + cfg.pairWait;
+      r.state = 'AT_PORT';
+      yield { op: 'until', fn: () => p.back.length > 0 || sim.time >= until, waitState: 'WAITING_PORT' };
+    }
   };
 
   // ---------------------------------------------------------------- dispatch
   class ToteBots {
     constructor(sim) {
       this.sim = sim;
-      this.stats = { trips: 0, loaded: 0, empty: 0, paired: 0, drops: 0, standWait: 0, standN: 0, dist: 0 };
+      this.stats = { trips: 0, paired: 0, drops: 0, standWait: 0, standN: 0, emptyT: 0, loadedT: 0, emptyD: 0, loadedD: 0, outWait: 0, outN: 0, standFull: 0, t: 0 };
     }
     get grid() { return this.sim.grid; }
     get robots() { return this.list || (this.list = this.sim.fleet.filter((m) => m instanceof ToteBot)); }
@@ -238,17 +308,20 @@
       });
       return it;
     }
-    // robots heading for a station's infeed: no more than its lane and infeed cell hold
+    // Robots heading for a station's infeed: no more than its lane and
+    // infeed cell hold, and at a goods-in station, which takes a minute or
+    // more per tote, two: a robot queueing there does nothing else.
     toPortCount(p) { return this.robots.filter((r) => r.task && r.task.toPort === p.idx && !r.task.done).length; }
-    portRoom(p) { return this.toPortCount(p) < LANE + 1; }
+    portRoom(p) { return this.toPortCount(p) < (p.kind === 'PICK' ? LANE + 1 : 2); }
 
     // ---------- the tasks' steps ----------
     taken(r, t) {
       const sim = this.sim, bin = t.bin;
-      if (t.fromPort != null) { const p = sim.ports[t.fromPort]; p.back.splice(p.back.indexOf(bin), 1); bin.conv = null; }
+      if (t.fromPort != null) { const p = sim.ports[t.fromPort]; p.back.splice(p.back.indexOf(bin), 1); bin.conv = null; this.stats.outWait += sim.time - bin.backT; this.stats.outN++; }
       else { this.stats.standWait += sim.time - t.it.t0; this.stats.standN++; }
       sim.convRemove(t.it);
       bin.loc = 'robot'; bin.robot = r.id; r.bin = bin.id; t.took = true;
+      this.stats.emptyT += sim.time - t.started; this.stats.emptyD += r.distance - t.d0; t.t1 = sim.time; t.d1 = r.distance;
     }
     dropAt(t) {
       const g = this.grid;
@@ -263,6 +336,7 @@
     dropped(r, t) {
       const sim = this.sim, bin = t.bin;
       r.bin = null; t.done = true; this.stats.drops++;
+      this.stats.loadedT += sim.time - t.t1; this.stats.loadedD += r.distance - t.d1;
       if (t.toPort != null) { sim.ports[t.toPort].receive(bin); return; }
       // onto the infeed stand: it queues there for the aisle's lift
       const aisle = sim.aisles[t.toStand], d = t.dest, q = this.dropAt(t);
@@ -273,13 +347,41 @@
       });
     }
 
+    // A robot that has left a tote on station p's infeed waits at its
+    // outfeed when no other robot is there or on its way, and p will soon
+    // send a tote out: it is picking one.
+    waitOut(p, r) {
+      const g = this.grid, i = g.idx(p.out.x, p.out.y);
+      if (this.sim.cfg.pairWait <= 0 || r.battery < this.sim.cfg.battLow || (g.claim[i] >= 0 && g.claim[i] !== r.id) || !p.pick) return false;
+      return !this.robots.some((o) => o !== r && o.task && (o.task.holdOut === p.idx || (o.task.fromPort === p.idx && !o.task.took)));
+    }
+
+    // Cells until a robot bringing a tote to station p could be at its
+    // outfeed: to its infeed cell, a transfer, one cell on; robots ahead of it
+    // in the lane hand over first. Infinity when none is on its way, or none
+    // could leave its tote now (the station's infeed is full: it waits for
+    // the tote at its outfeed to be taken).
+    pairSoon(p) {
+      const g = this.grid, xfer = this.sim.cfg.transferTime * 1.5, end = p.dock.end;
+      let best = Infinity;
+      for (const r of this.robots) {
+        const t = r.task;
+        if (!t || t.type !== 'CARRY' || t.toPort !== p.idx || t.done || !t.took || r.down) continue;
+        const ahead = this.robots.filter((o) => o !== r && o.task && o.task.toPort === p.idx && o.task.took && !o.task.done && g.drive(o, end) < g.drive(r, end)).length;
+        if (ahead >= p.queueRoom()) continue; // it could not leave its tote: the station's infeed is full
+        best = Math.min(best, g.drive(r, end) + 1 + xfer * (ahead + 1));
+      }
+      return best;
+    }
+
     // ---------- dispatch ----------
-    // Jobs, the longest waiting first: the front tote of each aisle's
-    // outfeed stand, and the tote at the end of each station's outfeed.
-    // One robot at a time takes from a stand or an outfeed.
+    // Jobs: the tote at the end of each station's outfeed, then the front
+    // tote of each aisle's outfeed stand, the longest waiting first. A
+    // station's outfeed holds two totes, then the station stops: those go
+    // first. One robot at a time takes from a stand or an outfeed.
     jobs() {
       const sim = this.sim, g = this.grid, jobs = [], busy = new Set();
-      for (const r of this.robots) { const t = r.task; if (t && t.type === 'CARRY' && !t.took) busy.add(t.fromKey); }
+      for (const r of this.robots) { const t = r.task; if (t && t.type === 'CARRY' && !t.took) busy.add(t.fromKey); if (t && t.holdOut != null) busy.add('p' + t.holdOut); }
       for (const aisle of sim.aisles) {
         const key = 's' + aisle.a;
         if (busy.has(key)) continue;
@@ -291,7 +393,7 @@
         if (busy.has(key) || !bin) continue;
         jobs.push({ key, it: bin.conv, bin, t: bin.backT, from: p.out, fromPort: p.idx });
       }
-      return jobs.sort((a, b) => a.t - b.t);
+      return jobs.sort((a, b) => (a.fromPort != null) !== (b.fromPort != null) ? (a.fromPort != null ? -1 : 1) : a.t - b.t);
     }
     // where the job's tote goes: a station that wants it, or an aisle with
     // room on its infeed stand and a free position (the storage policy)
@@ -307,9 +409,8 @@
       return d ? { toStand: d.a, dest: d, to: { x: d.a * 3 + 2, y: this.grid.handY } } : null;
     }
     idle() { return this.robots.filter((r) => !r.task && !r.down && r.battery >= this.sim.cfg.battLow * 0.5); }
-    // cells along the one-way ring from a robot to a cell (a cell off the ring counts as the highway next to it)
-    ringPos(x, y) { const g = this.grid; return y <= g.wY ? g.W - 1 - x : g.W + x; }
-    ringDist(r, c) { const n = 2 * this.grid.W; return (((this.ringPos(c.x, c.y) - this.ringPos(r.x, r.y)) % n) + n) % n; }
+    // cells a robot drives to a cell on an empty floor
+    ringDist(r, c) { return this.grid.drive(r, c); }
     dispatch() {
       const sim = this.sim;
       this.charge();
@@ -320,13 +421,15 @@
         if (!d) continue;
         let r = null, bd = Infinity;
         for (const o of idle) { const dd = this.ringDist(o, j.from); if (dd < bd) { bd = dd; r = o; } }
+        // a robot bringing a tote to this station takes its outgoing one (pairing) when it is no further off
+        if (j.fromPort != null && this.pairSoon(sim.ports[j.fromPort]) <= bd) continue;
         idle = idle.filter((o) => o !== r);
         if (d.next) sim.ports[d.toPort].inbound++;
         if (d.dest) sim.aisles[d.dest.a].resv[sim.si(d.dest.l, d.dest.s, d.dest.b)] = true;
         j.bin.robot = r.id;
         this.stats.trips++;
-        if (bd > 0) this.stats.empty++;
-        sim.assignTask(r, Object.assign({ type: 'CARRY', bin: j.bin, it: j.it, from: j.from, fromKey: j.key, fromPort: j.fromPort, priority: 5 }, d));
+        if (j.fromPort != null && r.y === this.grid.portY && Math.abs(r.x - sim.ports[j.fromPort].out.x) <= 1) this.stats.paired++;
+        sim.assignTask(r, Object.assign({ type: 'CARRY', bin: j.bin, it: j.it, from: j.from, fromKey: j.key, fromPort: j.fromPort, priority: 5, d0: r.distance }, d));
       }
       this.park();
     }
@@ -357,7 +460,21 @@
         sim.assignTask(r, { type: 'PARK', x: g.cx(best), y: g.cy(best), priority: 0 });
       }
     }
-    tick() { if (this.sim.mapGrid.sync) this.sim.mapGrid.sync(); }
+    tick() {
+      const sim = this.sim, dt = sim.cfg.tick;
+      this.stats.t += dt;
+      for (const aisle of sim.aisles) if (!this.outRoom(aisle.a)) this.stats.standFull += dt; // a lift can send no more out
+      if (sim.mapGrid.sync) sim.mapGrid.sync();
+    }
+    // the robots' KPIs: shares, seconds and metres
+    kpis() {
+      const s = this.stats, cs = this.sim.cfg.cellSize, d = s.emptyD + s.loadedD;
+      return {
+        empty: d ? s.emptyD / d : 0, paired: s.outN ? s.paired / s.outN : 0,
+        standWait: s.standN ? s.standWait / s.standN : 0, outWait: s.outN ? s.outWait / s.outN : 0,
+        standFull: s.t ? s.standFull / (s.t * this.sim.aisles.length) : 0, perTote: s.drops ? (d * cs) / s.drops : 0,
+      };
+    }
   }
 
   // robots for a scenario: transportRobots per station

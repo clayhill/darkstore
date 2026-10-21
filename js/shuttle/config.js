@@ -25,10 +25,12 @@
     preZoneSpeed: 1.0, // m/s
     // or mobile robots instead of the loop (specs/prezone-robots.txt)
     transport: 'loop', // 'loop' | 'robots'
-    transportRobots: 3, // per station
-    vmax: 1.5, accel: 0.8, brake: 1.0, // m/s, m/s² — roller-top robots
-    wheelShift: 1.2, // s — turn 90° on the spot
+    transportRobots: 4, // per station: with fewer the robots, with more the traffic on the highway is the limit
+    botLanes: 2, // lanes each way on the robots' highway
+    vmax: 1.8, accel: 1.0, brake: 1.2, // m/s, m/s² — roller-top robots
+    wheelShift: 0.9, // s — turn 90° on the spot
     transferTime: 3, // s — a tote onto or off the roller deck
+    pairWait: 15, // s a robot that has left a tote at a station waits at its outfeed for the next one (0 = drives off)
     standCap: 2, // totes on an aisle's outfeed or infeed stand
     chargers: 0, robots: 0, // no battery robots
     toteSlots: 6,

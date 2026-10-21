@@ -34,11 +34,11 @@
     drawBotFloor() {
       const sim = this.sim, g = sim.grid, C = WS.CELL, P = this.P.bind(this);
       this.poly([P(0, g.handY, 0), P(g.W, g.handY, 0), P(g.W, g.D, 0), P(0, g.D, 0)], '#1f2a3a');
-      for (const y of [g.handY, g.wY, g.eY, g.portY]) for (let x = 0; x < g.W; x++) {
+      for (const y of [g.handY, ...g.west, ...g.east, g.portY]) for (let x = 0; x < g.W; x++) {
         const t = g.type[g.idx(x, y)];
         if (t === C.HIGHWAY) {
           this.quadTop(x + 0.03, y + 0.03, x + 0.97, y + 0.97, 0, '#243246');
-          const d = y === g.wY ? -1 : 1, mx = x + 0.5, my = y + 0.5;
+          const d = g.west.includes(y) ? -1 : 1, mx = x + 0.5, my = y + 0.5;
           this.line(P(mx - 0.12 * d, my - 0.16, 0), P(mx + 0.12 * d, my, 0), 'rgba(148,163,184,0.45)', 1.6);
           this.line(P(mx + 0.12 * d, my, 0), P(mx - 0.12 * d, my + 0.16, 0), 'rgba(148,163,184,0.45)', 1.6);
         } else if (t === C.PARK) this.quadTop(x + 0.1, y + 0.1, x + 0.9, y + 0.9, 0, '#13261d', 'rgba(74,222,128,0.35)', 1);
@@ -54,7 +54,7 @@
         }
       }
       const edge = 'rgba(202,138,4,0.55)';
-      this.line(P(0, g.wY, 0), P(g.W, g.wY, 0), edge, 1.2);
+      this.line(P(0, g.handY + 1, 0), P(g.W, g.handY + 1, 0), edge, 1.2);
       this.line(P(0, g.portY, 0), P(g.W, g.portY, 0), edge, 1.2);
       for (const ch of g.chargers) this.box(ch.x + 0.82, ch.y + 0.3, 0, ch.x + 0.98, ch.y + 0.7, 1.8, '#334155');
     }

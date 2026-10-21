@@ -21,6 +21,15 @@
   // Transport robots between the racking and the stations (WS.ToteBots):
   // what the fleet table and the robot inspector say about them.
   WS.BotUI = {
+    // control-room tiles for the transport robots
+    kpiTiles(ui) {
+      const sim = ui.sim, k = sim.bots.kpis(), rs = sim.bots.robots, u = rs.reduce((a, r) => a + r.utilization, 0) / rs.length, pc = (v) => Math.round(v * 100);
+      return [
+        ui.kpiTile('Transport robots', pc(u), '%', `${rs.length} robots at work · ${pc(k.empty)}% of their driving empty · ${k.perTote.toFixed(0)} m per tote`),
+        ui.kpiTile('Paired trips', pc(k.paired), '%', `of the totes leaving a station taken by the robot that brought one`),
+        ui.kpiTile('Stand waits', k.standWait.toFixed(0), 's', `a tote on an outfeed stand waits for a robot · stands full ${pc(k.standFull)}% of the time · at a station's outfeed ${k.outWait.toFixed(0)} s`),
+      ];
+    },
     // the transport setting, and the robots' when they carry the totes
     settings(c, num, sel) {
       return `<div class="row2">${sel('transport', 'Transport to the stations', [['loop', 'Conveyor loop'], ['robots', 'Mobile robots']])}${c.transport === 'robots' ? num('transportRobots', 'Robots per station', 0.5, 0.5, 8) : '<div></div>'}</div>
@@ -32,7 +41,7 @@
       if (t === C.PORT || t === C.PORT_OUT || t === C.LANE) { const p = sim.ports[g.portOf[i]]; return t === C.LANE ? `Queueing for ${p.code}` : `At ${p.code}'s ${t === C.PORT ? 'infeed' : 'outfeed'}`; }
       if (t === C.CHARGER) return 'On a charger';
       if (t === C.PARK) return 'Parked';
-      return `On the ${r.y === g.wY ? 'west' : 'east'}bound lane · x ${r.x}`;
+      return `On the ${g.west.includes(r.y) ? 'west' : 'east'}bound highway · x ${r.x}`;
     },
     speed(r) { return r.v * r.sim.cfg.cellSize; },
     motion(r) { return `facing ${r.axis.toUpperCase()}${r.shift > 0 ? ' (turning)' : ''}`; },

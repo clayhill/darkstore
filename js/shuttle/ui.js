@@ -12,6 +12,7 @@
       return [
         ui.kpiTile('Lift utilization', Math.round(work(lifts) * 100), '%', `busiest lift ${Math.round(busiest * 100)}% · the usual bottleneck`),
         ui.kpiTile('Shuttle cycles', Math.round(sim.cycleRate()), '/h', `shuttles busy ${Math.round(work(shuttles) * 100)}% of the time`),
+        ...(sim.bots ? WS.BotUI.kpiTiles(ui) : []),
       ];
     },
     settings(ui, c, num, sel) {
