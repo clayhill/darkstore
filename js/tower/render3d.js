@@ -903,7 +903,7 @@
       at(0, 'TOTE LIFT', g.giX, g.giY, g.FH[0] + 4.5, { color: '#67e8f9' });
       at(0, 'PARCEL SPIRAL', g.parcel.cx, g.parcel.cy, g.FZ[2] + 4, { color: '#c4b5fd' });
       if (this.camera.position.z < (g.by0 + g.by1) / 2) for (const d of sim.docks.doors) at(0, `DOOR ${d.k + 1} · ${d.carrier.name}${d.truck ? ` · ${d.truck.cages.length}/${sim.cfg.truckCages} cages` : ' · no truck'}`, d.x, g.by0 + 0.5, 9.4, { color: CARRIER_COL[d.carrier.code] });
-      if (close) for (const aisle of sim.aisles) at(1, `AISLE ${aisle.a + 1}`, g.laneX(aisle.a), g.B + 0.3, g.Z + 1.6, { color: '#fde68a' });
+      if (close && (this.camera.position.y < this.FZ[2] * LZ || !this.shown(2))) for (const aisle of sim.aisles) at(1, `AISLE ${aisle.a + 1}`, g.laneX(aisle.a), g.B + 0.3, g.Z + 1.6, { color: '#fde68a' });
     }
 
     // ---------------------------------------------------------------- following and selection

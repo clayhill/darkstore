@@ -278,8 +278,9 @@
       for (const p of ports) cuts.push(u(p.drop.x + 0.5), u(p.drop.x + 1.5));
       const segs = (this.loop0 = WS.loopBelts(net, 'ground-floor loop', pts, cuts, this.flat(0, { kind: 'loop' })));
       for (const p of ports) this.stationBelts(p, segs, u, 0);
+      // a tote going up waits here for the tote lift: everything on this line is going up but the odd tote that missed its station
       const at = this.segTo(segs, ret), next = at.next;
-      at.exit = (t) => this.atLink(t, L.gi.i0, next, 0, true); net.link(at, L.gi.i0);
+      at.exit = (t) => { this.rebind(t); return t.port && t.port.floor === 0 ? next : L.gi.i0; }; net.link(at, L.gi.i0);
       L.gi.o0.exit = () => segs[0]; net.link(L.gi.o0, segs[0]);
       const last = segs[segs.length - 1];
       last.exit = (t) => { this.lapped(t, 'laps0', true); return segs[0]; };

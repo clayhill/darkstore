@@ -145,6 +145,19 @@
             <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </a>
+        <a class="card" href="floorstack.html">
+          <div class="preview">
+            <canvas data-preview="tower" role="img" aria-label="Animated preview: a building cut open on three floors; totes climb a spiral from the racking to the pick stations above, parcels drop down a second spiral to a sorter and roll cages on the ground floor, and a tote lift rides between goods-in and the store"></canvas>
+            <span class="live"><span class="pulse"></span>Live preview</span>
+          </div>
+          <div class="body">
+            <p class="type">Multi-storey fulfilment</p>
+            <h3>FloorStack</h3>
+            <p class="desc">One building, three floors: a shuttle store on the first, picking and packing above it, goods-in, a parcel sorter and the trucks below. Spirals and lifts carry the totes between the floors, and become the bottleneck.</p>
+            <ul class="specs" data-specs="tower"></ul>
+            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </a>
         <a class="card" href="sorthub.html">
           <div class="preview">
             <canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas>
@@ -166,7 +179,7 @@
 
   <script>
     // load fresh copies, so the cards always match the current simulations
-    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/climb/config.js', 'js/zone/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
+    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/climb/config.js', 'js/zone/config.js', 'js/tower/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
   </script>
 </body>
 </html>

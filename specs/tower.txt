@@ -1,0 +1,163 @@
+DarkStore - multi-storey fulfilment building
+============================================
+
+Read common.txt and shuttle.txt first. Implemented as FloorStack (roadmap
+item 37).
+
+1. Overview
+
+Where land is dear, a fulfilment centre goes up instead of out: storage,
+picking and the dock each get a floor of their own, one above the other.
+Totes and parcels then have to change floors, by spiral conveyors and
+vertical lifts, and those links become the new bottleneck: they carry
+everything that goes from the store to a station and back, and the way up
+is long.
+
+FloorStack is one such building with three floors:
+
+  second floor  pick stations with put walls, packing, a control room,
+                packaging supplies
+  first floor   a shuttle store (as RailRunner) with a conveyor loop in
+                front of its aisles
+  ground floor  goods-in stations with the suppliers' trucks and pallet
+                staging, the parcel sorter with roll cages, a truck per
+                carrier at the dock doors, the canteen
+
+  store → loop → spiral up → station line → pick station → spiral down →
+  loop → back into the racking
+  goods-in: store → loop → tote lift down → goods-in line → station →
+  tote lift up → loop → racking
+  packing → parcel spiral (two floors down) → sorter loop → chute →
+  roll cage → truck
+
+2. Layout
+
+- The building's floors share their x and y (floor cells, 0.65 m); a
+  floor's height is its own. Storeys: the ground floor 14 render levels,
+  the first as high as the racking needs (16 with 8 levels), the second 10.
+- First floor: the racking of shuttle.txt with its aisle fronts to the
+  south. In front of the aisles a one-way loop: the near line runs west past
+  every aisle's outfeed and infeed, on past the tote lift and the foot of the
+  spiral up, round its west end and back east along the far line, past the
+  tote lift's outfeed, round its east end where the spiral down lands.
+- Second floor: a station line runs east from the top of the spiral up past
+  every pick station (a spur in, an outfeed back onto it) to the top of the
+  spiral down; a return line takes totes round again.
+- Ground floor: the same for the goods-in stations, between the tote lift's
+  outfeed and its infeed.
+- The pick stations and the goods-in stations stand in the same row (the
+  stations' front), on different floors, so the shared station layout holds
+  for both; packing is beside the pick stations, as in every type.
+- Openings in the slabs where spirals and lifts pass through; a staff core
+  with a goods lift and stairs in the south-west corner.
+
+3. Equipment
+
+Store: shuttle.txt (a shuttle per level, a lift per aisle, level buffers).
+
+Belts
+  - Fixed speed (0.8 m/s), totes a pitch apart (0.72 m), accumulating; where
+    two belts run into one the main line goes first, a tote waiting to join
+    gets its turn after a few seconds.
+  - A routing decision at each node: off onto a spur (a station, an aisle's
+    infeed, a link) when it is the tote's and has room, else straight on.
+Spiral conveyor
+  - A belt that climbs one storey in a helix (radius 1.3 m, 1.2 m a turn),
+    at the belt speed: a ride of about 46 s, holding 50 totes or so.
+Tote lift (vertical reciprocating conveyor)
+  - A carriage with room for 2 totes between two floors, flow-through: totes
+    roll on from the north and off to the south at both stops.
+  - Travel at 1.5 m/s with 1 m/s² ramps, 2.5 s for a tote to roll on or off.
+  - Serves the stop whose tote has waited longest, the one it is at first.
+  - In 'lift' mode the first and second floor are linked by a tote lift each
+    way instead of the spirals.
+Parcel spiral and sorter
+  - Parcels drop two floors down the parcel spiral (1 m/s) onto a sorter
+    loop that runs high (2 m) along the north wall.
+  - Each carrier has a dock door with two chutes; a stainless slide drops a
+    parcel into the roll cage under the chute (20 parcels a cage).
+Dock
+  - A loader per door: changes a full cage for an empty one (the chute is
+    closed meanwhile) and pushes it into the truck, or beside the door while
+    no truck is there; before a departure the cages a quarter full too.
+  - A truck takes 8 cages; it leaves when full or at its carrier's departure
+    time (every 45 min, the carriers in turn), the next one docks 4 minutes
+    later and brings the empty cages back.
+People
+  - Operators walk to the canteen on their breaks (one every 40 minutes, in
+    turn), from the second floor by the goods lift; a station stops until
+    its operator is back.
+  - The goods lift stops where it is called, opens its doors, takes its
+    riders where they go (1 m/s).
+  - A pallet mover takes pallets off the suppliers' trucks into the staging
+    lanes and from there to the goods-in stations, which work through a
+    pallet's cartons (12 receipt lines a pallet).
+
+4. Retrieval
+
+1. As shuttle.txt up to the aisle's lift, which rolls the tote off its
+   carriage onto the aisle's outfeed, while the first floor's loop is less
+   than 70 % full.
+2. The tote joins the loop and turns off at the link to its station's floor:
+   the spiral up for a pick station, the tote lift for goods-in. Without room
+   there it goes round the loop again.
+3. Upstairs (downstairs) it turns into its station's spur when the spur and
+   the station's infeed have room, else it goes round the floor's loop.
+4. Done at the station, it goes onto the outfeed: on to the next station
+   that wants it (on that floor, or by the links), or back down to the first
+   floor, where it gets its storage position and heads for that aisle's
+   infeed. A tote on its way back that a station asks for meanwhile goes to
+   that station instead.
+5. Up to 10 totes may be on their way to a station (6 in RailRunner): the way
+   from the store is long.
+
+5. Traffic
+
+- Belts accumulate; a full spur or link sends a tote round its floor's loop.
+- The aisle lifts hold totes back while the first floor's loop is 70 % full,
+  so it can always empty.
+- Totes on the goods-in line wait at the tote lift's infeed for it.
+- A full roll cage closes its chute; parcels for it take the carrier's other
+  chute or go round the sorter.
+
+6. Storage policy
+
+As shuttle.txt: fast movers near the aisle fronts, in the aisle with the
+least work queued (on its infeed and heading there). A tote's position is
+chosen when it reaches the first floor; when its aisle's infeed is full it
+goes to the next aisle along with room, or once round.
+
+7. Output
+
+On top of the common output and shuttle.txt's:
+
+- Totes per hour up and down between the first and second floor, how full
+  the spirals are (or how busy the lifts), totes waiting at their foot.
+- The tote lift's utilization and totes per hour each way.
+- Recirculation on each floor's loop.
+- Parcels sorted per hour, parcels going round the sorter, cages per truck,
+  trucks out and the next departure.
+- A control room on the second floor with screens showing these.
+
+8. Parameters
+
+  building    3 floors; ground 14, first 16, second 10 render levels
+  store       6 aisles, 8 levels, 20 bays (shuttle.txt otherwise)
+  stations    4 pick stations (put walls of 6), 2 goods-in stations;
+              10 totes in flight per station
+  packing     4 benches and an auto-bagger
+  orders      400 an hour
+  belts       0.8 m/s, 0.72 m a tote; the loop limit 70 %
+  spirals     radius 1.3 m, 1.2 m a turn
+  tote lifts  1.5 m/s, 1 m/s², 2.5 s a transfer, 2 totes a carriage
+  sorter      1 m/s, 0.55 m a parcel, 2 chutes a carrier, 20 parcels a cage
+  trucks      8 cages, every 45 minutes per carrier, 4 min to the next one
+  people      1.2 m/s walking, a break every 40 minutes in turn, 15 minutes;
+              the goods lift 1 m/s
+
+With these FloorStack picks about 830 lines an hour and keeps up with 400
+orders an hour; the pick stations are about 40 % busy and wait for totes
+nearly half the time, because a tote spends about 90 s on the way up. With a
+tote lift each way instead of the spirals the lifts are 97 % busy, about
+1200 totes an hour go round the first floor's loop because the way up is
+full, and the building falls behind (about 430 lines an hour).

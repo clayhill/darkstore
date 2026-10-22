@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the ten simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the eleven simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of ten
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of eleven
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,10 +14,12 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the ten systems work this way. AisleMate is the common first step towards it: people
+Seven of the eleven systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
 the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
-but a parcel sorter, the kind of hub parcels go through after the warehouse.
+but a parcel sorter, the kind of hub parcels go through after the warehouse. FloorStack puts a
+whole fulfilment centre in one building of three floors: storage, picking and the dock above each
+other, linked by spiral conveyors and lifts.
 
 **What every simulation shares**
 
@@ -33,7 +35,7 @@ but a parcel sorter, the kind of hub parcels go through after the warehouse.
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The ten systems**
+**The eleven systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -47,10 +49,11 @@ but a parcel sorter, the kind of hub parcels go through after the warehouse.
 | [**DeepLane**](https://clayhill.github.io/darkstore/deeplane.html) | Pallet shuttle AS/RS | Pallets in deep lanes, one SKU per lane | A carrier with a satellite per level, a lift per block | Last in, first out lanes, the lift as the bottleneck |
 | [**ZoneHop**](https://clayhill.github.io/darkstore/zonehop.html) | Pharmacy wholesale: A-frame and zone picking | Small boxes in A-frame channels, flow racks, carousels and shelving | Order totes on a conveyor loop, past the zones their order needs | A-frame refills, zone skipping, totes that miss their van |
 | [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
+| [**FloorStack**](https://clayhill.github.io/darkstore/floorstack.html) | Multi-storey fulfilment: storage, picking and the dock on three floors | Totes in a shuttle store on the first floor | Totes up a spiral to the pick stations and back down, parcels down two floors to a sorter, roll cages to the trucks | The links between the floors as the bottleneck, spirals against lifts |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
 by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
-`pharma.txt` and `sort.txt` describe the ten systems.
+`pharma.txt`, `sort.txt` and `tower.txt` describe the eleven systems.
 
 ## Run
 
@@ -75,7 +78,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   machine breaking down, a charger fault or an operator going on a break, or let robots fail at
   random. See how each system copes, and how long it takes to catch up.
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
-- **3D**: a free 3D view of the whole warehouse, in all ten systems. Drag to
+- **3D**: a free 3D view of the whole warehouse, in all eleven systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
   **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
@@ -224,7 +227,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The ten systems in detail
+## The eleven systems in detail
 
 ### CubeFlow — cube storage
 
@@ -667,12 +670,68 @@ tilt-tray recirculates about 2–3 % of parcels, and the robot sorter keeps up w
 spending about a third of their time waiting at the inducts. Above that, two bag workers become the
 limit for both.
 
+### FloorStack — multi-storey fulfilment
+
+![FloorStack in 3D: the building cut open on its south side, the pick stations and packing on the second floor, the shuttle store on the first, goods-in and the canteen on the ground floor, and the parcel spiral dropping two floors at the east end](docs/screenshots/tower-3d.png)
+
+| | |
+|---|---|
+| ![The first floor alone: the shuttle store with its aisle lifts, the conveyor loop in front, the spiral up to the pick stations on the left and the spiral down on the right, and the tote lift to goods-in](docs/screenshots/tower-3d-store.png) | ![The ground floor from the north: the sorter high along the wall, chutes dropping parcels into roll cages, and a truck per carrier backed up to its dock door](docs/screenshots/tower-3d-dock.png) |
+| **First floor:** the store, with the spirals up to the pick stations and back down | **Ground floor:** the sorter, roll cages and a truck per carrier |
+| ![Follow an order: the operator at Pick 2 picks from the order's tote, which came up from the store a floor below; the spiral down and packing beyond](docs/screenshots/tower-follow.png) | ![FloorStack's isometric view: the three floors side by side, the second floor up left, the store in the middle, the ground floor with its trucks down right](docs/screenshots/tower-floor.png) |
+| **Follow an order:** its tote up the spiral to the station, its parcel down to the truck | **2D:** the floors side by side; the coils stand on the floor they rise from |
+
+FloorStack puts a whole fulfilment centre into one building of three floors, as where land is dear:
+the store on the first floor, the pick stations and packing on the second, goods-in, a parcel
+sorter and the trucks on the ground floor. Everything that goes from the store to a station and
+back changes floors on the way, so the links between the floors are the new bottleneck. The
+Floors slider (top left) shows the building up to a floor, or one floor alone.
+
+**The store and its loop.** The first floor is RailRunner's shuttle store (6 aisles, 8 levels, a
+shuttle per level, a lift per aisle). In front of the aisles a one-way loop: the near line runs
+west past every aisle's outfeed and infeed, on past the tote lift and the foot of the spiral up;
+the far line comes back east. The aisle lifts send no more totes out while the loop is 70 % full.
+A tote turns off at the link to its station's floor, or goes round again when there is no room.
+
+**Up and down.** A spiral conveyor carries the totes up to the second floor (a ride of about 46 s)
+and another one back down; in the settings they can be a tote lift each way instead. Upstairs a
+station line runs past the four pick stations, a spur into each; a tote that finds its spur full
+goes round. Done at a station, a tote goes on to the next station that wants it or back down,
+where it gets its storage position. Ten totes may be on their way to a station (six in
+RailRunner), because the way up is long; a tote on its way back that a station asks for meanwhile
+goes there instead of into the racking.
+
+**Goods-in.** A tote lift with room for two totes links the store with the two goods-in stations
+on the ground floor. Suppliers' trucks dock at the west doors; a pallet mover takes their pallets
+to the staging lanes and on to the stations, which work through a pallet's cartons.
+
+**Parcels and the dock.** Packed parcels drop two floors down the parcel spiral onto a sorter loop
+that runs high along the north wall. Each carrier has a dock door with two chutes; a parcel slides
+into the roll cage under an open chute of its carrier. A full cage closes its chute until the
+door's loader has pushed it into the truck and brought an empty one. A truck takes eight cages and
+leaves when full or at its carrier's departure time; the next one brings the empty cages back.
+
+**People.** The station operators take their breaks in the canteen on the ground floor, one
+after the other: they step over the takeaway conveyor behind them, walk to the goods lift, ride
+it down and sit down at a table; the station stops until they are back. Loaders push roll cages,
+the pallet mover drives a pallet jack, and two supervisors watch the screens in the glass
+control room upstairs.
+
+**KPIs.** On top of RailRunner's: totes per hour up and down, how full the spirals are or how busy
+the lifts, totes waiting at their foot, the tote lift, recirculation on every floor, parcels
+sorted, cages and trucks. With the defaults (400 orders an hour) FloorStack picks about 830 lines
+an hour and keeps up; the pick stations are about 40 % busy and wait for totes nearly half the
+time, because the way up is long. With a tote lift each way instead of the spirals the lifts are
+97 % busy, about 1200 totes an hour go round the first floor's loop because the way up is full,
+and the building falls behind at about 430 lines an hour. Follow an order follows its totes up
+from the store and its parcel down to the truck.
+
 ## Development
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
-aislemate.html, zonehop.html, sorthub.html
+aislemate.html, zonehop.html, sorthub.html, floorstack.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -683,7 +742,8 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             kpi, sim (loop, layout), rack (tote slots, seeding and conveyors of every racking
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
             paths and putaway: RailRunner, SkyStack and DeepLane), totebots (mobile robots
-            instead of the pre-zone loop: their floor, tasks and dispatch), disrupt (surges,
+            instead of the pre-zone loop: their floor, tasks and dispatch), belts (conveyor
+            networks of belts that may climb: ZoneHop, FloorStack), disrupt (surges,
             breakdowns, charger faults, breaks)
 js/render/  iso (shared isometric view: camera, input, primitives, robot overlays), stations
             (warehouse floor, stations, packing, dock), control (SCADA map + charts),
@@ -701,15 +761,20 @@ js/climb/   RackRider: config, sim (climbing, presenting at the station, on Stac
 js/pallet/  DeepLane: config, sim (lanes, carriers and satellites on RailRunner's machines,
             receiving and empty pallets), render, render3d, ui
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
-js/zone/    ZoneHop: config, belts (the conveyor network), sim (orders with routes, A-frame,
+js/zone/    ZoneHop: config, sim (orders with routes, A-frame,
             zones, RF, merge, closing line, sorter, vans, tote return), render, render3d, ui
 js/sort/    SortHub: config, sim (parcels, inducts, chutes, tray loop, robot deck, bag workers),
             render, render3d, ui (its own tiles, tabs and settings)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort] [settings JSON]
+js/tower/   FloorStack: config, building (where everything stands on the three floors), sim
+            (belts and links between the floors on RailRunner's store, routing, tote lifts),
+            docks (parcel spiral, sorter, roll cages, trucks, suppliers' pallets), people
+            (walking, breaks, the goods lift), render, render3d, ui
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
-            one-way aisles, no picker zones, robot sorter, small pallets, transport robots), and compares a fingerprint of stock, fleet, orders and KPIs
+            one-way aisles, no picker zones, robot sorter, small pallets, transport robots, lifts between
+            FloorStack's floors), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 

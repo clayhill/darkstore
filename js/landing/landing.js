@@ -4,7 +4,7 @@
 (function (WS) {
   'use strict';
 
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG, RC = WS.CLIMB_CONFIG, ZC = WS.ZONE_CONFIG;
+  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG, RC = WS.CLIMB_CONFIG, ZC = WS.ZONE_CONFIG, TC = WS.TOWER_CONFIG;
   const specs = {
     cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
     pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
@@ -16,6 +16,7 @@
     pallet: [`${DC.aisles} blocks`, `lanes ${DC.laneDepth} pallets deep`, `${DC.aisles * DC.levels} carriers`, `${DC.aisles} lifts`],
     amr: [`${MC.aisles} aisles of shelving`, `${MC.robots} robots`, `${MC.pickers} pickers`, `${MC.robotTotes} totes per robot`],
     zone: [`A-frame of ${ZC.afChannels} channels`, `${ZC.ptlZones} pick-to-light zones`, `carousels & RF`, `${ZC.routes} van routes`],
+    tower: ['3 floors', `${TC.aisles} aisles × ${TC.levels} levels`, `${TC.pickPorts} pick stations upstairs`, 'spirals & tote lifts'],
   };
   for (const ul of document.querySelectorAll('[data-specs]')) {
     for (const s of specs[ul.dataset.specs] || []) {
@@ -922,6 +923,60 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview };
+  /* ---------- multi-storey building preview ---------- */
+  // Three floors cut open: the store on the first, a spiral carrying totes up
+  // to the pick stations on the second, parcels dropping down the parcel
+  // spiral to the sorter on the ground floor, the tote lift between
+  // goods-in and the store.
+  function towerPreview(canvas) {
+    const GW = 9, GD = 6, FZ = [0, 2.9, 5.8], TOP = 7.6;
+    const kit = isoKit(canvas, GW, GD, TOP, 0.62), { ctx, P, quad, box } = kit;
+    const rand = rng(53), HUES = ['#38bdf8', '#f472b6', '#a3e635', '#fbbf24', '#c084fc', '#2dd4bf'];
+    const helix = (cx, cy, r, z0, z1, turns, a0, dir) => (u) => { const a = a0 + dir * u * turns * Math.PI * 2; return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a), z: z0 + (z1 - z0) * u }; };
+    const up = helix(1.6, 4.4, 0.7, FZ[1] + 0.3, FZ[2] + 0.3, 2.5, Math.PI, 1), down = helix(7.6, 4.7, 0.55, FZ[2] + 0.25, FZ[0] + 1.05, 4.25, -Math.PI / 2, 1);
+    const totes = [0, 0.25, 0.5, 0.75].map((s) => ({ s, c: '#7d8ca3' })), parcels = [0, 0.2, 0.4, 0.6, 0.8].map((s) => ({ s }));
+    const lift = { z: FZ[0] + 0.3, dir: 1, hold: 1 }, cages = [0.3, 0.6, 0.15];
+    const racks = [...Array(12)].map(() => rand() < 0.8);
+    function step(dt) {
+      for (const t of totes) t.s = (t.s + dt * 0.09) % 1;
+      for (const p of parcels) { p.s += dt * 0.08; if (p.s >= 1) { p.s -= 1; const k = Math.floor(rand() * 3); cages[k] = cages[k] >= 1 ? 0.1 : cages[k] + 0.1; } }
+      if (lift.hold > 0) lift.hold -= dt;
+      else { lift.z += lift.dir * dt * 0.9; const lo = FZ[0] + 0.3, hi = FZ[1] + 0.3; if (lift.z >= hi || lift.z <= lo) { lift.z = Math.max(lo, Math.min(hi, lift.z)); lift.dir *= -1; lift.hold = 1.2; } }
+    }
+    // a slab, its edge, and what stands on it
+    const slab = (z, fill) => { quad([P(0, 0, z), P(GW, 0, z), P(GW, GD, z), P(0, GD, z)], fill, 'rgba(125,211,252,.35)', 1); quad([P(0, GD, z - 0.12), P(GW, GD, z - 0.12), P(GW, GD, z), P(0, GD, z)], 'rgba(51,65,85,.8)'); quad([P(GW, 0, z - 0.12), P(GW, GD, z - 0.12), P(GW, GD, z), P(GW, 0, z)], 'rgba(30,41,59,.8)'); };
+    const coilSegs = (f, zMin, zMax, col) => { const out = []; for (let k = 0; k < 120; k++) { const a = f(k / 120), b = f((k + 1) / 120); if (a.z < zMin || a.z >= zMax) continue; out.push({ d: (a.x + a.y) + 0.001 * a.z, fn: () => { ctx.strokeStyle = col; ctx.lineWidth = 3.2 * kit.s / 20; ctx.beginPath(); const p = P(a.x, a.y, a.z), q = P(b.x, b.y, b.z); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); } }); } return out; };
+    animate(canvas, kit, step, () => {
+      for (let f = 0; f < 3; f++) {
+        const z = FZ[f], z1 = f < 2 ? FZ[f + 1] : TOP, items = [];
+        slab(z, f === 0 ? 'rgba(30,41,59,.85)' : 'rgba(30,41,59,.55)');
+        if (f === 0) {
+          // the sorter along the back, chutes and roll cages under it, a truck at the door
+          box(1, 0.6, 8.2, 0.9, z + 1.05, z + 1.2, '#334155', '#1e293b', '#0f172a', 'rgba(196,181,253,.5)');
+          cages.forEach((c, k) => { const x = 2 + k * 2.2; items.push({ d: x + 0.3, fn: () => { box(x, 0.05, x + 0.6, 0.5, z, z + 0.9, 'rgba(148,163,184,.25)', 'rgba(148,163,184,.3)', 'rgba(148,163,184,.25)', '#cbd5e1'); box(x + 0.05, 0.1, x + 0.55, 0.45, z, z + 0.85 * Math.min(1, c), '#b8875a', '#a87a4f', '#8a623f'); } }); });
+          items.push({ d: 1, fn: () => box(3.5, -2.2, 5, -0.05, z - 0.2, z + 1.6, '#e2e8f0', '#cbd5e1', '#94a3b8') });
+          items.push({ d: 8.5, fn: () => { box(1.2, 4.4, 3.4, 5.2, z, z + 0.45, '#334155', '#1e293b', '#0f172a'); box(1.5, 4.5, 2.1, 5.1, z + 0.45, z + 0.95, '#b8875a', '#a87a4f', '#8a623f'); person(ctx, ...P(2.6, 5.6, z), kit.s / 20, '#22c55e', 0, 1); } });
+        }
+        if (f === 1) {
+          // a block of racking, its totes
+          items.push({ d: 4, fn: () => { box(3, 0.4, 6.2, 2.8, z, z + 1.9, 'rgba(37,99,235,.18)', 'rgba(37,99,235,.22)', 'rgba(30,58,138,.28)', 'rgba(96,165,250,.6)'); racks.forEach((on, k) => { if (!on) return; const x = 3.15 + (k % 4) * 0.78, zz = z + 0.15 + Math.floor(k / 4) * 0.6; box(x, 2.3, x + 0.6, 2.75, zz, zz + 0.4, '#94a3b8', '#64748b', '#475569'); }); } });
+        }
+        if (f === 2) {
+          // pick stations with their put walls and operators
+          for (let k = 0; k < 3; k++) { const x = 2.6 + k * 1.9; items.push({ d: x + 4.6, fn: () => { box(x, 3.9, x + 1.3, 4.5, z, z + 0.5, '#475569', '#334155', '#1e293b'); for (let j = 0; j < 3; j++) box(x + 0.1 + j * 0.4, 3.95, x + 0.4 + j * 0.4, 4.25, z + 0.5, z + 0.8, '#2563eb', '#1d4ed8', '#1e40af'); person(ctx, ...P(x + 0.6, 5.1, z), kit.s / 20, '#f97316', Math.max(0, Math.sin(performance.now() / 160 + k)) * 3 * kit.s / 20, k + 4); } }); }
+        }
+        // the tote lift between the ground and first floor
+        if (f < 2) items.push({ d: 7.2, fn: () => { const lx = 6.6, ly = 1.6; if (f === 0) for (const [dx, dy] of [[0, 0], [0.7, 0], [0, 0.7], [0.7, 0.7]]) quad([P(lx + dx, ly + dy, FZ[0]), P(lx + dx, ly + dy, FZ[1] + 1)], null, 'rgba(34,211,238,.8)', 1.4); if (lift.z >= z && lift.z < z1) { box(lx, ly, lx + 0.7, ly + 0.7, lift.z - 0.08, lift.z, '#0891b2', '#0e7490', '#155e75'); box(lx + 0.12, ly + 0.15, lx + 0.58, ly + 0.55, lift.z, lift.z + 0.32, '#94a3b8', '#64748b', '#475569'); } } });
+        // the spirals: the part of them on this storey, and what rides them
+        items.push(...coilSegs(up, z, z1, 'rgba(56,189,248,.85)'), ...coilSegs(down, z, z1, 'rgba(196,181,253,.85)'));
+        for (const t of totes) { const q = up(t.s); if (q.z >= z && q.z < z1) items.push({ d: q.x + q.y + 0.01, fn: () => box(q.x - 0.18, q.y - 0.14, q.x + 0.18, q.y + 0.14, q.z, q.z + 0.28, '#94a3b8', '#64748b', '#475569') }); }
+        for (const p of parcels) { const q = down(p.s); if (q.z >= z && q.z < z1) items.push({ d: q.x + q.y + 0.01, fn: () => box(q.x - 0.13, q.y - 0.11, q.x + 0.13, q.y + 0.11, q.z, q.z + 0.2, '#d2a676', '#b8875a', '#8a623f') }); }
+        items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+      }
+      void HUES;
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));
