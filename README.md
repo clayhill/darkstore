@@ -80,7 +80,7 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
 - Click robots, machines, storage, stations, pack stations or the dock to inspect them.
 - **3D**: a free 3D view of the whole warehouse, in all eleven systems. Drag to
   orbit, right-drag or Shift-drag to pan, scroll to zoom, **WASD** or the arrow keys to move and
-  **Q**/**E** to turn. **Walk** puts you on the floor at eye height (drag to look around, Shift to
+  **Q**/**E** to turn, **R**/**F** to move the camera up or down. **Walk** puts you on the floor at eye height (drag to look around, Shift to
   go faster). Double-click a robot, shuttle or crane to follow it; **Esc** or panning lets it go. In the
   racking systems the **Levels** slider works in 3D too; X-ray works in CubeFlow's 3D view. The
   warehouse stands in a hall with windows, columns and roof lamps. The walls on your side drop to a
@@ -678,12 +678,14 @@ limit for both.
 |---|---|
 | ![The first floor alone: the shuttle store with its aisle lifts, the conveyor loop in front, the spiral up to the pick stations on the left and the spiral down on the right, and the tote lift to goods-in](docs/screenshots/tower-3d-store.png) | ![The ground floor from the north: the sorter high along the wall, chutes dropping parcels into roll cages, and a truck per carrier backed up to its dock door](docs/screenshots/tower-3d-dock.png) |
 | **First floor:** the store, with the spirals up to the pick stations and back down | **Ground floor:** the sorter, roll cages and a truck per carrier |
-| ![Follow an order: the operator at Pick 2 picks from the order's tote, which came up from the store a floor below; the spiral down and packing beyond](docs/screenshots/tower-follow.png) | ![FloorStack's isometric view: the three floors side by side, the second floor up left, the store in the middle, the ground floor with its trucks down right](docs/screenshots/tower-floor.png) |
-| **Follow an order:** its tote up the spiral to the station, its parcel down to the truck | **2D:** the floors side by side; the coils stand on the floor they rise from |
+| ![Follow an order: the operator at Pick 2 picks from the order's tote, which came up from the store a floor below; the spiral down and packing beyond](docs/screenshots/tower-follow.png) | ![FloorStack's control room: totes up and down between the floors, the tote lift, parcels sorted, trucks out, and the station cards](docs/screenshots/tower-control.png) |
+| **Follow an order:** its tote up the spiral to the station, its parcel down to the truck | **Control room:** the links between the floors, the sorter and the trucks next to RailRunner's tiles |
 
 FloorStack puts a whole fulfilment centre into one building of three floors, as where land is dear:
 the store on the first floor, the pick stations and packing on the second, goods-in, a parcel
-sorter and the trucks on the ground floor. Everything that goes from the store to a station and
+sorter and the trucks on the ground floor. It has no floor view: three floors on top of each other only read in
+3D, so the page opens there (R and F, or Page Up and Page Down, move the camera up and down a
+floor). Everything that goes from the store to a station and
 back changes floors on the way, so the links between the floors are the new bottleneck. The
 Floors slider (top left) shows the building up to a floor, or one floor alone.
 

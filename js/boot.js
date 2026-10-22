@@ -55,7 +55,7 @@
       sim: ['js/zone/config.js', 'js/sim/belts.js', 'js/zone/sim.js'], view: ['js/zone/render.js', 'js/zone/ui.js'],
     },
     tower: {
-      name: 'FloorStack', floors: true, three: ['js/render3d/rack3d.js', 'js/shuttle/render3d.js', 'js/tower/render3d.js'], sub: 'Multi-storey fulfilment', scan: 'tote, order, parcel', click: 'machines, lifts, spirals, stations, chutes, doors',
+      name: 'FloorStack', floors: true, only3d: true, three: ['js/render3d/rack3d.js', 'js/shuttle/render3d.js', 'js/tower/render3d.js'], sub: 'Multi-storey fulfilment', scan: 'tote, order, parcel', click: 'machines, lifts, spirals, stations, chutes, doors',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
       sim: ['js/sim/prezone.js', 'js/sim/totebots.js', 'js/shuttle/config.js', 'js/shuttle/sim.js', 'js/sim/belts.js', 'js/tower/config.js', 'js/tower/building.js', 'js/tower/people.js', 'js/tower/docks.js', 'js/tower/sim.js'],
       view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js', 'js/tower/render.js', 'js/tower/ui.js'],
@@ -87,9 +87,7 @@
       <div class="seg" id="speeds"></div>
     </div>
     <div class="seg views" id="views">
-      <button data-view="floor" class="on">Floor</button>
-      <button data-view="split">Split</button>
-${k.three ? '      <button data-view="3d" title="Free 3D view: orbit, walk through the warehouse, follow a robot">3D</button>\n' : ''}      <button data-view="control">Control room</button>
+${k.only3d ? '' : '      <button data-view="floor" class="on">Floor</button>\n      <button data-view="split">Split</button>\n'}${k.three ? '      <button data-view="3d" title="Free 3D view: orbit, walk through the warehouse, follow a robot">3D</button>\n' : ''}      <button data-view="control">Control room</button>
     </div>
     <form class="scan" id="scan-form" autocomplete="off">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2 4h2v16H2zm3 0h1v16H5zm2 0h2v16H7zm3 0h1v16h-1zm3 0h2v16h-2zm3 0h1v16h-1zm2 0h1v16h-1zm2 0h2v16h-2z"/></svg>
@@ -113,7 +111,7 @@ ${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through 
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
-        <div class="hint hint3d">Drag to orbit · right-drag to pan · scroll to zoom · WASD to move · double-click a robot to follow · Camera menu: ride a robot (N: next)</div>
+        <div class="hint hint3d">Drag to orbit · right-drag to pan · scroll to zoom · WASD to move · R / F up and down · double-click a robot to follow · Camera menu: ride a robot (N: next)</div>
       </div>
       <div class="control" id="control">
         <div class="kpi-row" id="kpis"></div>

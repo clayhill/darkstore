@@ -253,7 +253,7 @@
         const cam = this.cam, f = Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0015));
         if (cam.walk) { const s = (1 - f) * 12, h = this.heading(); cam.ex += h.x * s; cam.ey += h.y * s; return; }
         // zoom towards the floor point under the cursor
-        const p = this.mouse(e), g = this.floorAt(p.x, p.y), d = WS.U.clamp(cam.dist * f, 3, 220);
+        const p = this.mouse(e), g = this.floorAt(p.x, p.y, cam.tz), d = WS.U.clamp(cam.dist * f, 3, 220);
         if (g && !cam.follow) { const k = 1 - d / cam.dist; cam.tx += (g.x - cam.tx) * k; cam.ty += (g.y - cam.ty) * k; }
         cam.dist = d;
       }, { passive: false });
@@ -261,7 +261,8 @@
       window.addEventListener('keydown', (e) => {
         if (this.app.view !== '3d' || typing(e)) return;
         if (e.code === 'KeyN' && this.cam.mode && this.cam.mode !== 'free') return this.nextSubject();
-        if (/^(Key[WASDQE]|Arrow|Escape)/.test(e.code)) this.leavePreset();
+        if (/^(Key[WASDQERF]|Arrow|Page|Escape)/.test(e.code)) this.leavePreset();
+        if (/^Page/.test(e.code)) e.preventDefault();
         this.keys.add(e.code); if (e.code === 'Escape') this.cam.follow = null;
       });
       window.addEventListener('keyup', (e) => this.keys.delete(e.code));
@@ -306,7 +307,10 @@
       let f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
       let s = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
       const turn = (k.has('KeyE') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0), fast = k.has('ShiftLeft') || k.has('ShiftRight') ? 3 : 1;
+      const rise = (k.has('KeyR') || k.has('PageUp') ? 1 : 0) - (k.has('KeyF') || k.has('PageDown') ? 1 : 0);
       cam.yaw -= turn * dt * 1.4;
+      // R / F: the point the camera orbits goes up or down (level with an upper floor, or down to the ground)
+      if (rise && !cam.walk) { cam.follow = null; cam.tz = Math.max(0, cam.tz + (rise * fast * dt * Math.max(8, cam.dist * 0.5)) / LZ); }
       if (cam.walk) {
         const v = 3.5 * fast * dt;
         cam.ex += (h.x * f + side.x * s) * v; cam.ey += (h.y * f + side.y * s) * v;
@@ -440,11 +444,12 @@
     }
 
     // ---------------------------------------------------------------- picking
-    floorAt(sx, sy) {
+    // where the ray under the cursor meets the level plane at height z (levels)
+    floorAt(sx, sy, z = 0) {
       this.ray.setFromCamera({ x: (sx / this.w) * 2 - 1, y: -(sy / this.h) * 2 + 1 }, this.camera);
-      const o = this.ray.ray.origin, d = this.ray.ray.direction;
-      if (d.y >= -1e-4) return null;
-      const t = -o.y / d.y;
+      const o = this.ray.ray.origin, d = this.ray.ray.direction, h = z * LZ;
+      if (Math.abs(d.y) < 1e-4 || (o.y - h) / -d.y < 0) return null;
+      const t = (h - o.y) / d.y;
       return { x: o.x + d.x * t, y: o.z + d.z * t };
     }
     // The nearest pickable instance under the cursor, else what is on the floor there.

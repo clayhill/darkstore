@@ -27,6 +27,7 @@
       const warm = +q.get('warm') || 0;
       for (let k = 0; k < warm / this.sim.cfg.tick; k++) this.sim.tick();
       if (q.get('view')) this.setView(q.get('view'));
+      else if (this.Kind.only3d) this.setView('3d');
       for (const o of ['xray', 'heat', 'solid']) if (q.get(o) === '1') document.querySelector(`[data-opt="${o}"]`).click();
       const cut = document.getElementById('cut-level');
       if (cut && +q.get('cut')) { if (q.get('only') === '1') document.getElementById('cut-only').click(); cut.value = q.get('cut'); cut.dispatchEvent(new Event('input')); }
@@ -46,6 +47,7 @@
       this.ui.toast('Simulation restarted');
     },
     setView(v) {
+      if (this.Kind.only3d && (v === 'floor' || v === 'split')) v = '3d';
       if (v === '3d' && !this.gl) return this.open3d();
       this.view = v;
       document.getElementById('layout').className = 'layout view-' + v;
@@ -98,7 +100,7 @@
     pallet: () => ({ Sim: WS.PalletSim, Renderer: WS.PalletRenderer, Renderer3D: WS.PalletRenderer3D }),
     climb: () => ({ Sim: WS.ClimbSim, Renderer: WS.ClimbRenderer, Renderer3D: WS.ClimbRenderer3D }),
     zone: () => ({ Sim: WS.ZoneSim, Renderer: WS.ZoneRenderer, Renderer3D: WS.ZoneRenderer3D }),
-    tower: () => ({ Sim: WS.TowerSim, Renderer: WS.TowerRenderer, Renderer3D: WS.TowerRenderer3D }),
+    tower: () => ({ Sim: WS.TowerSim, Renderer: WS.TowerRenderer, Renderer3D: WS.TowerRenderer3D, only3d: true }), // no floor view: it opens in 3D
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

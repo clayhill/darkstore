@@ -25,6 +25,25 @@
     // what is drawn next stands on floor f
     onFloor(f) { this.zLift = this.FZ[f]; this.skip = !this.shown(f); }
     offFloor() { this.zLift = 0; this.skip = false; }
+    // The camera goes level with the floor the Floors slider picks (the
+    // highest one shown, or the one alone); Walk walks on the floor it is at.
+    aimAtFloor() {
+      const o = this.opts, k = [o.floorTop, o.cutOnly].join('|');
+      if (k === this.floorKey) return;
+      const first = this.floorKey === undefined;
+      this.floorKey = k;
+      if (first) return;
+      const f = o.floorTop == null ? 1 : o.floorTop;
+      this.leavePreset();
+      Object.assign(this.cam, { follow: null, tz: this.FZ[f] + (o.floorTop == null ? 3 : 2.5) });
+      if (this.cam.walk) this.walkZ = this.FZ[f];
+    }
+    get eye() { return super.eye + (this.cam.walk ? (this.walkZ || 0) * LZ : 0); }
+    setWalk(on) {
+      if (on && !this.cam.walk) { let f = 0; for (let k = 0; k < 3; k++) if (this.shown(k) && this.cam.tz >= this.FZ[k] - 0.5) f = k; this.walkZ = this.FZ[f]; }
+      super.setWalk(on);
+      if (!on) this.cam.tz = (this.walkZ || 0) + 2;
+    }
     buildKey() { return [super.buildKey(), this.opts.floorTop, this.opts.cutOnly, this.sim.cfg.linkType, this.sim.cfg.pickPorts, this.sim.cfg.aisles].join('|'); }
     bounds() { const g = this.sim.grid; return { x0: g.bx0 - 17, y0: g.by0 - 18, x1: g.bx1 + 2, y1: g.by1 + 2 }; }
     fit() {
@@ -573,6 +592,7 @@
 
     // ---------------------------------------------------------------- live
     drawLive(alpha) {
+      this.aimAtFloor();
       this.onFloor(1);
       super.drawLive(alpha); // stored totes, shuttles and aisle lifts
       this.offFloor();
