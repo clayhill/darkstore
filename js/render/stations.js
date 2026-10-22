@@ -203,7 +203,7 @@
       const oms = this.sim.oms, o = pk.cur, title = pk.name;
       if (!o) return { title, tag: pk.queue.length ? `${pk.queue.length} QUEUED` : '', accent: '#64748b', big: pk.queue.length ? 'Next order' : 'Idle', name: pk.queue.length ? `${pk.queue[0].id} on the conveyor` : 'Waiting for order totes', info: [] };
       const units = oms.units(o), what = pk.kind === 'bagger' ? 'Bag' : pk.kind === 'boxer' ? 'Box (made to fit)' : 'Pack';
-      return { title, tag: `${pk.queue.length} QUEUED`, accent: '#38bdf8', big: `${what} ${units} item${units > 1 ? 's' : ''}`, name: o.id, info: [`${o.customer} · ${o.postcode} ${o.city}`, `Carrier ${oms.truck.carrier.name}`], bar: pk.t / pk.dur };
+      return { title, tag: `${pk.queue.length} QUEUED`, accent: '#38bdf8', big: `${what} ${units} item${units > 1 ? 's' : ''}`, name: o.id, info: [`${o.customer} · ${o.postcode} ${o.city}`, `Carrier ${(o.carrier || oms.truck.carrier).name}`], bar: pk.t / pk.dur };
     }
     // Half sizes { w, d } of the bins on a port's conveyor (q) and at its pick position.
     portBinSize(p) {

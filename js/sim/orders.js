@@ -176,8 +176,10 @@
     // ---------------------------------------------------------------- inbound
     createReceipt(spec) {
       const sim = this.sim, inv = sim.inv;
-      const gi = sim.ports.find((p) => p.kind === 'GOODS_IN');
-      if (!gi) throw new Error('No goods-in port configured');
+      // the goods-in station with the least work waiting
+      const gis = sim.ports.filter((p) => p.kind === 'GOODS_IN');
+      if (!gis.length) throw new Error('No goods-in port configured');
+      const gi = gis.length === 1 ? gis[0] : gis.reduce((a, b) => (b.demand() < a.demand() ? b : a));
       const rc = { id: 'ASN-' + this.nextAsn++, supplier: spec.supplier || 'Supplier', status: 'OPEN', created: sim.time, lines: [], source: spec.source || 'manual' };
       for (const l of spec.lines) {
         const prod = inv.byGtin.get(l.gtin);
@@ -329,7 +331,7 @@
           if (pk.t >= pk.dur) {
             const o = pk.cur; pk.cur = null; pk.done++;
             o.sscc = WS.Barcode.makeSSCC(this.sscc++);
-            o.carrier = this.truck.carrier;
+            o.carrier = this.carrierFor(o);
             o.status = 'PACKED'; o.times.packed = sim.time; o.pack = pk.kind;
             const tote = o.tote; tote.order = null; o.toteId = tote.id; o.tote = null;
             sim.schedule(60, () => this.returnTote(tote)); // the empty tote goes back to a station's stack
@@ -338,8 +340,13 @@
           }
         }
       }
-      // truck departs at capacity or cut-off
-      const tr = this.truck;
+      this.updateTruck(dt);
+    }
+    // the carrier a packed order goes with: the truck at the dock
+    carrierFor() { return this.truck.carrier; }
+    // The truck departs at capacity or cut-off; the next one docks.
+    updateTruck(dt) {
+      const sim = this.sim, cfg = sim.cfg, tr = this.truck;
       if (tr.departing > 0) {
         tr.departing += dt;
         if (tr.departing > 8) {

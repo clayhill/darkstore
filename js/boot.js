@@ -52,7 +52,13 @@
       name: 'ZoneHop', sub: 'Pharmacy wholesale', scan: 'tote, order, location', click: 'totes, zones, the A-frame, machines, lanes', three: ['js/zone/render3d.js'], ride: 'tote',
       map: 'Conveyors', stations: 'Zones', flow: 'Order totes out', fleet: 'Tote',
       tabs: [['orders', 'Orders'], ['zones', 'Zones'], ['inventory', 'Stock'], ['routes', 'Routes'], ['settings', 'Settings']],
-      sim: ['js/zone/config.js', 'js/zone/belts.js', 'js/zone/sim.js'], view: ['js/zone/render.js', 'js/zone/ui.js'],
+      sim: ['js/zone/config.js', 'js/sim/belts.js', 'js/zone/sim.js'], view: ['js/zone/render.js', 'js/zone/ui.js'],
+    },
+    tower: {
+      name: 'FloorStack', floors: true, three: ['js/render3d/rack3d.js', 'js/shuttle/render3d.js', 'js/tower/render3d.js'], sub: 'Multi-storey fulfilment', scan: 'tote, order, parcel', click: 'machines, lifts, spirals, stations, chutes, doors', ride: 'tote',
+      map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
+      sim: ['js/sim/prezone.js', 'js/sim/totebots.js', 'js/shuttle/config.js', 'js/shuttle/sim.js', 'js/sim/belts.js', 'js/tower/config.js', 'js/tower/building.js', 'js/tower/people.js', 'js/tower/docks.js', 'js/tower/sim.js'],
+      view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js', 'js/tower/render.js', 'js/tower/ui.js'],
     },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
@@ -97,7 +103,7 @@ ${k.three ? '      <button data-view="3d" title="Free 3D view: orbit, walk throu
         <canvas id="iso"></canvas>
 ${k.three ? '        <canvas id="gl"></canvas><canvas id="gl-labels"></canvas>\n' : ''}
         <div class="iso-tools" id="iso-tools">
-${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n' : ''}${k.cut && !k.noSolid ? '          <button data-opt="solid" title="Draw the racking solid, so it hides the machines behind it; Shift-drag to look down into the aisles">Solid racking</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
+${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y][Z] matrix">X-ray stacks</button>\n' : ''}${k.cut ? '          <div class="cut" id="cut" title="Show the racking up to a level, or one level only"><span>Levels</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest level shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen level">Only</button></div>\n' : ''}${k.floors ? '          <div class="cut" id="cut" title="Show the building up to a floor, or one floor only"><span>Floors</span><input type="range" id="cut-level" min="1" max="1" value="1" aria-label="Highest floor shown"><b id="cut-label">all</b><button id="cut-only" title="Show only the chosen floor">Only</button></div>\n' : ''}${k.cut && !k.noSolid ? '          <button data-opt="solid" title="Draw the racking solid, so it hides the machines behind it; Shift-drag to look down into the aisles">Solid racking</button>\n' : ''}          <button data-opt="heat" title="ABC velocity colours and traffic heat">ABC &amp; heat</button>
           <button data-opt="paths" class="on">Paths</button>
           <button data-opt="claims" class="on" title="Cells reserved ahead by the fleet manager">Reservations</button>
           <button data-opt="labels" class="on">Labels</button>

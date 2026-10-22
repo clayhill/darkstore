@@ -13,12 +13,46 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
     if (oh !== p.onHand || res !== p.reserved) throw new Error(`stock mismatch ${p.gtin} oh ${oh}/${p.onHand} res ${res}/${p.reserved}`);
   }
+}
+// FloorStack: every tote in exactly one place — a rack slot, a shuttle, a
+// buffer, an aisle lift, a belt, a tote lift or a station; no two totes on
+// a belt closer than the pitch; every parcel packed is on the spiral, the
+// sorter, in a cage, on a truck or shipped; reservations add up
+function checkTower() {
+  const where = new Map(), put = (id, w) => { if (where.has(id)) throw new Error(`t=${sim.time.toFixed(1)} ${id} in ${where.get(id)} and ${w}`); where.set(id, w); };
+  for (const a of sim.aisles) {
+    a.slot.forEach((id) => { if (id) put(id, 'slot'); });
+    a.outBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'outBuf')));
+    a.inBuf.forEach((q) => q.forEach((it) => put(it.bin.id, 'inBuf')));
+    for (const r of [...a.shuttles, a.lift]) if (r.bin) put(r.bin, r.name);
+    const heading = sim.net.belts.reduce((n, b) => n + b.totes.filter((t) => t.dest && t.dest.a === a.a).length, 0) + sim.vrcs.reduce((n, m) => n + m.load.filter((t) => t.dest && t.dest.a === a.a).length, 0);
+    if (heading !== a.heading) throw new Error(`t=${sim.time.toFixed(1)} aisle ${a.a + 1} heading ${a.heading} but ${heading} totes on their way`);
+  }
+  for (const b of sim.net.belts) {
+    b.totes.forEach((t, k) => {
+      put(t.bin.id, b.name);
+      if (t.belt !== b) throw new Error(`${t.bin.id} on ${b.name} thinks it is on ${t.belt && t.belt.name}`);
+      if (k && b.totes[k - 1].s - t.s < sim.net.pitch - 1e-6) throw new Error(`t=${sim.time.toFixed(1)} totes too close on ${b.name}`);
+    });
+  }
+  for (const m of sim.vrcs) m.load.forEach((t) => put(t.bin.id, m.name));
+  for (const p of sim.ports) { p.inQ.forEach((q) => put(q.bin.id, p.code)); if (p.pick) put(p.pick.id, p.code); p.outQ.forEach((b) => put(b.id, p.code)); }
+  for (const b of sim.inv.bins) {
+    if (!where.has(b.id)) throw new Error(`t=${sim.time.toFixed(1)} tote ${b.id} (${b.loc}) is nowhere`);
+    if (b.loc === 'grid' && where.get(b.id) !== 'slot') throw new Error(`${b.id} loc grid but in ${where.get(b.id)}`);
+  }
+  const d = sim.docks, seen = new Set(), add = (o, w) => { if (seen.has(o.id)) throw new Error(`parcel ${o.id} twice (${w})`); seen.add(o.id); };
+  d.parcelQ.forEach((o) => add(o, 'queue'));
+  for (const b of sim.pnet.belts) b.totes.forEach((t) => add(t.order, b.name));
+  for (const ch of d.chutes) if (ch.cage) ch.cage.items.forEach((o) => add(o, 'cage'));
+  for (const door of d.doors) { door.staged.forEach((c) => c.items.forEach((o) => add(o, 'staged'))); if (door.truck) door.truck.cages.forEach((c) => c.items.forEach((o) => add(o, 'truck'))); if (door.loader.carry && door.loader.carry.items) door.loader.carry.items.forEach((o) => add(o, 'loader')); }
+  for (const o of sim.oms.orders) if (['PACKED', 'LOADED'].includes(o.status) && !seen.has(o.id) && !sim.oms.conveyor.some((it) => it.order === o)) throw new Error(`t=${sim.time.toFixed(1)} parcel ${o.id} (${o.status}) is nowhere`);
 }
 // racking types: every tote in exactly one place — a rack slot, a shuttle,
 // a buffer, the lift, the crane, a robot, the conveyor, a queue or a station

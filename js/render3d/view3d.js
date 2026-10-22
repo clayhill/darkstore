@@ -40,7 +40,12 @@
       const m = this.mesh;
       m.count = this.n; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; m.boundingSphere = null;
     }
+    // A building of several floors (FloorStack) draws each floor's parts with
+    // the view's zLift (levels) added, and leaves out a hidden floor's (skip).
     put(color, pick) {
+      const v = this.view;
+      if (v.skip) return;
+      if (v.zLift) M.elements[13] += v.zLift * LZ;
       if (this.n >= this.cap) this.alloc(this.cap * 2);
       this.mesh.setMatrixAt(this.n, M); this.mesh.setColorAt(this.n, col(color)); this.picks[this.n] = pick || null; this.n++;
     }
@@ -659,6 +664,7 @@
     // repainted only when what it shows changes, and not while it is far
     // from the camera; a screen not drawn in a frame is hidden.
     screen(key, x0, x1, y, z0, z1, model) {
+      if (this.skip) return;
       const S = this.screens || (this.screens = new Map());
       let sc = S.get(key);
       if (!sc) {
@@ -671,7 +677,7 @@
         S.set(key, sc);
       }
       sc.used = this.frameNo;
-      sc.mesh.position.set((x0 + x1) / 2, ((z0 + z1) / 2) * LZ, y); sc.mesh.scale.set(x1 - x0, (z1 - z0) * LZ, 1);
+      sc.mesh.position.set((x0 + x1) / 2, ((z0 + z1) / 2 + (this.zLift || 0)) * LZ, y); sc.mesh.scale.set(x1 - x0, (z1 - z0) * LZ, 1);
       const far = this.camera.position.distanceTo(sc.mesh.position) > 40;
       if (far && sc.sig) return;
       const sig = JSON.stringify(model, (k, v) => (k === 'bar' && v != null ? Math.round(v * 40) : v));
@@ -1073,7 +1079,8 @@
     }
     // Text tags drawn over the WebGL canvas at projected world points.
     label(s, x, y, z, o = {}) {
-      const p = V.set(x, z * LZ, y).project(this.camera);
+      if (this.skip) return;
+      const p = V.set(x, (z + (this.zLift || 0)) * LZ, y).project(this.camera);
       if (p.z > 1 || p.z < -1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return;
       const c = this.lctx, px = ((p.x + 1) / 2) * this.w, py = ((1 - p.y) / 2) * this.h;
       c.font = `${o.weight || 600} ${o.size || 11}px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif`;

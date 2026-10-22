@@ -199,7 +199,6 @@
 
     // ---------- dispatch ----------
     dispatch() {
-      const cfg = this.cfg;
       this.createRetrievals();
       for (const t of this.pendingTasks()) {
         const bin = t.bin;
@@ -222,27 +221,30 @@
           const t = sh.jobs.splice(k, 1)[0];
           sh.run(this.retrieveJob(sh, t), t);
         }
-        // lift: the tote that has waited longest, outbound or inbound
-        const lift = aisle.lift;
-        if (!lift.idle) continue;
-        let best = null;
-        // nothing more onto a busy loop or a full stand (WS.PreZoneSim.outRoom)
-        for (let l = 0; l < cfg.levels && this.outRoom(aisle); l++) {
-          const o = aisle.outBuf[l][0];
-          if (o && (!best || o.t < best.t)) best = { t: o.t, out: l };
-        }
-        // the infeed is a queue: only the tote at its head can go up
-        const head = aisle.inQ[0], inn = head && aisle.inBuf[head.l].length < cfg.bufferSize ? head : null;
-        // a full infeed goes first: totes for this aisle are going round meanwhile
-        if (inn && (!best || inn.t < best.t || this.infeedRoom(aisle) <= 0)) best = { t: inn.t, in: inn };
-        if (!best) continue;
-        if (best.in) lift.run(liftIn(this, lift, best.in), { type: 'IN', bin: best.in.bin });
-        else lift.run(liftOut(this, lift, best.out), { type: 'OUT', bin: aisle.outBuf[best.out][0].bin });
+        this.dispatchLift(aisle);
       }
       this.dispatchRobots();
+    }
+    // the aisle's lift: the tote that has waited longest, outbound or inbound
+    dispatchLift(aisle) {
+      const cfg = this.cfg, lift = aisle.lift;
+      if (!lift.idle) return;
+      let best = null;
+      // nothing more onto a busy loop or a full stand (WS.PreZoneSim.outRoom)
+      for (let l = 0; l < cfg.levels && this.outRoom(aisle); l++) {
+        const o = aisle.outBuf[l][0];
+        if (o && (!best || o.t < best.t)) best = { t: o.t, out: l };
+      }
+      // the infeed is a queue: only the tote at its head can go up
+      const head = aisle.inQ[0], inn = head && aisle.inBuf[head.l].length < cfg.bufferSize ? head : null;
+      // a full infeed goes first: totes for this aisle are going round meanwhile
+      if (inn && (!best || inn.t < best.t || this.infeedRoom(aisle) <= 0)) best = { t: inn.t, in: inn };
+      if (!best) return;
+      if (best.in) lift.run(liftIn(this, lift, best.in), { type: 'IN', bin: best.in.bin });
+      else lift.run(liftOut(this, lift, best.out), { type: 'OUT', bin: aisle.outBuf[best.out][0].bin });
     }
   }
 
   WS.ShuttleSim = ShuttleSim;
-  WS.ShuttleMachines = { Shuttle, Lift };
+  WS.ShuttleMachines = { Shuttle, Lift, liftRoll };
 })((globalThis.WS = globalThis.WS || {}));

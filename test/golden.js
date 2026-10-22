@@ -20,6 +20,7 @@ const RUNS = {
   climb: ['climb', {}],
   pallet: ['pallet', {}], 'pallet-small': ['pallet', { palletVolume: 25 }],
   zone: ['zone', {}],
+  tower: ['tower', {}], 'tower-lifts': ['tower', { linkType: 'lift' }],
 };
 
 // Child mode: run one type and print its fingerprint lines.

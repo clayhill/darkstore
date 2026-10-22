@@ -98,6 +98,7 @@
     pallet: () => ({ Sim: WS.PalletSim, Renderer: WS.PalletRenderer, Renderer3D: WS.PalletRenderer3D }),
     climb: () => ({ Sim: WS.ClimbSim, Renderer: WS.ClimbRenderer, Renderer3D: WS.ClimbRenderer3D }),
     zone: () => ({ Sim: WS.ZoneSim, Renderer: WS.ZoneRenderer, Renderer3D: WS.ZoneRenderer3D }),
+    tower: () => ({ Sim: WS.TowerSim, Renderer: WS.TowerRenderer, Renderer3D: WS.TowerRenderer3D }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

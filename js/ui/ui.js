@@ -69,19 +69,26 @@
       const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
       clearTimeout(this.tt); this.tt = setTimeout(() => (t.className = 'toast'), 2600);
     }
-    // Racking cut-away (rack types): show levels 1…n, or level n only.
+    // Racking cut-away (rack types): show levels 1…n, or level n only. In a
+    // building of several floors (sim.floorNames, FloorStack) the same
+    // slider shows the floors up to one, or that floor only.
     bindCut() {
       const range = $('#cut-level');
       if (!range) return;
       const label = $('#cut-label'), only = $('#cut-only'), opts = () => this.app.iso.opts;
       const show = () => {
-        const n = +range.value, o = opts();
+        const n = +range.value, o = opts(), F = this.sim.floorNames;
+        if (F) {
+          o.floorTop = n >= F.length && !o.cutOnly ? null : n - 1;
+          label.textContent = o.floorTop == null ? 'all' : o.cutOnly ? `${F[n - 1]} only` : `${F[0]}–${F[n - 1]}`;
+          return;
+        }
         o.cutTop = n >= this.sim.cfg.levels && !o.cutOnly ? null : n - 1;
         label.textContent = o.cutTop == null ? 'all' : o.cutOnly ? `${n} only` : `1–${n}`;
       };
       range.addEventListener('input', show);
       only.addEventListener('click', () => { const o = opts(); o.cutOnly = !o.cutOnly; only.classList.toggle('on', o.cutOnly); show(); });
-      this.resetCut = () => { range.max = this.sim.cfg.levels; range.value = range.max; opts().cutOnly = false; only.classList.remove('on'); show(); };
+      this.resetCut = () => { range.max = this.sim.floorNames ? this.sim.floorNames.length : this.sim.cfg.levels; range.value = range.max; opts().cutOnly = false; only.classList.remove('on'); show(); };
       this.resetCut();
     }
     onRestart() { if (this.resetCut) this.resetCut(); this.selection = null; this.logSeen = 0; $('#inspector').classList.add('hidden'); this.rcLines = []; this.soLines = []; this.setTab(this.tab); }
@@ -434,7 +441,9 @@
       if (!s) return;
       if (!force && (el.matches(':hover') || (el.contains(document.activeElement) && document.activeElement.tagName === 'SELECT'))) return;
       let html = '';
-      if (s.kind === 'robot') html = this.inspectRobot(sim.fleet[s.id]);
+      const own = this.type.inspect && this.type.inspect[s.kind]; // a type's own things (FloorStack's lifts, chutes, doors)
+      if (own) html = own(this, s.id);
+      else if (s.kind === 'robot') html = this.inspectRobot(sim.fleet[s.id]);
       else if (s.kind === 'cell') html = this.inspectCell(s.id);
       else if (s.kind === 'port') html = this.inspectPort(sim.ports[s.id]);
       else if (s.kind === 'packer') html = this.inspectPacker(sim.oms.packers[s.id]);
