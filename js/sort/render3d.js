@@ -11,6 +11,7 @@
   const CARTON = (p) => SHADES[p.hue % SHADES.length];
 
   class SortRenderer3D extends WS.View3D {
+    bagAt(ch) { return WS.sortBagAt(this.sim, ch); }
     bounds() { const g = this.sim.grid; return { x0: -2, y0: -2, x1: g.W + 2, y1: g.D + 4 }; }
     get robotZ() { return this.sim.tray ? 0 : PZ; }
     workLights() { const g = this.sim.grid; return this.sim.ports.map((p) => (this.sim.tray ? { x: p.slot.x + 0.8, y: g.Yt - 2.6 } : { x: p.drop.x + 1.2, y: g.D + 1.5 })); }
@@ -84,7 +85,7 @@
       const sim = this.sim, g = sim.grid, D = this.dy, cap = sim.cfg.bagCapacity;
       // bags: a sack growing as it fills, a lamp when full or being changed
       for (const ch of sim.chutes) {
-        const tray = sim.tray, x = ch.x, y = tray ? (ch.side ? g.Yb : g.Yt) + (ch.side ? 2.45 : -2.45) : ch.y, top = tray ? 1.45 : PZ - 0.2, f = Math.min(1, ch.count / cap), h = 0.25 + f * (top - 0.4), cell = { kind: 'cell', id: g.idx(Math.floor(ch.cell.x), Math.floor(ch.cell.y)) };
+        const tray = sim.tray, { x, y } = this.bagAt(ch), top = tray ? 1.45 : PZ - 0.2, f = Math.min(1, ch.count / cap), h = 0.25 + f * (top - 0.4), cell = { kind: 'cell', id: g.idx(Math.floor(ch.cell.x), Math.floor(ch.cell.y)) };
         D.box.box(x - 0.34, y - 0.34, top - h, x + 0.34, y + 0.34, top, ch.swapping ? '#94a3b8' : '#e5e7eb', cell);
         if (ch.count >= cap || ch.swapping) D.litCyl.cyl(x, y, top + (tray ? 0.15 : 0.3), top + (tray ? 0.35 : 0.5), 0.08, ch.swapping ? '#f59e0b' : '#ef4444');
       }
@@ -99,7 +100,7 @@
           for (let k = 0; k < n; k++) { const q = p.queue[k], s = 0.26 * q.size, yy = 1.4 + k * 0.62; D.box.box(x - s, yy - s * 0.8, TZ - 0.1, x + s, yy + s * 0.8, TZ + 0.35, CARTON(q)); }
           const r = p.ready || p.cur;
           if (r) { const s = 0.26 * r.size, yy = g.Yt - 1.0; D.box.box(x - s, yy - s * 0.8, TZ - 0.1, x + s, yy + s * 0.8, TZ + 0.35, CARTON(r)); }
-          if (!p.away) this.operator(x + 0.8, g.Yt - 2.6, Math.PI / 2, !!p.cur, '#f97316');
+          if (!p.away) this.operator(x + 0.8, g.Yt - 2.6, Math.PI / 2, !!p.cur, 'station');
         }
       } else {
         for (const r of sim.fleet) this.sortRobot(r, r.prx + (r.rx - r.prx) * alpha + 0.5, r.pry + (r.ry - r.pry) * alpha + 0.5);
@@ -107,13 +108,13 @@
           const x = p.drop.x + 0.5, y0 = g.D, n = Math.min(4, p.queue.length);
           for (let k = 0; k < n; k++) { const q = p.queue[k], s = 0.24 * q.size, yy = y0 + 0.7 + k * 0.6; D.box.box(x + 1.2 - s, yy - s * 0.8, PZ + 0.1, x + 1.2 + s, yy + s * 0.8, PZ + 0.5, CARTON(q)); }
           if (p.ready) { const r = p.ready, s = 0.24 * r.size; D.box.box(x + 0.35 - s, y0 + 0.3 - s * 0.8, PZ + 0.2, x + 0.35 + s, y0 + 0.3 + s * 0.8, PZ + 0.6, CARTON(r)); }
-          if (!p.away) this.operator(x - 0.2, y0 + 0.8, 0, !!p.cur, '#f97316', PZ);
+          if (!p.away) this.operator(x - 0.2, y0 + 0.8, 0, !!p.cur, 'station', PZ);
         }
         for (const ch of g.chargers) { const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING'; (on ? D.lit : D.box).box(ch.x + 0.35, 0.17, PZ + 1.2, ch.x + 0.65, 0.19, PZ + 1.5, on ? '#4ade80' : '#166534'); }
       }
       sim.workers.forEach((w, k) => {
-        const x = w.px + (w.x - w.px) * alpha, y = w.py + (w.y - w.py) * alpha;
-        this.operator(x, y, 0, w.state === 'SWAPPING', '#facc15', 0, 'bag worker ' + k);
+        const x = w.px + (w.x - w.px) * alpha, y = w.py + (w.y - w.py) * alpha, b = w.chute && this.bagAt(w.chute);
+        this.operator(x, y, b ? Math.atan2(x - b.x, y - b.y) : 0, w.state === 'SWAPPING', 'bag', 0, 'bag worker ' + k);
       });
       // parcels falling into their chute
       const top = sim.tray ? TZ + 0.3 : PZ + 0.6;

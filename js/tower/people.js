@@ -108,7 +108,7 @@
       for (const p of sim.ports) {
         if (p.arm || p.decanter) continue;
         const h = L.operatorPos(p);
-        p.person = this.add({ role: p.kind === 'PICK' ? 'Picker' : 'Goods-in operator', name: NAMES[(p.idx * 7 + 3) % NAMES.length], floor: p.floor, x: h.x, y: h.y, home: h, port: p, state: 'AT_STATION', look: 'port' + p.idx, vest: p.kind === 'PICK' ? '#f97316' : '#22c55e', heading: -Math.PI / 2 });
+        p.person = this.add({ role: p.kind === 'PICK' ? 'Picker' : 'Goods-in operator', name: NAMES[(p.idx * 7 + 3) % NAMES.length], floor: p.floor, x: h.x, y: h.y, home: h, port: p, state: 'AT_STATION', look: 'port' + p.idx, vest: p.kind === 'PICK' ? 'station' : 'goodsIn', heading: -Math.PI / 2 });
         k++;
       }
       this.breakNext = sim.cfg.breakEvery; this.breakIdx = 0;

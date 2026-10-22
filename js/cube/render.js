@@ -33,7 +33,13 @@
       this.drawTopSurface();
       this.drawStations();
       this.drawRobots(alpha);
+      const tech = [];
+      WS.IsoRenderer.prototype.techItems.call(this, tech);
+      tech.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
     }
+    // technicians on the grid top, drawn over the robots rather than with the stations
+    techItems() {}
+    get techZ() { return this.sim.grid.Z; }
 
     // Solid grid: aluminium frame with the outer bins visible through it.
     drawGridSolid() {

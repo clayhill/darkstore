@@ -11,7 +11,12 @@
   const SHADES = ['#b8875a', '#a8794f', '#c6956a', '#9c6f47', '#d0a070', '#b07d52', '#c08a5c'];
   const CARTON = (p) => SHADES[p.hue % SHADES.length]; // cardboard, a shade per parcel
 
+  // where a chute's bag hangs: beside the tray loop, or under the deck's hole
+  WS.sortBagAt = (sim, ch) => (sim.tray ? { x: ch.x, y: (ch.side ? sim.grid.Yb : sim.grid.Yt) + (ch.side ? 2.45 : -2.45) } : { x: ch.x, y: ch.y });
+
   class SortRenderer extends WS.IsoRenderer {
+    bagAt(ch) { return WS.sortBagAt(this.sim, ch); }
+    get techZ() { return this.sim.tray ? 0 : PZ; }
     worldBounds() {
       const g = this.sim.grid, pts = [this.P(-2, -2, 6), this.P(g.W + 2, -2, 0), this.P(-2, g.D + 4, 0), this.P(g.W + 2, g.D + 4, 0), this.P(g.W + 2, -2, 6)];
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
@@ -28,9 +33,11 @@
       if (this.sim.tray) this.trayScene(items, alpha); else this.deckScene(items, alpha);
       this.sim.workers.forEach((w, k) => {
         const x = w.px + (w.x - w.px) * alpha, y = w.py + (w.y - w.py) * alpha;
-        items.push({ d: x + y + 0.2, fn: () => this.drawOperator(x, y, w.state === 'SWAPPING', '#facc15', 0, 'bag worker ' + k) });
+        const b = w.chute && this.bagAt(w.chute);
+        items.push({ d: x + y + 0.2, fn: () => this.drawOperator(x, y, w.state === 'SWAPPING', 'bag', 0, 'bag worker ' + k, { facing: b ? Math.atan2(x - b.x, y - b.y) : null }) });
       });
       this.dropItems(items);
+      this.techItems(items);
       items.sort((a, b) => a.d - b.d);
       for (const it of items) it.fn();
     }
@@ -71,7 +78,7 @@
           if (sel && sel.kind === 'port' && sel.id === p.idx) this.quadTop(x - 0.5, 0.9, x + 0.5, g.Yt - 0.5, TZ + 0.02, null, '#38bdf8', 2.5);
         } });
         const op = { x: x + 0.8, y: g.Yt - 2.6 };
-        if (!p.away) items.push({ d: op.x + op.y + 0.5, fn: () => this.drawOperator(op.x, op.y, !!p.cur, '#f97316') });
+        if (!p.away) items.push({ d: op.x + op.y + 0.5, fn: () => this.drawOperator(op.x, op.y, !!p.cur, 'station') });
       }
       // the loop: a dark frame on legs under the trays
       items.push({ d: g.X0 + g.Yt - 0.5, fn: () => {
@@ -151,7 +158,7 @@
           if (p.ready) { const r = p.ready, sz = 0.24 * r.size; this.box(x + 0.35 - sz, y0 + 0.3 - sz * 0.8, PZ + 0.2, x + 0.35 + sz, y0 + 0.3 + sz * 0.8, PZ + 0.6, CARTON(r)); }
           if (sel && sel.kind === 'port' && sel.id === p.idx) this.quadTop(x - 0.8, y0 - 1, x + 0.8, y0 + 1.4, PZ + 0.03, null, '#38bdf8', 2.5);
         } });
-        if (!p.away) items.push({ d: x + y0 + 1.3, fn: () => this.drawOperator(x - 0.2, y0 + 0.8, !!p.cur, '#f97316', PZ) });
+        if (!p.away) items.push({ d: x + y0 + 1.3, fn: () => this.drawOperator(x - 0.2, y0 + 0.8, !!p.cur, 'station', PZ) });
       }
       for (const ch of g.chargers) items.push({ d: ch.x + 0.5, fn: () => { this.box(ch.x + 0.3, 0.02, PZ, ch.x + 0.7, 0.18, PZ + 1.6, '#334155'); const on = ch.robot >= 0 && sim.fleet[ch.robot].state === 'CHARGING'; this.glow(ch.x + 0.5, 0.1, PZ + 1.3, 12, '#4ade80', on ? 0.9 : 0.3); } });
       // robots: a low body with a state-coloured band and a tilting top that tips the parcel

@@ -103,6 +103,11 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   (or pod face, shelf and pocket) into which put-wall slot, for which order and customer; pack benches
   show the order, its address and carrier; AisleMate robots' tablets tell the picker what to pick
   where and into which tote. Readable up close in 3D, and in the floor view when zoomed in.
+- **People** each have their own look, in a hi-vis vest that says what they do: orange at the pick
+  stations, green at goods-in and on refills, lime for pickers, sky blue at packing, yellow for bag
+  workers and dock loaders, red for technicians, white for supervisors. Pickers, bag workers and
+  refill operators walk where they go, legs and arms swinging; operators turn between the pick and
+  the put.
 - **Sound** (off by default) is made live from what the machines do, with no sound files: motors
   humming with their speed, a chirp as a machine sets off, the clunk of forks and pod lifts, a
   CubeFlow winch, rollers as a storage unit reaches a station, the scanner beep of every pick, tape at
@@ -211,7 +216,8 @@ hotspots, starved or blocked stations, backorders, tote shortage and low battery
 From the Settings tab you can start an order surge (2.5× as many orders for 30 minutes, as on Black
 Friday), break down a robot or machine, take a charger out of service or send an operator on a
 break; random breakdowns are a rate per hour. A broken robot stands where it stopped until it is
-repaired (10 minutes), with its light flashing red, and the others route round it or wait behind it;
+repaired (10 minutes), with its light flashing red and a technician in a red vest at work beside it,
+and the others route round it or wait behind it;
 a broken crane or lift takes its aisle out, and on the tilt-tray loop the whole sorter stops. A
 station whose operator is on a break turns its stack light red, shows it on its screen and gets no
 new orders. The control room lists each disruption with the time left, shades a surge on the

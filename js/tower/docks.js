@@ -25,13 +25,13 @@
       this.doors = g.doors.map((d) => ({ k: d.k, carrier: d.carrier, x: d.x, truck: null, nextAt: 20 + d.k * 45, staged: [], empties: 6, chutes: [], gone: 0 }));
       this.chutes = g.chutes.map((ch, i) => ({ idx: i, carrier: ch.carrier, door: this.doors[ch.door.k], x: ch.x, belt: null, cage: this.newCage(ch.carrier), busy: false }));
       for (const ch of this.chutes) ch.door.chutes.push(ch);
-      for (const d of this.doors) { d.due = this.nextDue(d, 0); d.loader = sim.people.add({ role: 'Dock loader', name: ['Yusuf', 'Marta', 'Koen'][d.k % 3], floor: 0, x: d.x, y: 1.2, home: { x: d.x, y: 1.2 }, look: 'loader' + d.k, vest: '#facc15', heading: -Math.PI / 2 }); }
+      for (const d of this.doors) { d.due = this.nextDue(d, 0); d.loader = sim.people.add({ role: 'Dock loader', name: ['Yusuf', 'Marta', 'Koen'][d.k % 3], floor: 0, x: d.x, y: 1.2, home: { x: d.x, y: 1.2 }, look: 'loader' + d.k, vest: 'bag', heading: -Math.PI / 2 }); }
       this.buildBelts();
       // the way in
       this.inDoors = g.inDoors.map((d) => ({ k: d.k, y: d.y, truck: null, nextAt: 40 + d.k * 420 }));
       this.staging = g.staging.map((s, k) => Object.assign({ full: k < 3 }, s));
       for (const p of sim.ports) if (p.kind === 'GOODS_IN') Object.assign(p, { pallets: 2, empties: 0, cases: 0 });
-      this.mover = sim.people.add({ role: 'Pallet mover', name: 'Bram', floor: 0, x: -7.2, y: 18, home: { x: -7.2, y: 18 }, look: 'mover', vest: '#a3e635', heading: Math.PI / 2 });
+      this.mover = sim.people.add({ role: 'Pallet mover', name: 'Bram', floor: 0, x: -7.2, y: 18, home: { x: -7.2, y: 18 }, look: 'mover', vest: 'goodsIn', heading: Math.PI / 2 });
     }
     newCage(carrier) { return { id: 'RC' + String(this.cageSeq++).padStart(3, '0'), carrier, items: [] }; }
     // the first departure slot of door d at least ten minutes after t: the carriers leave in turn

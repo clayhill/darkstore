@@ -507,6 +507,7 @@
       this.frameNo = (this.frameNo || 0) + 1;
       this.drawLive(alpha);
       this.drawStationsLive();
+      this.drawTechnicians(alpha);
       this.drawSelection(alpha);
       for (const b of Object.values(this.dy)) b.end();
       if (this.screens) for (const sc of this.screens.values()) sc.mesh.visible = sc.used === this.frameNo;
@@ -754,21 +755,38 @@
       B.box(x0 - 0.005, my - tw, z0 + h * 0.6, x1 + 0.005, my + tw, z0 + h + 0.01, '#e6c79c');
       if (label) B.box(x0 + (x1 - x0) * 0.45, y1, z0 + h * 0.2, x1 - (x1 - x0) * 0.1, y1 + 0.01, z0 + h * 0.75, '#f8fafc');
     }
-    // Operator in a hi-vis vest, safety boots and a hard hat, facing angle a
-    // (0 = towards -y), standing at level z0, with their own look
-    // (WS.personLook(id); id defaults to where they stand). When active the
-    // arms take turns reaching out to the pick and the put.
+    // Operator in a hi-vis vest (a colour or a WS.ROLE_VEST role), safety
+    // boots and a hard hat, facing angle a (0 = towards -y), standing at
+    // level z0, with their own look (WS.personLook(id); id defaults to where
+    // they stand). When active the arms take turns reaching out to the pick
+    // and the put, the body turning a little to each. A person with an id who
+    // moves between frames walks where they go, legs and arms swinging.
     operator(x, y, a, active, vest, z0 = 0, id) {
-      const L = WS.personLook(id ?? Math.round(x * 4) + ',' + Math.round(y * 4)), D = this.dy, s = active ? Math.sin(this.t * 4.5) : 0;
+      const L = WS.personLook(id ?? Math.round(x * 4) + ',' + Math.round(y * 4)), D = this.dy;
+      const st = id != null ? (this.strides || (this.strides = new WS.Strides())).at(id, x, y, this.t) : null, walk = !!(st && st.moving);
+      const s = active && !walk ? Math.sin(this.t * 4.5) : 0, g = walk ? Math.sin(st.phase) : 0, bob = walk ? Math.abs(g) * 0.05 : 0;
+      if (walk) a = Math.atan2(-st.dx, -st.dy); else a += s * 0.3;
+      vest = WS.vestColor(vest); z0 += bob;
       const part = (B) => (u0, v0, z1, u1, v1, z2, c) => B.rbox(x, y, a, u0, v0, z1 + z0, u1, v1, z2 + z0, c);
       const box = part(D.box), rnd = part(D.rnd), dome = part(D.dome), f = L.female, skin = L.skin, shirt = L.shirt;
-      const sh = f ? 0.135 : 0.16, hip = f ? 0.13 : 0.12, hw = f ? 0.07 : 0.075;
-      // safety boots with a sole, legs, hips and belt
-      for (const u of [-0.102, 0.008]) {
-        rnd(u - 0.004, -0.12, 0.03, u + 0.098, 0.06, 0.24, '#111827');
-        box(u - 0.006, -0.125, 0, u + 0.1, 0.065, 0.04, '#4b5563');
-        rnd(u, -0.052, 0.2, u + 0.094, 0.052, 1.62, L.trousers);
+      const sh = f ? 0.135 : 0.16, hip = f ? 0.13 : 0.12, hw = f ? 0.07 : 0.075, ca = Math.cos(a), sa = Math.sin(a);
+      const W = (u, v) => ({ x: x + u * ca + v * sa, y: y - u * sa + v * ca });
+      if (walk) {
+        // legs swinging from the hip, the boot of the leg in front lifted a little
+        for (const [u, k] of [[-0.055, 1], [0.055, -1]]) {
+          const hp = W(u, 0), ft = W(u, -g * k * 0.24), lift = Math.max(0, g * k) * 0.08 - bob;
+          D.rnd.beam(hp.x, hp.y, z0 + 1.62, ft.x, ft.y, z0 + 0.22 + lift, 0.095, 0.1, L.trousers);
+          D.rnd.rbox(ft.x, ft.y, a, -0.05, -0.13, z0 + lift, 0.05, 0.06, z0 + 0.24 + lift, '#111827');
+        }
+      } else {
+        // safety boots with a sole, legs
+        for (const u of [-0.102, 0.008]) {
+          rnd(u - 0.004, -0.12, 0.03, u + 0.098, 0.06, 0.24, '#111827');
+          box(u - 0.006, -0.125, 0, u + 0.1, 0.065, 0.04, '#4b5563');
+          rnd(u, -0.052, 0.2, u + 0.094, 0.052, 1.62, L.trousers);
+        }
       }
+      // hips and belt
       rnd(-hip, -0.068, 1.48, hip, 0.068, 1.9, L.trousers);
       box(-hip - 0.004, -0.068, 1.8, hip + 0.004, 0.068, 1.86, '#111827');
       // torso narrowing to the waist, the vest over it with reflective tape
@@ -778,13 +796,22 @@
       rnd(-sh + 0.01, -0.092, 2.3, sh - 0.01, 0.092, 2.74, vest);
       for (const z of [2.0, 2.2]) box(-hip - 0.006, -0.094, z, hip + 0.006, 0.094, z + 0.06, '#e2e8f0');
       for (const u of [-0.085, 0.055]) box(u, -0.097, 2.3, u + 0.03, -0.09, 2.74, '#e2e8f0');
-      // arms: upper arm down the side, forearm reaching forward (left: pick, right: put), gloved hands
-      for (const [side, reach] of [[-1, Math.max(0, s)], [1, Math.max(0, -s)]]) {
-        const u0 = side < 0 ? -sh - 0.065 : sh - 0.005;
-        rnd(u0, -0.045, 2.0 - reach * 0.2, u0 + 0.07, 0.045, 2.76, shirt);
-        const len = 0.12 + reach * 0.32;
-        rnd(u0, -0.04 - len, 1.95 + reach * 0.35, u0 + 0.065, 0.0, 2.09 + reach * 0.35, shirt);
-        rnd(u0 + 0.004, -0.085 - len, 1.94 + reach * 0.35, u0 + 0.061, -0.03 - len, 2.1 + reach * 0.35, skin);
+      if (walk) {
+        // arms swinging against the legs
+        for (const k of [-1, 1]) {
+          const shp = W(k * (sh + 0.03), 0), hand = W(k * (sh + 0.05), g * k * 0.18);
+          D.rnd.beam(shp.x, shp.y, z0 + 2.72, hand.x, hand.y, z0 + 1.95, 0.07, 0.07, shirt);
+          D.rnd.rbox(hand.x, hand.y, a, -0.03, -0.03, z0 + 1.87, 0.03, 0.03, z0 + 1.99, skin);
+        }
+      } else {
+        // arms: upper arm down the side, forearm reaching forward (left: pick, right: put), gloved hands
+        for (const [side, reach] of [[-1, Math.max(0, s)], [1, Math.max(0, -s)]]) {
+          const u0 = side < 0 ? -sh - 0.065 : sh - 0.005;
+          rnd(u0, -0.045, 2.0 - reach * 0.2, u0 + 0.07, 0.045, 2.76, shirt);
+          const len = 0.12 + reach * 0.32;
+          rnd(u0, -0.04 - len, 1.95 + reach * 0.35, u0 + 0.065, 0.0, 2.09 + reach * 0.35, shirt);
+          rnd(u0 + 0.004, -0.085 - len, 1.94 + reach * 0.35, u0 + 0.061, -0.03 - len, 2.1 + reach * 0.35, skin);
+        }
       }
       // neck and head, ears and face
       box(-0.035, -0.035, 2.74, 0.035, 0.035, 2.9, skin);
@@ -805,6 +832,24 @@
     }
     // facing angle for an operator who looks at the storage over a station of this face
     faceAngle(p) { return p.face === 'front' ? 0 : Math.PI / 2; }
+    // A technician in red beside each robot or machine that has broken down
+    // (WS.Disruptions), at work on it with a toolbox at their feet until it
+    // is repaired. techSpot says where they stand for one; null: nowhere.
+    drawTechnicians(alpha) {
+      const D = this.dy;
+      this.sim.fleet.forEach((m, k) => {
+        const p = m.down && this.followPos(k, alpha), t = p && this.techSpot(m, p);
+        if (!t) return;
+        if (t.floor != null) this.onFloor(t.floor);
+        this.operator(t.x, t.y, t.a || 0, true, 'tech', t.z, 'tech ' + k);
+        const bx = t.x + 0.32 * Math.cos(t.a || 0), by = t.y - 0.32 * Math.sin(t.a || 0);
+        D.box.rbox(bx, by, t.a || 0, -0.12, -0.07, t.z, 0.12, 0.07, t.z + 0.36, '#b91c1c');
+        D.box.rbox(bx, by, t.a || 0, -0.06, -0.015, t.z + 0.36, 0.06, 0.015, t.z + 0.44, '#111827');
+        if (t.floor != null) this.offFloor();
+      });
+    }
+    // facing the machine from the aisle or floor beside it (+y)
+    techSpot(m, p) { return { x: p.x, y: p.y + 0.85, z: p.z ?? this.robotZ, a: 0 }; }
 
     // Conveyor workstation (the bin types): frame the bins ride through, screen,
     // stack light. Pod stations override portBody and portLive.
@@ -926,12 +971,12 @@
           D.lit.box(s.x - 0.22, s.y + 0.32, CZ - 0.3, s.x + 0.22, s.y + 0.33, CZ - 0.1, '#f87171');
           if (!a.tip.hold || a.assist) this.parcel(D.box, s.x - 0.18, s.y - 0.15, s.x + 0.18, s.y + 0.15, CZ + 0.5, 0.45, false);
           this.arm(a);
-          if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, '#22c55e');
+          if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, 'goodsIn');
         } else if (p.arm) {
           const a = WS.IsoRenderer.prototype.armPose.call(this, p);
           this.arm(a);
-          if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, '#f97316');
-        } else if (!p.away) this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e');
+          if (a.assist) this.operator(a.helper.x, a.helper.y, this.faceAngle(p), true, 'station');
+        } else if (!p.away) this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? 'station' : 'goodsIn');
         if (p.kind !== 'PICK') {
           // cartons on the supplier pallets
           const g = sim.grid, px = g.W + 3.4, py = p.drop.y - 0.6, open = oms.receipts.filter((r) => r.status !== 'RECEIVED').reduce((s, r) => s + r.lines.length, 0);
@@ -964,7 +1009,7 @@
           if (f < 0.6) { this.orderTote(D.box, q.x - 0.45, q.y, 2.1, 1 - f / 0.6); this.tote(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.25 + Math.min(1, f * 1.6) * 0.55, '#b8875a'); } else this.parcel(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.8, f > 0.8);
         }
         const op = L.packerOperator(pk);
-        this.operator(op.x, op.y, 0, !!pk.cur, '#38bdf8');
+        this.operator(op.x, op.y, 0, !!pk.cur, 'pack');
       }
       // truck at the dock, pulling away when it leaves
       const d = L.dock(), tr = oms.truck, off = tr.departing > 0 ? Math.pow(tr.departing, 2) * 0.25 : 0;

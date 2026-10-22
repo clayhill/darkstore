@@ -207,7 +207,7 @@
     // A picker in a hi-vis vest; arms busy while picking.
     drawPicker(pk, x, y) {
       if (pk.state === 'BREAK') return; // on a break, off the floor
-      this.drawOperator(x, y, pk.state === 'PICKING', '#a3e635', 0, 'picker ' + pk.name);
+      this.drawOperator(x, y, pk.state === 'PICKING', 'picker', 0, 'picker ' + pk.name);
       if (this.opts.labels && this.cam.zoom > 0.9) this.text(pk.name, x, y, 4.3, { size: 9, color: '#1a2e05', weight: 800, bg: 'rgba(217,249,157,0.9)' });
     }
 

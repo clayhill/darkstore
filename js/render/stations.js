@@ -28,6 +28,38 @@
     return L;
   };
 
+  // Hi-vis vests by role, so who does what reads at a glance. The person
+  // renderers take a role name or a colour.
+  WS.ROLE_VEST = {
+    station: '#f97316', // pick station operators
+    goodsIn: '#22c55e', // goods-in, replenishment, inbound pallets
+    picker: '#a3e635', // pickers walking the aisles
+    pack: '#38bdf8', // packing benches
+    bag: '#facc15', // bag workers, dock loaders
+    tech: '#ef4444', // technicians repairing a robot or machine
+    supervisor: '#f1f5f9',
+  };
+  WS.vestColor = (v) => WS.ROLE_VEST[v] || v;
+
+  // How a person walks, from where the renderer draws them frame by frame
+  // (the sims only move them): the stride phase grows with the distance
+  // covered, the heading follows the step. Kept per person id in the
+  // renderer, so a person stands still when the sim is paused.
+  const STRIDE = 2.1; // cells per gait cycle (two steps of about 0.7 m)
+  WS.Strides = class {
+    constructor() { this.m = new Map(); }
+    at(id, x, y, t) {
+      let s = this.m.get(id);
+      if (!s) { s = { x, y, t, phase: 0, moving: false, dx: 0, dy: 1 }; this.m.set(id, s); return s; }
+      if (t === s.t) return s;
+      const dx = x - s.x, dy = y - s.y, d = Math.hypot(dx, dy);
+      s.moving = d > 1e-4 && d < 3; // a jump (a new run, a reset) is not a step
+      if (s.moving) { s.phase += (d * 2 * Math.PI) / STRIDE; s.dx = dx / d; s.dy = dy / d; }
+      s.x = x; s.y = y; s.t = t;
+      return s;
+    }
+  };
+
   // A station's screen while its operator is on a break (WS.Disruptions).
   WS.awayScreen = (p, title) => ({ title, tag: 'BREAK', accent: '#ef4444', big: 'Operator on break', name: `Back at ${WS.U.fmtClock(p.away.until).slice(-8, -3)}`, info: ['Station stopped', 'No new orders meanwhile'] });
   // Paints what a screen shows (a model from IsoRenderer.portScreen and the
@@ -106,57 +138,82 @@
     }
 
     // ---------------------------------------------------------------- stations
-    // Warehouse operator in a hi-vis vest, safety boots and a hard hat, with
-    // their own look (WS.personLook(id); id defaults to where they stand).
-    // When active the arms alternate between the work in front-left (pick)
-    // and front-right (put), with the head turning to follow.
-    drawOperator(x, y, active, vest, z = 0, id) {
+    // Warehouse operator in a hi-vis vest (a colour or a WS.ROLE_VEST role),
+    // safety boots and a hard hat, with their own look (WS.personLook(id); id
+    // defaults to where they stand). When active the arms alternate between
+    // the work in front-left (pick) and front-right (put), with the head
+    // turning to follow. A person with an id who moves between frames walks:
+    // legs and arms swing, the body bobs, the head turns where they go (from
+    // behind when they walk away). o.facing (as the 3D view's angle: 0 looks
+    // towards -y) turns the head of one standing still.
+    drawOperator(x, y, active, vest, z = 0, id, o = {}) {
       const c = this.ctx, [px, py] = this.P(x, y, z), L = WS.personLook(id ?? Math.round(x * 4) + ',' + Math.round(y * 4));
-      const s = active ? Math.sin(this.t * 4.5) : 0, look = s * 2.2, f = L.female, sw = f ? 7.6 : 9, hw = f ? 7 : 6.6;
+      const st = id != null ? (this.strides || (this.strides = new WS.Strides())).at(id, x, y, this.t) : null, walk = !!(st && st.moving);
+      // which way they face, on screen: (fx, fy) a unit step towards where they look
+      const wx = walk ? st.dx : o.facing != null ? -Math.sin(o.facing) : 0, wy = walk ? st.dy : o.facing != null ? -Math.cos(o.facing) : 1;
+      const [ax, ay] = this.P(x + wx, y + wy, z), fl = Math.hypot(ax - px, ay - py) || 1, fx = (ax - px) / fl, fy = (ay - py) / fl;
+      const back = (walk || o.facing != null) && fy < -0.2;
+      const g = walk ? Math.sin(st.phase) : 0, bob = walk ? Math.abs(g) * 1.3 : 0;
+      const s = active ? Math.sin(this.t * 4.5) : 0, look = s * 2.2 + (walk || o.facing != null ? fx * 2.6 : 0), f = L.female, sw = f ? 7.6 : 9, hw = f ? 7 : 6.6;
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(px, py, 12, 5.5, 0, 0, Math.PI * 2); c.fill();
-      // legs and safety boots with a light sole
-      c.fillStyle = L.trousers; roundRect(c, px - 6.2, py - 27, 5.6, 25, 2); c.fill(); roundRect(c, px + 0.6, py - 27, 5.6, 25, 2); c.fill();
-      c.fillStyle = '#0b0f17'; c.beginPath(); c.ellipse(px - 3.6, py - 2.2, 4.2, 2.4, 0, 0, Math.PI * 2); c.ellipse(px + 3.6, py - 2.2, 4.2, 2.4, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#4b5563'; c.fillRect(px - 7.6, py - 1.2, 7, 1.2); c.fillRect(px + 0.6, py - 1.2, 7, 1.2);
+      // legs and safety boots with a light sole; walking, the feet swing along the step
+      for (const k of [-1, 1]) {
+        const hx = px + k * 3.4, ox = g * k * 4.5 * fx, oy = g * k * 2.6 * fy, ftx = hx + ox, fty = py - 2.2 + oy - (walk ? Math.max(0, g * k) * 1.6 : 0);
+        c.strokeStyle = L.trousers; c.lineWidth = 5.6; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(hx, py - 26 - bob); c.lineTo(ftx, fty - 1.5); c.stroke();
+        c.fillStyle = '#0b0f17'; c.beginPath(); c.ellipse(ftx, fty, 4.2, 2.4, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#4b5563'; c.fillRect(ftx - 3.6, fty + 1, 7, 1.2);
+      }
+      c.lineCap = 'butt';
+      c.save(); c.translate(0, -bob);
       // hips and belt, torso tapering from the shoulders, vest with reflective tape
       c.fillStyle = L.trousers; roundRect(c, px - hw, py - 30, hw * 2, 7, 3); c.fill();
       c.fillStyle = '#111827'; c.fillRect(px - hw, py - 28.5, hw * 2, 1.8);
       c.fillStyle = L.shirt; c.beginPath(); c.moveTo(px - sw, py - 46); c.lineTo(px + sw, py - 46); c.lineTo(px + hw, py - 28); c.lineTo(px - hw, py - 28); c.closePath(); c.fill();
       c.beginPath(); c.arc(px - sw + 2.5, py - 44, 3, 0, Math.PI * 2); c.arc(px + sw - 2.5, py - 44, 3, 0, Math.PI * 2); c.fill();
-      c.fillStyle = vest; c.beginPath(); c.moveTo(px - sw + 0.5, py - 45.5); c.lineTo(px + sw - 0.5, py - 45.5); c.lineTo(px + hw - 0.3, py - 29); c.lineTo(px - hw + 0.3, py - 29); c.closePath(); c.fill();
+      c.fillStyle = WS.vestColor(vest); c.beginPath(); c.moveTo(px - sw + 0.5, py - 45.5); c.lineTo(px + sw - 0.5, py - 45.5); c.lineTo(px + hw - 0.3, py - 29); c.lineTo(px - hw + 0.3, py - 29); c.closePath(); c.fill();
       c.fillStyle = 'rgba(232,238,245,0.92)'; c.fillRect(px - hw - 0.4, py - 36, hw * 2 + 0.8, 2.2); c.fillRect(px - hw, py - 32, hw * 2, 2.2);
-      c.fillRect(px - 5.2, py - 45.5, 2, 9.5); c.fillRect(px + 3.2, py - 45.5, 2, 9.5);
-      // arms: rest at the sides, or reach out to the pick (left) and the put wall (right)
-      const arm = (side, reach) => {
+      if (!back) { c.fillRect(px - 5.2, py - 45.5, 2, 9.5); c.fillRect(px + 3.2, py - 45.5, 2, 9.5); }
+      // arms: at the sides, swinging against the legs when walking, or
+      // reaching out to the pick (left) and the put wall (right)
+      const arm = (side, reach, swing) => {
         const sx = px + side * (sw - 1.5), sy = py - 43;
-        const hx = px + side * (sw + 1 + reach * 8), hy = py - 27 - reach * 16;
+        const hx = px + side * (sw + 1 + reach * 8) + swing * 5 * fx, hy = py - 27 - reach * 16 + swing * 3 * fy;
         const ex = (sx + hx) / 2 + side * 3, ey = (sy + hy) / 2 + 2;
         c.strokeStyle = L.shirt; c.lineWidth = f ? 4 : 4.6; c.lineCap = 'round'; c.lineJoin = 'round';
         c.beginPath(); c.moveTo(sx, sy); c.lineTo(ex, ey); c.lineTo(hx, hy); c.stroke();
         c.fillStyle = L.skin; c.beginPath(); c.arc(hx, hy, 2.5, 0, Math.PI * 2); c.fill();
       };
-      arm(-1, Math.max(0, s)); arm(1, Math.max(0, -s));
+      arm(-1, Math.max(0, s), g); arm(1, Math.max(0, -s), -g);
       c.lineCap = 'butt'; c.lineJoin = 'miter';
       const hx = px + look * 0.4, hy = py - 54;
       // long hair falls behind the shoulders, a ponytail hangs to one side
       c.fillStyle = L.hair;
-      if (L.style === 'long') { roundRect(c, hx - 6.8, hy - 4, 13.6, 14, 4); c.fill(); }
-      if (L.style === 'ponytail') { c.beginPath(); c.ellipse(hx + 6.2, hy + 3.5, 2.2, 5.5, -0.35, 0, Math.PI * 2); c.fill(); }
-      // neck, face with ears, eyes, brows and mouth
+      if (L.style === 'long' && !back) { roundRect(c, hx - 6.8, hy - 4, 13.6, 14, 4); c.fill(); }
+      if (L.style === 'ponytail' && !back) { c.beginPath(); c.ellipse(hx + 6.2, hy + 3.5, 2.2, 5.5, -0.35, 0, Math.PI * 2); c.fill(); }
+      // neck, face with ears, eyes, brows and mouth; from behind the back of the head
       c.fillStyle = L.skin; c.fillRect(px - 2.2, py - 50, 4.4, 4);
       c.beginPath(); c.ellipse(hx, hy, f ? 5.6 : 6.1, 6.6, 0, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(hx - 6, hy + 0.5, 1.4, 0, Math.PI * 2); c.arc(hx + 6, hy + 0.5, 1.4, 0, Math.PI * 2); c.fill();
-      c.fillStyle = L.hair; c.beginPath(); c.arc(hx, hy - 0.8, f ? 5.9 : 6.2, Math.PI * 1.02, Math.PI * 1.98); c.fill();
-      if (L.style === 'beard') { c.beginPath(); c.ellipse(hx, hy + 3.4, 5.2, 3.4, 0, 0, Math.PI); c.fill(); }
-      c.fillStyle = '#1f2937'; c.fillRect(hx - 2.9 + look * 0.3, hy - 0.4, 1.5, 1.6); c.fillRect(hx + 1.4 + look * 0.3, hy - 0.4, 1.5, 1.6);
-      c.fillStyle = shade(L.hair, -0.2); c.fillRect(hx - 3.2 + look * 0.3, hy - 2.1, 2.2, 0.7); c.fillRect(hx + 1.1 + look * 0.3, hy - 2.1, 2.2, 0.7);
-      if (L.style !== 'beard') { c.fillStyle = shade(L.skin, -0.3); c.fillRect(hx - 1.4 + look * 0.3, hy + 3.1, 2.8, 0.8); }
-      // hard hat: shell with a ridge, a narrow brim and a peak at the front
+      c.fillStyle = L.hair;
+      if (back) {
+        c.beginPath(); c.ellipse(hx, hy - 0.5, f ? 5.8 : 6.2, L.style === 'long' ? 6.6 : 5.8, 0, 0, Math.PI * 2); c.fill();
+        if (L.style === 'long') { roundRect(c, hx - 6.8, hy - 2, 13.6, 13, 4); c.fill(); }
+        if (L.style === 'ponytail') { c.beginPath(); c.ellipse(hx, hy + 5, 2.2, 5, 0, 0, Math.PI * 2); c.fill(); }
+      } else {
+        c.beginPath(); c.arc(hx, hy - 0.8, f ? 5.9 : 6.2, Math.PI * 1.02, Math.PI * 1.98); c.fill();
+        if (L.style === 'beard') { c.beginPath(); c.ellipse(hx, hy + 3.4, 5.2, 3.4, 0, 0, Math.PI); c.fill(); }
+        c.fillStyle = '#1f2937'; c.fillRect(hx - 2.9 + look * 0.3, hy - 0.4, 1.5, 1.6); c.fillRect(hx + 1.4 + look * 0.3, hy - 0.4, 1.5, 1.6);
+        c.fillStyle = shade(L.hair, -0.2); c.fillRect(hx - 3.2 + look * 0.3, hy - 2.1, 2.2, 0.7); c.fillRect(hx + 1.1 + look * 0.3, hy - 2.1, 2.2, 0.7);
+        if (L.style !== 'beard') { c.fillStyle = shade(L.skin, -0.3); c.fillRect(hx - 1.4 + look * 0.3, hy + 3.1, 2.8, 0.8); }
+      }
+      // hard hat: shell with a ridge, a narrow brim and a peak at the front (behind them seen from the back)
       c.fillStyle = shade(L.hat, -0.12); c.beginPath(); c.ellipse(hx, hy - 4.6, 8.6, 2.4, 0, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(hx + look * 0.3, hy - 3.6, 6, 2, 0, 0, Math.PI); c.fill();
+      if (!back) { c.beginPath(); c.ellipse(hx + look * 0.3, hy - 3.6, 6, 2, 0, 0, Math.PI); c.fill(); }
       c.fillStyle = L.hat; c.beginPath(); c.ellipse(hx, hy - 5.2, 7.1, 7.4, 0, Math.PI, 0); c.fill();
       c.fillStyle = shade(L.hat, 0.25); c.fillRect(hx - 1, hy - 12.4, 2, 7.4);
       c.fillStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.ellipse(hx - 3, hy - 9, 1.6, 2.6, -0.5, 0, Math.PI * 2); c.fill();
+      c.restore();
     }
     // ---------------------------------------------------------------- screens
     // What a station's screen shows (WS.paintScreen draws it): the line being
@@ -416,6 +473,19 @@
       if (label) this.quadTop(x - 0.12, y - 0.08, x + 0.04, y + 0.08, z + 0.221, '#ffffff', '#64748b', 0.6);
     }
 
+    // A technician in red in front of each robot that has broken down
+    // (WS.Disruptions), at work on it with a toolbox, on the level the robots
+    // drive on (techZ). Machines up in the racking get theirs in the 3D view.
+    techItems(items) {
+      const z = this.techZ;
+      for (const m of this.sim.fleet) {
+        if (!m.down || !(m instanceof WS.Robot)) continue;
+        const x = m.rx + 0.5, y = m.ry + 1.35;
+        items.push({ d: x + y + 0.6, fn: () => { this.box(x + 0.32, y - 0.12, z, x + 0.62, y + 0.06, z + 0.36, '#b91c1c'); this.drawOperator(x, y, true, 'tech', z, 'tech ' + m.id, { facing: 0 }); } });
+      }
+    }
+    get techZ() { return 0; }
+
     // Stations, packing and dock. `items` lets a subclass mix its own floor
     // objects into the same painter's ordering.
     drawStations(items = []) {
@@ -444,12 +514,12 @@
           const a = this.decantPose(p);
           add(a.src.x + a.src.y, () => this.drawCaseOpener(a));
           add(op.x + op.y + 0.5, () => this.drawArm(a));
-          if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, '#22c55e'));
+          if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, 'goodsIn'));
         } else if (p.arm) {
           const a = this.armPose(p);
           add(op.x + op.y + 0.5, () => this.drawArm(a));
-          if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, '#f97316'));
-        } else if (!p.away) add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e'));
+          if (a.assist) add(a.helper.x + a.helper.y + 0.5, () => this.drawOperator(a.helper.x, a.helper.y, true, 'station'));
+        } else if (!p.away) add(op.x + op.y + 0.5, () => this.drawOperator(op.x, op.y, !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? 'station' : 'goodsIn'));
         if (p.kind === 'PICK') {
           const s0 = L.slotPos(p, 0);
           add(s0.x + s0.y, () => {
@@ -499,7 +569,7 @@
           if (pk.kind === 'bagger') this.drawBagger(pk, q); else if (pk.kind === 'boxer') this.drawBoxMaker(pk, q); else this.drawPackBench(pk, q);
         });
         const opq = L.packerOperator(pk);
-        add(opq.x + opq.y, () => this.drawOperator(opq.x, opq.y, !!pk.cur, '#38bdf8'));
+        add(opq.x + opq.y, () => this.drawOperator(opq.x, opq.y, !!pk.cur, 'pack'));
       }
 
       // dock + truck
@@ -532,6 +602,7 @@
           else this.parcel(q.x - 0.18, q.y - 0.16, q.x + 0.18, q.y + 0.16, 1.4, 0.6, { label: true });
         });
       }
+      this.techItems(items);
       items.sort((a, b) => a.d - b.d);
       for (const it of items) it.fn();
     }

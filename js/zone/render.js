@@ -161,11 +161,17 @@
         const sel = this.selected && this.selected.kind === 'port' && sim.ports[this.selected.id] === sim.afPort;
         if (sel) this.quadTop(x0 - 0.5, y - 1.0, x1 + 0.5, y + 1.0, 0.03, null, '#38bdf8', 2.5);
       });
+      // a technician on the walkway at a jammed channel, freeing it
+      for (const ch of sim.channels) {
+        if (!ch.jam) continue;
+        const ty = ch.side ? g.AY + g.WK : g.AY - g.WK;
+        add(ch.wx + ty + (ty > y ? 0.95 : -0.95), () => this.drawOperator(ch.wx + 0.35, ty, true, 'tech', 0, 'tech ' + ch.code, { facing: ch.side ? 0 : Math.PI }));
+      }
       for (const op of sim.refillers) {
         if (op.state === 'BREAK') continue;
         const x = op.px + (op.x - op.px) * 1, yy = op.y;
         add(x + yy + (yy > y ? 0.95 : -0.95), () => {
-          this.drawOperator(x, yy, op.state === 'WORKING', '#a3e635', 0, 'refill ' + op.name);
+          this.drawOperator(x, yy, op.state === 'WORKING', 'goodsIn', 0, 'refill ' + op.name);
           // the bin: out of the flow rack behind, then on the ledge
           if (op.state === 'WORKING' && op.job) { const s = yy > y ? 1 : -1, by = op.fetch ? yy + s * 0.3 : y + s * (half + 0.23), hh = hue(op.job.comps[0].gtin); this.box(x - 0.2, by - 0.16, op.fetch ? 2.3 : 1.65, x + 0.2, by + 0.16, (op.fetch ? 2.3 : 1.65) + 0.4, '#8e98a5', { top: `hsl(${hh},45%,58%)` }); }
         });
@@ -241,7 +247,7 @@
         const tot = sim.cfg.ptlLine + sim.cfg.ptlUnit * j.cur.qty, f = 1 - j.t / tot, u = f < 0.5 ? Math.min(1, f / 0.2) : Math.max(0, 1 - (f - 0.5) / 0.2);
         x = z.pick.x + (binX - z.pick.x) * u;
       }
-      add(x + oy + 0.3, () => this.drawOperator(x, oy, !!(j && j.cur), '#f97316', 0, 'zone ' + z.id));
+      add(x + oy + 0.3, () => this.drawOperator(x, oy, !!(j && j.cur), 'station', 0, 'zone ' + z.id));
     }
     // Two carousels: a ring of shelves each, turning past the operator at their near end.
     addCarousels(z, add) {
@@ -294,7 +300,7 @@
         if (pk.state === 'BREAK') continue;
         const x = pk.px + (pk.x - pk.px) * alpha, y = pk.py + (pk.y - pk.py) * alpha;
         add(x + y + 0.1, () => {
-          this.drawOperator(x, y, pk.state === 'WORKING', '#a3e635', 0, 'rf ' + pk.name);
+          this.drawOperator(x, y, pk.state === 'WORKING', 'picker', 0, 'rf ' + pk.name);
           // the cart with a tote per order of the batch
           if (pk.job) {
             const cx = x + 0.45, cy = y - 0.1, n = pk.job.totes.length - pk.job.put;
@@ -384,7 +390,7 @@
         this.drawTote(j.rf, lift.x, lift.y, lift.z, true);
         if (lift.phase === 'tip') for (let k = 0; k < 4; k++) { const u = (lift.u * 3 + k * 0.25) % 1, hh = (k * 83 + 40) % 360; this.box(lift.x - 0.2 + k * 0.12, lift.y - 0.05, lift.z - u * 1.1, lift.x - 0.1 + k * 0.12, lift.y + 0.05, lift.z - u * 1.1 + 0.15, '#888', { top: `hsl(${hh},55%,62%)` }); }
       });
-      if (!sim.mergePort.away) add(G.px + G.opy + 0.3, () => this.drawOperator(G.px, G.opy, !!j, '#f97316', 0, 'merge'));
+      if (!sim.mergePort.away) add(G.px + G.opy + 0.3, () => this.drawOperator(G.px, G.opy, !!j, 'station', 0, 'merge'));
     }
     addClosing(add) {
       const sim = this.sim, g = sim.grid, y = g.LT;
@@ -406,7 +412,7 @@
       }
       const q = sim.checkStation, m0 = sim.machines[0];
       add(m0.x + y - 2.4 - 0.3, () => this.box(m0.x - 0.7, y - 3.2, 0, m0.x + 0.7, y - 2.7, CZ, '#475569', { top: '#94a3b8' }));
-      if (!sim.checkPort.away) add(m0.x + y - 3.0, () => this.drawOperator(m0.x - 0.9, y - 2.4, !!q.tote, '#f97316', 0, 'check'));
+      if (!sim.checkPort.away) add(m0.x + y - 3.0, () => this.drawOperator(m0.x - 0.9, y - 2.4, !!q.tote, 'station', 0, 'check'));
     }
 
     // ---------------------------------------------------------------- lanes & vans

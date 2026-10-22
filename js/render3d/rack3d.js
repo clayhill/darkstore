@@ -104,6 +104,8 @@
     // a fixed machine's position { x, y, z } for following and selection
     followPos(id) { return this.machinePos(this.sim.fleet[id]); }
     machinePos() { return null; }
+    // a technician stands on the aisle floor, under a shuttle or crane up in the racking
+    techSpot(m, p) { return { x: p.x, y: p.y + 0.85, z: 0, a: 0 }; }
 
     pickFloor(f) {
       const g = this.sim.grid;

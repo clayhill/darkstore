@@ -305,7 +305,7 @@
       this.onFloor(2);
       models.forEach((m, j) => this.screen('ctl' + j, 3.0 + j * 2.9, 5.4 + j * 2.9, 2.31, 1.3, 4.9, m));
       // two supervisors at the desks
-      const sup = this.supervisors || (this.supervisors = [{ id: -1, look: 'sup1', vest: '#38bdf8' }, { id: -2, look: 'sup2', vest: '#38bdf8' }]);
+      const sup = this.supervisors || (this.supervisors = [{ id: -1, look: 'sup1', vest: 'supervisor' }, { id: -2, look: 'sup2', vest: 'supervisor' }]);
       this.walker(sup[0], 5.25, 2 + 3.3 + 0.6, 0, -Math.PI / 2, 0, 'sit');
       this.walker(sup[1], 8.45, 2 + 5.6 + 0.6, 0, -Math.PI / 2, 0, 'sit');
       this.offFloor();
@@ -822,8 +822,8 @@
       box(-hip - 0.004, -0.068, 1.8, hip + 0.004, 0.068, 1.86, '#111827');
       rnd(-hip + 0.005, -0.075, 1.85, hip - 0.005, 0.075, 2.35, shirt);
       rnd(-sh, -0.085, 2.25, sh, 0.085, 2.78, shirt);
-      rnd(-hip - 0.002, -0.09, 1.88, hip + 0.002, 0.09, 2.36, P.vest);
-      rnd(-sh + 0.01, -0.092, 2.3, sh - 0.01, 0.092, 2.74, P.vest);
+      rnd(-hip - 0.002, -0.09, 1.88, hip + 0.002, 0.09, 2.36, WS.vestColor(P.vest));
+      rnd(-sh + 0.01, -0.092, 2.3, sh - 0.01, 0.092, 2.74, WS.vestColor(P.vest));
       for (const zz of [2.0, 2.2]) box(-hip - 0.006, -0.094, zz, hip + 0.006, 0.094, zz + 0.06, '#e2e8f0');
       // arms swinging against the legs, forward on the handle when pushing, on the table when seated
       for (const s of [-1, 1]) {
@@ -872,7 +872,7 @@
         this.onFloor(p.floor);
         this.portLive(p);
         const op = L.operatorPos(p), P = p.person;
-        if (!P || P.state === 'AT_STATION') this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? '#f97316' : '#22c55e', 0, 'port' + p.idx);
+        if (!P || P.state === 'AT_STATION') this.operator(op.x, op.y, this.faceAngle(p), !!(p.job && p.job.next < p.job.lines.length && p.mode === 'auto'), p.kind === 'PICK' ? 'station' : 'goodsIn', 0, 'port' + p.idx);
         if (p.kind !== 'PICK') continue;
         const st = L.toteStack(p);
         this.toteStack(st.x, st.y, p.stack ? p.stack.length : 0);
@@ -895,7 +895,7 @@
           if (f < 0.6) { this.orderTote(D.box, q.x - 0.45, q.y, 2.1, 1 - f / 0.6); this.tote(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.25 + Math.min(1, f * 1.6) * 0.55, '#b8875a'); } else this.parcel(D.box, q.x - 0.05, q.y - 0.25, q.x + 0.45, q.y + 0.25, 2.1, 0.8, f > 0.8);
         }
         const op = L.packerOperator(pk);
-        this.operator(op.x, op.y, 0, !!pk.cur, '#38bdf8');
+        this.operator(op.x, op.y, 0, !!pk.cur, 'pack');
       }
       for (const it of oms.conveyor) {
         const q = oms.posOnPath(it);
@@ -933,6 +933,12 @@
       if (m instanceof WS.Vrc) return { x: m.x, y: m.y, z: m.z };
       const p = super.followPos(id, alpha);
       return p && Object.assign({}, p, { z: (p.z || 0) + this.FZ[1] });
+    }
+    // a technician on the floor the machine is on: the store's, or beside a tote lift where its carriage stopped
+    techSpot(m, p) {
+      if (!(m instanceof WS.Vrc)) return { x: p.x, y: p.y + 0.85, z: 0, a: 0, floor: 1 };
+      const f = [2, 1, 0].find((k) => this.FZ[k] <= m.z + 0.5) ?? 0;
+      return { x: p.x + 1.4, y: p.y, z: 0, a: -Math.PI / 2, floor: f };
     }
     pickFloor() { return null; }
     selectionBox(s, alpha) {

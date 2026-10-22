@@ -405,10 +405,12 @@
       this.storeLive();
       // refill operators: walking the walkway; at the channel turned round to
       // the flow rack to take the bin, then filling the channel from it on the ledge
+      // a technician on the walkway at a jammed channel, freeing it
+      for (const ch of sim.channels) if (ch.jam) { const ty = ch.side ? g.AY + g.WK : g.AY - g.WK; this.operator(ch.wx + 0.35, ty, ch.side ? 0 : Math.PI, true, 'tech', 0, 'tech ' + ch.code); }
       for (const op of sim.refillers) {
         if (op.state === 'BREAK') continue;
         const toFrame = op.y < y ? Math.PI : 0, working = op.state === 'WORKING', a = working ? (op.fetch ? toFrame + Math.PI : toFrame) : op.state === 'WALKING' ? -op.heading - Math.PI / 2 : toFrame;
-        this.operator(op.x, op.y, a, working, '#a3e635', 0, 'refill ' + op.name);
+        this.operator(op.x, op.y, a, working, 'goodsIn', 0, 'refill ' + op.name);
         if (!working || !op.job) continue;
         const dir = op.y < y ? 1 : -1, ch = op.job, s = -dir;
         if (op.fetch) {
@@ -520,7 +522,7 @@
         else { const cr = z.carousels[j.cur.car]; x = z.pick.x + (cr.x - z.pick.x) * 0.7 * u; y += 0.35 * u; }
       }
       // facing the rack or the carousel (behind her) while she takes the units, the tote otherwise
-      this.operator(x, y, u > 0.3 ? Math.PI : 0, !!(j && j.cur), '#f97316', 0, 'zone ' + z.id);
+      this.operator(x, y, u > 0.3 ? Math.PI : 0, !!(j && j.cur), 'station', 0, 'zone ' + z.id);
     }
     ptlLive(z) {
       const sim = this.sim, g = sim.grid, D = this.dy, ry = g.LB + g.SD + 1.8, j = z.job, cur = j && j.cur, pick = { kind: 'port', id: z.port.idx };
@@ -583,7 +585,7 @@
       for (const pk of sim.pickers) {
         if (pk.state === 'BREAK') continue;
         const x = pk.px + (pk.x - pk.px) * alpha, y = pk.py + (pk.y - pk.py) * alpha;
-        this.operator(x, y, -pk.heading - Math.PI / 2, pk.state === 'WORKING', '#a3e635', 0, 'rf ' + pk.name);
+        this.operator(x, y, -pk.heading - Math.PI / 2, pk.state === 'WORKING', 'picker', 0, 'rf ' + pk.name);
         if (!pk.job) continue;
         // the cart with a tote per order of the batch
         const cx = x + 0.45, cy = y - 0.1, n = pk.job.totes.length - pk.job.put;
@@ -626,7 +628,7 @@
       // facing the line, or turned to the RF tote (and the dolly) while lifting it
       let a = 0;
       if (lift && (lift.phase === 'lift' && lift.f < 0.15 || lift.phase === 'away' && j.into)) { const q = lift.phase === 'lift' ? this.rfPos(Math.max(0, m.rf.indexOf(j.rf))) : G.stack; a = -Math.atan2(q.y - G.opy, q.x - G.px) - Math.PI / 2; }
-      this.operator(G.px, G.opy, a, !!j, '#f97316', 0, 'merge');
+      this.operator(G.px, G.opy, a, !!j, 'station', 0, 'merge');
     }
     closingLive() {
       const sim = this.sim, g = sim.grid, D = this.dy, y = g.LT;
@@ -635,7 +637,7 @@
         else (m.tote ? D.litCyl : D.cyl).cyl(m.x, y, CZ + 3.0, CZ + 3.25, 0.08, m.tote ? '#22c55e' : '#14532d');
       }
       const m0 = sim.machines[0];
-      if (!sim.checkPort.away) this.operator(m0.x - 0.9, y - 2.4, 0, !!sim.checkStation.tote, '#f97316', 0, 'check');
+      if (!sim.checkPort.away) this.operator(m0.x - 0.9, y - 2.4, 0, !!sim.checkStation.tote, 'station', 0, 'check');
     }
     // closed totes stacked five high at the end of each lane; the van at its door when its departure is near
     lanesLive() {

@@ -104,7 +104,7 @@
       for (const pk of sim.pickers) {
         if (pk.state === 'BREAK') continue; // on a break, off the floor
         const x = pk.px + (pk.x - pk.px) * alpha, y = pk.py + (pk.y - pk.py) * alpha, h = pk.heading;
-        this.operator(x, y, Math.atan2(-Math.cos(h), -Math.sin(h)), pk.state === 'PICKING', '#a3e635', 0, 'picker ' + pk.name);
+        this.operator(x, y, Math.atan2(-Math.cos(h), -Math.sin(h)), pk.state === 'PICKING', 'picker', 0, 'picker ' + pk.name);
       }
       // pick-to-light: the location being worked lights up along its beam
       if (Math.sin(this.t * 8) > -0.4) for (const st of sim.stops) {
