@@ -47,10 +47,8 @@
         return c;
       };
       const S = n * 5; // state = cell*5 + dir (4 = no heading yet)
-      // Float32 costs make the search skip entries as stale on long routes
-      // (above about 30 s); the one-way ring needs exact ones. The other
-      // floors keep Float32 so their runs stay as they are.
-      const gs = new (g.oneRoute ? Float64Array : Float32Array)(S).fill(Infinity);
+      // Float64: with Float32 costs the search skips entries as stale on long routes (above about 30 s)
+      const gs = new Float64Array(S).fill(Infinity);
       const prev = new Int32Array(S).fill(-1);
       const h = (i) => (Math.abs((i % W) - gx) + Math.abs(((i / W) | 0) - gy)) * cellCost;
       const heap = new WS.U.Heap((a, b) => a[0] - b[0]);

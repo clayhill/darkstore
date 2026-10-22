@@ -207,10 +207,9 @@ Layout, from the aisle fronts (y = B, the lift or I/O row):
   chargers (one per six robots) are past the last station and the last
   aisle. The floor widens until every robot has a parking spot; cells no
   robot can reach or leave (corners of the two-lane highway) are blocked.
-- The router plans with exact (Float64) costs on this floor: with Float32
-  it dropped entries as stale on routes longer than about 30 s. Other
-  floors keep Float32, so their runs are unchanged (the same bug may cost
-  them routes; worth fixing separately with new golden files).
+- The router plans with exact (Float64) costs: with Float32 it dropped
+  entries as stale on routes longer than about 30 s, which this floor
+  always has. Fixed for every floor afterwards, with new golden files.
 
 Dispatch:
 - A station's outgoing tote goes first (its outfeed holds two, then the
