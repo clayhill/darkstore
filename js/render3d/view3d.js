@@ -12,7 +12,7 @@
   // cells per render level: how high the isometric view draws a level
   const LZ = 17 / ((64 / Math.SQRT2) * Math.cos(Math.PI / 6));
   const BG = '#0b1220';
-  let THREE = null, M = null, V = null;
+  let THREE = null, M = null, V = null, V2 = null, V3 = null, V4 = null;
   const colors = new Map();
   const col = (c) => { let v = colors.get(c); if (!v) { v = new THREE.Color(c); colors.set(c, v); } return v; };
 
@@ -87,6 +87,18 @@
       M.setPosition((x0 + x1) / 2, ((z0 + z1) / 2) * LZ, (y0 + y1) / 2);
       this.put(color, pick);
     }
+    // a box from point a to point b (x, y in cells, z in levels), w wide
+    // across it (kept level) and t thick: legs, rails, braces, sloped slats
+    beam(ax, ay, az, bx, by, bz, w, t, color, pick) {
+      const d = V2.set(bx - ax, (bz - az) * LZ, by - ay), len = d.length() || 1e-4;
+      d.multiplyScalar(1 / len);
+      const s = V3.set(d.z, 0, -d.x);
+      if (s.lengthSq() < 1e-8) s.set(1, 0, 0); else s.normalize();
+      const n = V4.crossVectors(s, d);
+      M.makeBasis(s, d, n); M.scale(V.set(w, len, t));
+      M.setPosition((ax + bx) / 2, ((az + bz) / 2) * LZ, (ay + by) / 2);
+      this.put(color, pick);
+    }
     // fixed ranges of `size` instances per object, for `count` objects
     slots(count, size) {
       this.size = size; this.sig = new Array(count).fill(null);
@@ -120,7 +132,7 @@
     static async create(Cls, canvas, labels, app) {
       if (!THREE) {
         THREE = View3D.THREE = await import(THREE_URL);
-        M = new THREE.Matrix4(); V = new THREE.Vector3();
+        M = new THREE.Matrix4(); V = new THREE.Vector3(); V2 = new THREE.Vector3(); V3 = new THREE.Vector3(); V4 = new THREE.Vector3();
       }
       return new Cls(canvas, labels, app);
     }
@@ -171,7 +183,7 @@
       this.bindInput();
     }
     // a batch of one shape ('box', 'cyl', 'oct', 'rnd' rounded) in one material ('std', 'lit' unlit, 'clear' see-through)
-    newBatch(shape, mat = 'std', cap) { return new Batch(this, this.geos[shape], this.mats[mat], { shadow: mat === 'std', cap }); }
+    newBatch(shape, mat = 'std', cap, o) { return new Batch(this, this.geos[shape], this.mats[mat], Object.assign({ shadow: mat === 'std', cap }, o)); }
     get sim() { return this.app.sim; }
     get opts() { return this.app.iso.opts; }
     get selected() { return this.app.iso.selected; }

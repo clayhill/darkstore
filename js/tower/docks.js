@@ -130,7 +130,7 @@
       const c = this.sim.cfg, tr = this.docked(d), P = d.loader;
       if (tr && d.staged.length && tr.cages.length < c.truckCages) { P.task = 'load'; P.run(this.stagedToTruck(P, d)); return; }
       const soon = tr && this.sim.time >= d.due - 240 && tr.cages.length < c.truckCages;
-      const ch = d.chutes.find((q) => q.cage && !q.busy && q.cage.items.length >= c.cageCap) || (soon && d.chutes.find((q) => q.cage && !q.busy && q.cage.items.length > 0));
+      const ch = d.chutes.find((q) => q.cage && !q.busy && q.cage.items.length >= c.cageCap) || (soon && d.chutes.find((q) => q.cage && !q.busy && q.cage.items.length >= c.cageCap / 4));
       if (ch && d.staged.length < 4) { P.task = 'load'; P.run(this.swapCage(P, d, ch)); return; }
       P.task = null;
       if (Math.hypot(P.x - P.home.x, P.y - P.home.y) > 0.05) P.run((function* () { yield walk([P.home]); })());

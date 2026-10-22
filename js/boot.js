@@ -55,7 +55,7 @@
       sim: ['js/zone/config.js', 'js/sim/belts.js', 'js/zone/sim.js'], view: ['js/zone/render.js', 'js/zone/ui.js'],
     },
     tower: {
-      name: 'FloorStack', floors: true, three: ['js/render3d/rack3d.js', 'js/shuttle/render3d.js', 'js/tower/render3d.js'], sub: 'Multi-storey fulfilment', scan: 'tote, order, parcel', click: 'machines, lifts, spirals, stations, chutes, doors', ride: 'tote',
+      name: 'FloorStack', floors: true, three: ['js/render3d/rack3d.js', 'js/shuttle/render3d.js', 'js/tower/render3d.js'], sub: 'Multi-storey fulfilment', scan: 'tote, order, parcel', click: 'machines, lifts, spirals, stations, chutes, doors',
       map: 'Levels × aisles', stations: 'Stations', flow: 'Totes at stations', fleet: 'Machine',
       sim: ['js/sim/prezone.js', 'js/sim/totebots.js', 'js/shuttle/config.js', 'js/shuttle/sim.js', 'js/sim/belts.js', 'js/tower/config.js', 'js/tower/building.js', 'js/tower/people.js', 'js/tower/docks.js', 'js/tower/sim.js'],
       view: ['js/render/rack.js', 'js/render/prezone.js', 'js/ui/rack.js', 'js/shuttle/render.js', 'js/shuttle/ui.js', 'js/tower/render.js', 'js/tower/ui.js'],

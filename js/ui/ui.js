@@ -56,7 +56,7 @@
         const [k, id] = a.dataset.open.split(':');
         if (k === 'bin') this.showBin(id); else if (k === 'prod') this.showProduct(id); else if (k === 'order') this.showOrder(id);
         else if (k === 'label') this.showLabel(id); else if (k === 'asn') this.showReceipt(id); else if (k === 'follow') this.follow3d(id);
-        else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer') { const hit = { kind: k, id: +id }; this.app.iso.selected = hit; this.select(hit); }
+        else if (k === 'robot' || k === 'port' || k === 'cell' || k === 'packer' || (this.type.inspect && this.type.inspect[k])) { const hit = { kind: k, id: isNaN(+id) ? id : +id }; this.app.iso.selected = hit; this.select(hit); }
       });
       const legend = this.sim.legendStates ? [...this.sim.legendStates, 'DOWN'] : [...Object.keys(STATE_LABEL).filter((k) => k !== 'YIELDING'), ...Object.keys(this.sim.extraStates)];
       $('#legend').innerHTML = this.type.legend ? this.type.legend(this) : legend.map((k) => `<span><i style="background:${WS.stateColor(this.sim, k)}"></i>${this.stateLabel(k)}</span>`).join('') + (this.type.legendExtra ? this.type.legendExtra(this) :

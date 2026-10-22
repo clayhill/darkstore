@@ -75,7 +75,7 @@
       // the canteen on the ground floor
       this.canteen = { x0: 15, x1: 31, y0: this.D + 4.3, y1: this.D + 9.2 };
       this.seats = [];
-      for (let t = 0; t < 3; t++) { const tx = 19 + t * 4.6, ty = this.canteen.y0 + 2.6; for (const [sx, sy] of [[-0.75, -0.75], [0.75, -0.75], [-0.75, 0.75], [0.75, 0.75]]) this.seats.push({ x: tx + sx, y: ty + sy, tx, ty, face: sy < 0 ? Math.PI : 0 }); }
+      for (let t = 0; t < 3; t++) { const tx = 19 + t * 4.6, ty = this.canteen.y0 + 2.6; for (const [sx, sy] of [[-0.36, -0.52], [0.36, -0.52], [-0.36, 0.52], [0.36, 0.52]]) this.seats.push({ x: tx + sx, y: ty + sy, tx, ty, face: sy < 0 ? Math.PI : 0 }); }
       this.zs = ZU / cfg.cellSize; // cells per render level
     }
     floorZ(f) { return this.FZ[f]; }
