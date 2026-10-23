@@ -85,24 +85,28 @@
     };
     return k;
   }
-  // Runs step/draw every frame, or draws one still frame for reduced motion.
+  // Runs step/draw every frame while the canvas is on screen, or draws one
+  // still frame for reduced motion.
   function animate(canvas, kit, step, draw) {
-    let last = 0, t = 0;
+    let last = 0, t = 0, shown = false, raf = 0;
     const frame = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000 || 0);
       last = now; t += dt;
       step(dt);
       kit.ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       draw(t);
-      requestAnimationFrame(frame);
+      raf = shown ? requestAnimationFrame(frame) : 0;
     };
     kit.resize();
-    addEventListener('resize', () => { kit.resize(); if (reduced) draw(t); });
+    addEventListener('resize', () => { kit.resize(); if (!raf) draw(t); });
     if (reduced) {
       // run the robots for a moment off-screen, then show one still frame
       for (let i = 0; i < 90; i++) { t += 0.05; step(0.05); }
       draw(t);
-    } else requestAnimationFrame(frame);
+    } else new IntersectionObserver(([e]) => {
+      shown = e.isIntersecting;
+      if (shown && !raf) raf = requestAnimationFrame(frame);
+    }).observe(canvas);
   }
 
   /* ---------- cube storage preview ---------- */
