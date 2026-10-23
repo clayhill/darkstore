@@ -25,150 +25,108 @@
       <p class="lede">Lights-out warehouses, simulated. Pick a system and watch robots, operators and orders move through it in real time.</p>
     </section>
 
-    <section class="sims" aria-labelledby="sims-title">
-      <h2 id="sims-title"><span class="idx">//</span> Choose a simulation</h2>
+    <section class="sims" aria-labelledby="storage-title">
+      <h2 id="storage-title"><span class="idx">//</span> Automated storage</h2>
+      <p class="sub">Machines in fixed racking bring totes and pallets to the stations.</p>
       <div class="cards">
         <a class="card" href="cubeflow.html">
-          <div class="preview">
-            <canvas data-preview="cube" role="img" aria-label="Animated preview: robots driving on top of a cube storage grid and digging bins out of the stacks"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="cube" role="img" aria-label="Animated preview: robots driving on top of a cube storage grid and digging bins out of the stacks"></canvas></div>
           <div class="body">
             <p class="type">Cube storage · AS/RS</p>
             <h3>CubeFlow</h3>
-            <p class="desc">Bins stacked in a dense grid with no aisles. Robots drive on top, dig down to the bin they need and bring it to the pick ports.</p>
-            <ul class="specs" data-specs="cube"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-          </div>
-        </a>
-        <a class="card" href="podswarm.html">
-          <div class="preview">
-            <canvas data-preview="pod" role="img" aria-label="Animated preview: robots lifting shelving pods from a floor grid and carrying them to pick stations"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
-          <div class="body">
-            <p class="type">Pod robots · goods-to-person</p>
-            <h3>PodSwarm</h3>
-            <p class="desc">Shelving pods stand on an open floor. Robots slide under a pod, lift it and carry the whole shelf to a station, where they turn it to show the right face.</p>
-            <ul class="specs" data-specs="pod"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Bins stacked in a dense grid. Robots on top dig down for the one they need.</p>
           </div>
         </a>
         <a class="card" href="railrunner.html">
-          <div class="preview">
-            <canvas data-preview="shuttle" role="img" aria-label="Animated preview: shuttles running along the levels of a rack aisle and lifts bringing totes down to a conveyor"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="shuttle" role="img" aria-label="Animated preview: shuttles running along the levels of a rack aisle and lifts bringing totes down to a conveyor"></canvas></div>
           <div class="body">
             <p class="type">Shuttle AS/RS</p>
             <h3>RailRunner</h3>
-            <p class="desc">Aisles of racking with a shuttle on every level. Shuttles fetch totes to the front of the aisle, lifts bring them down and a conveyor feeds the stations.</p>
-            <ul class="specs" data-specs="shuttle"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">A shuttle on every level of the racking; lifts bring the totes down to the stations.</p>
           </div>
         </a>
         <a class="card" href="skystack.html">
-          <div class="preview">
-            <canvas data-preview="crane" role="img" aria-label="Animated preview: stacker cranes driving along high racking aisles, lifting totes and bringing them to a conveyor"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="crane" role="img" aria-label="Animated preview: stacker cranes driving along high racking aisles, lifting totes and bringing them to a conveyor"></canvas></div>
           <div class="body">
             <p class="type">Stacker crane AS/RS</p>
             <h3>SkyStack</h3>
-            <p class="desc">High racking with one crane per aisle. The mast drives along the aisle while the carriage climbs, so each trip takes the longer of the two motions. Totes come and go at the I/O point in front.</p>
-            <ul class="specs" data-specs="crane"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">One tall crane per aisle drives and climbs at once to fetch each tote.</p>
           </div>
         </a>
         <a class="card" href="deeplane.html">
-          <div class="preview">
-            <canvas data-preview="pallet" role="img" aria-label="Animated preview: carriers on every level of a pallet store sending their satellites into deep lanes for pallets, and a lift bringing the pallets down to a conveyor"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="pallet" role="img" aria-label="Animated preview: carriers on every level of a pallet store sending their satellites into deep lanes for pallets, and a lift bringing the pallets down to a conveyor"></canvas></div>
           <div class="body">
             <p class="type">Pallet shuttle AS/RS</p>
             <h3>DeepLane</h3>
-            <p class="desc">Pallets stored in deep lanes, one SKU per lane. On every level a carrier sends its satellite in under the pallets to fetch the front one; lifts bring them down to the pallet conveyors and the stations.</p>
-            <ul class="specs" data-specs="pallet"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Pallets in deep lanes. On every level a carrier sends its satellite in for the front one.</p>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="sims" aria-labelledby="robots-title">
+      <h2 id="robots-title"><span class="idx">//</span> Mobile robots</h2>
+      <p class="sub">Robots that drive the warehouse floor, with or without pickers.</p>
+      <div class="cards">
+        <a class="card" href="podswarm.html">
+          <div class="preview"><canvas data-preview="pod" role="img" aria-label="Animated preview: robots lifting shelving pods from a floor grid and carrying them to pick stations"></canvas></div>
+          <div class="body">
+            <p class="type">Pod robots · goods-to-person</p>
+            <h3>PodSwarm</h3>
+            <p class="desc">Robots slide under shelving pods and carry the whole shelf to a pick station.</p>
           </div>
         </a>
         <a class="card" href="stackpilot.html">
-          <div class="preview">
-            <canvas data-preview="acr" role="img" aria-label="Animated preview: robots with tall masts driving into shelving aisles, collecting several totes on their back shelves and bringing them to a station"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="acr" role="img" aria-label="Animated preview: robots with tall masts driving into shelving aisles, collecting several totes on their back shelves and bringing them to a station"></canvas></div>
           <div class="body">
             <p class="type">Case-handling robots</p>
             <h3>StackPilot</h3>
-            <p class="desc">Robots with a mast and a column of back shelves drive into narrow shelving aisles, collect a batch of totes in one trip and hand them over at a station.</p>
-            <ul class="specs" data-specs="acr"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Robots with a tall mast collect a batch of totes from narrow aisles in one trip.</p>
           </div>
         </a>
         <a class="card" href="rackrider.html">
-          <div class="preview">
-            <canvas data-preview="climb" role="img" aria-label="Animated preview: robots driving into the aisles of tall racking, climbing straight up the rack to a tote and bringing it to a station"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="climb" role="img" aria-label="Animated preview: robots driving into the aisles of tall racking, climbing straight up the rack to a tote and bringing it to a station"></canvas></div>
           <div class="body">
             <p class="type">Climbing robots</p>
             <h3>RackRider</h3>
-            <p class="desc">Tall racking with aisles one robot wide. Robots drive into an aisle, climb straight up the rack to fetch a tote and bring it to the station themselves, where they present it to the operator.</p>
-            <ul class="specs" data-specs="climb"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Robots drive into the aisle, climb the rack to a tote and bring it to the station.</p>
           </div>
         </a>
         <a class="card" href="aislemate.html">
-          <div class="preview">
-            <canvas data-preview="amr" role="img" aria-label="Animated preview: robots carrying order totes stop beside shelves in the aisles while pickers walk over and pick into them"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="amr" role="img" aria-label="Animated preview: robots carrying order totes stop beside shelves in the aisles while pickers walk over and pick into them"></canvas></div>
           <div class="body">
             <p class="type">Robots alongside pickers</p>
             <h3>AisleMate</h3>
-            <p class="desc">Ordinary shelving, people still pick. Robots carry the order totes from shelf to shelf and wait there; pickers stay in their zone and walk over to pick into them.</p>
-            <ul class="specs" data-specs="amr"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Ordinary shelving: robots carry the order totes and pickers walk over to fill them.</p>
           </div>
         </a>
+      </div>
+    </section>
+    <section class="sims" aria-labelledby="flow-title">
+      <h2 id="flow-title"><span class="idx">//</span> Order flow</h2>
+      <p class="sub">Conveyors, sorters and whole buildings, where the order moves through.</p>
+      <div class="cards">
         <a class="card" href="zonehop.html">
-          <div class="preview">
-            <canvas data-preview="zone" role="img" aria-label="Animated preview: an A-frame dropping boxes into windows on its belt, which tip into order totes on a conveyor; the totes ride on to a pick-to-light rack where an operator picks into them"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="zone" role="img" aria-label="Animated preview: an A-frame dropping boxes into windows on its belt, which tip into order totes on a conveyor; the totes ride on to a pick-to-light rack where an operator picks into them"></canvas></div>
           <div class="body">
             <p class="type">Pharmacy wholesale</p>
             <h3>ZoneHop</h3>
-            <p class="desc">The order tote travels past the stock: an A-frame drops the fast movers in, then the tote turns only into the picking zones its order needs, is closed and labelled, and waits in its route's lane for the van.</p>
-            <ul class="specs" data-specs="zone"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-          </div>
-        </a>
-        <a class="card" href="floorstack.html">
-          <div class="preview">
-            <canvas data-preview="tower" role="img" aria-label="Animated preview: a building cut open on three floors; totes climb a spiral from the racking to the pick stations above, parcels drop down a second spiral to a sorter and roll cages on the ground floor, and a tote lift rides between goods-in and the store"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
-          <div class="body">
-            <p class="type">Multi-storey fulfilment</p>
-            <h3>FloorStack</h3>
-            <p class="desc">One building, three floors: a shuttle store on the first, picking and packing above it, goods-in, a parcel sorter and the trucks below. Spirals and lifts carry the totes between the floors, and become the bottleneck.</p>
-            <ul class="specs" data-specs="tower"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Pharmacy order totes collect fast movers under an A-frame, then visit only the zones they need.</p>
           </div>
         </a>
         <a class="card" href="sorthub.html">
-          <div class="preview">
-            <canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas>
-            <span class="live"><span class="pulse"></span>Live preview</span>
-          </div>
+          <div class="preview"><canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas></div>
           <div class="body">
             <p class="type">Parcel sorter</p>
             <h3>SortHub</h3>
-            <p class="desc">A parcel hub: operators induct a stream of parcels and small robots carry each one to the chute for its destination, tipping it into the bag below. Switch to a tilt-tray loop to compare.</p>
-            <ul class="specs" data-specs="sort"></ul>
-            <span class="go">Launch simulation <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4 12.5 8l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <p class="desc">Small robots carry each parcel to the chute for its destination. Or try a tilt-tray loop.</p>
+          </div>
+        </a>
+        <a class="card" href="floorstack.html">
+          <div class="preview"><canvas data-preview="tower" role="img" aria-label="Animated preview: a building cut open on three floors; totes climb a spiral from the racking to the pick stations above, parcels drop down a second spiral to a sorter and roll cages on the ground floor, and a tote lift rides between goods-in and the store"></canvas></div>
+          <div class="body">
+            <p class="type">Multi-storey fulfilment</p>
+            <h3>FloorStack</h3>
+            <p class="desc">Storage, picking and shipping on three floors, joined by spirals and lifts that set the pace.</p>
           </div>
         </a>
       </div>
@@ -177,9 +135,6 @@
 
   <footer>DarkStore is a simulation and teaching tool, not control software for real systems · Apache-2.0</footer>
 
-  <script>
-    // load fresh copies, so the cards always match the current simulations
-    for (const src of ['js/core/config.js', 'js/cube/config.js', 'js/pod/config.js', 'js/shuttle/config.js', 'js/crane/config.js', 'js/acr/config.js', 'js/amr/config.js', 'js/sort/config.js', 'js/pallet/config.js', 'js/climb/config.js', 'js/zone/config.js', 'js/tower/config.js', 'js/landing/landing.js']) { const e = document.createElement('script'); e.src = src + '?t=' + Date.now(); e.async = false; document.body.appendChild(e); }
-  </script>
+  <script src="js/landing/landing.js"></script>
 </body>
 </html>

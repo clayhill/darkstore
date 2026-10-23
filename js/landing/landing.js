@@ -1,30 +1,7 @@
-/* Landing page: spec chips from the default config and an animated
- * isometric preview of each simulation type. The previews are decorative and
- * do not run the simulator. */
+/* Landing page: an animated isometric preview of each simulation type. The
+ * previews are decorative and do not run the simulator. */
 (function (WS) {
   'use strict';
-
-  const C = WS.CUBE_CONFIG, PC = WS.POD_CONFIG, SC = WS.SHUTTLE_CONFIG, KC = WS.CRANE_CONFIG, AC = WS.ACR_CONFIG, MC = WS.AMR_CONFIG, XC = WS.SORT_CONFIG, DC = WS.PALLET_CONFIG, RC = WS.CLIMB_CONFIG, ZC = WS.ZONE_CONFIG, TC = WS.TOWER_CONFIG;
-  const specs = {
-    cube: [`${C.gridW} × ${C.gridD} grid`, `${C.gridZ} bins deep`, `${C.robots} robots`, `${C.pickPorts} pick ports`],
-    pod: [`${PC.floorW} × ${PC.floorD} floor`, `4-sided pods`, `${PC.robots} robots`, `${PC.pickPorts} pick stations`],
-    shuttle: [`${SC.aisles} aisles`, `${SC.levels} levels`, `${SC.aisles * SC.levels} shuttles`, `${SC.aisles} lifts`],
-    crane: [`${KC.aisles} aisles`, `${KC.levels} levels`, `${KC.aisles} cranes`, `twin load handler`],
-    acr: [`${AC.aisles} aisles`, `${AC.levels} levels`, `${AC.robots} robots`, `${AC.robotSlots} back shelves`],
-    sort: [`${XC.parcelRate} parcels/h`, `${XC.robots} robots`, `${XC.chutes} chutes`, `or a tilt-tray loop`],
-    climb: [`${RC.aisles} aisles`, `${(RC.levels * RC.levelHeight).toFixed(1)} m high`, `${RC.robots} robots`, `climbs ${RC.climbSpeed} m/s`],
-    pallet: [`${DC.aisles} blocks`, `lanes ${DC.laneDepth} pallets deep`, `${DC.aisles * DC.levels} carriers`, `${DC.aisles} lifts`],
-    amr: [`${MC.aisles} aisles of shelving`, `${MC.robots} robots`, `${MC.pickers} pickers`, `${MC.robotTotes} totes per robot`],
-    zone: [`A-frame of ${ZC.afChannels} channels`, `${ZC.ptlZones} pick-to-light zones`, `carousels & RF`, `${ZC.routes} van routes`],
-    tower: ['3 floors', `${TC.aisles} aisles × ${TC.levels} levels`, `${TC.pickPorts} pick stations upstairs`, 'spirals & tote lifts'],
-  };
-  for (const ul of document.querySelectorAll('[data-specs]')) {
-    for (const s of specs[ul.dataset.specs] || []) {
-      const li = document.createElement('li');
-      li.textContent = s;
-      ul.appendChild(li);
-    }
-  }
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
