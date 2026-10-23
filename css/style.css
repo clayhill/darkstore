@@ -253,3 +253,7 @@ input[type=range] { width: 100%; accent-color: var(--accent-2); }
 .follow-hud .fh-steps span.now { background: #facc15; color: #0f172a; }
 .follow-hud .fh-steps i { width: 8px; height: 1px; background: #334155; }
 .follow-hud .fh-text { line-height: 1.4; }
+/* a Belgian number plate: red on white, the blue EU band with the country code (RoboValet) */
+.plate { display: inline-flex; align-items: stretch; height: 22px; border: 1.5px solid #9f1239; border-radius: 4px; background: #fff; color: #9f1239; font: 700 13px/22px ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .06em; overflow: hidden; }
+.plate i { font-style: normal; background: #1d4ed8; color: #fde047; font-size: 9px; padding: 0 4px; display: flex; align-items: flex-end; padding-bottom: 1px; letter-spacing: 0; }
+.plate { padding-right: 6px; gap: 6px; }

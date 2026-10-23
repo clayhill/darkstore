@@ -12,7 +12,7 @@
   // cells per render level: how high the isometric view draws a level
   const LZ = 17 / ((64 / Math.SQRT2) * Math.cos(Math.PI / 6));
   const BG = '#0b1220';
-  let THREE = null, M = null, V = null, V2 = null, V3 = null, V4 = null;
+  let THREE = null, M = null, R = null, V = null, V2 = null, V3 = null, V4 = null;
   const colors = new Map();
   const col = (c) => { let v = colors.get(c); if (!v) { v = new THREE.Color(c); colors.set(c, v); } return v; };
 
@@ -74,6 +74,14 @@
       M.setPosition((x0 + x1) / 2, z * LZ, y);
       this.put(color, pick);
     }
+    // a cylinder lying along the u axis of a frame turned by a (as rbox): a
+    // wheel or a roller centred at (u, v) with its axis at level z, len long
+    ucyl(cx, cy, a, u, v, z, r, len, color, pick) {
+      const c = Math.cos(a), s = Math.sin(a);
+      M.makeRotationY(a); M.multiply(R.makeRotationZ(Math.PI / 2)); M.scale(V.set(2 * r, len, 2 * r));
+      M.setPosition(cx + u * c + v * s, z * LZ, cy - u * s + v * c);
+      this.put(color, pick);
+    }
     cylY(x, y0, y1, z, r, color, pick) {
       M.makeRotationX(Math.PI / 2); M.scale(V.set(2 * r, y1 - y0, 2 * r));
       M.setPosition(x, z * LZ, (y0 + y1) / 2);
@@ -132,7 +140,7 @@
     static async create(Cls, canvas, labels, app) {
       if (!THREE) {
         THREE = View3D.THREE = await import(THREE_URL);
-        M = new THREE.Matrix4(); V = new THREE.Vector3(); V2 = new THREE.Vector3(); V3 = new THREE.Vector3(); V4 = new THREE.Vector3();
+        M = new THREE.Matrix4(); R = new THREE.Matrix4(); V = new THREE.Vector3(); V2 = new THREE.Vector3(); V3 = new THREE.Vector3(); V4 = new THREE.Vector3();
       }
       return new Cls(canvas, labels, app);
     }

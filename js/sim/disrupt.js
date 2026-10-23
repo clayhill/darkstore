@@ -32,10 +32,11 @@
     // ---------------------------------------------------------------- triggers
     startSurge() {
       const sim = this.sim, c = sim.cfg, until = sim.time + c.surgeMinutes * MIN;
-      if (this.surge) { this.surge.until = until; this.surge.h.t1 = until; return 'Order surge extended'; }
+      const name = sim.terms.surge || 'Order surge';
+      if (this.surge) { this.surge.until = until; this.surge.h.t1 = until; return name + ' extended'; }
       this.surge = { factor: c.surgeFactor, until };
       this.surge.h = this.note('surge', `Surge ×${c.surgeFactor}`, until);
-      sim.log('warn', `Order surge: ${sim.terms.units === 'parcels' ? 'parcels' : 'orders'} ×${c.surgeFactor} for ${this.mins(c.surgeMinutes)}`);
+      sim.log('warn', `${name}: ${sim.terms.surge ? sim.terms.units : sim.terms.units === 'parcels' ? 'parcels' : 'orders'} ×${c.surgeFactor} for ${this.mins(c.surgeMinutes)}`);
       return `Surge ×${c.surgeFactor} for ${this.mins(c.surgeMinutes)}`;
     }
     // Robots and machines that can break down: those at work first, never one
@@ -137,7 +138,7 @@
     // alerts for the control room
     alerts() {
       const sim = this.sim, t = sim.time, out = [], left = (u) => this.mins((u - t) / MIN) + ' left';
-      if (this.surge) out.push({ sev: 'warning', key: 'surge', title: `Order surge ×${this.surge.factor}`, msg: `${sim.terms.units === 'parcels' ? 'Parcels' : 'Orders'} arriving ${this.surge.factor} times as fast · ${left(this.surge.until)}` });
+      if (this.surge) out.push({ sev: 'warning', key: 'surge', title: `${sim.terms.surge || 'Order surge'} ×${this.surge.factor}`, msg: `${sim.terms.surge ? sim.terms.Units : sim.terms.units === 'parcels' ? 'Parcels' : 'Orders'} arriving ${this.surge.factor} times as fast · ${left(this.surge.until)}` });
       if (this.loop) out.push({ sev: 'critical', key: 'loop', title: 'Sorter loop stopped', msg: `Drive fault · repair ${left(this.loop.until)}` });
       if (sim.faultAlerts) out.push(...sim.faultAlerts(left));
       const down = sim.fleet.filter((m) => m.down);

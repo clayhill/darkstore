@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the eleven simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the twelve simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of eleven
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of twelve
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,12 +14,13 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the eleven systems work this way. AisleMate is the common first step towards it: people
+Seven of the twelve systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
 the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
 but a parcel sorter, the kind of hub parcels go through after the warehouse. FloorStack puts a
 whole fulfilment centre in one building of three floors: storage, picking and the dock above each
-other, linked by spiral conveyors and lifts.
+other, linked by spiral conveyors and lifts. RoboValet leaves the warehouse: an automated car park,
+where the same kind of lifts and robots store cars instead of totes.
 
 **What every simulation shares**
 
@@ -35,7 +36,7 @@ other, linked by spiral conveyors and lifts.
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The eleven systems**
+**The twelve systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -50,10 +51,11 @@ other, linked by spiral conveyors and lifts.
 | [**ZoneHop**](https://clayhill.github.io/darkstore/zonehop.html) | Pharmacy wholesale: A-frame and zone picking | Small boxes in A-frame channels, flow racks, carousels and shelving | Order totes on a conveyor loop, past the zones their order needs | A-frame refills, zone skipping, totes that miss their van |
 | [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
 | [**FloorStack**](https://clayhill.github.io/darkstore/floorstack.html) | Multi-storey fulfilment: storage, picking and the dock on three floors | Totes in a shuttle store on the first floor | Totes up a spiral to the pick stations and back down, parcels down two floors to a sorter, roll cages to the trucks | The links between the floors as the bottleneck, spirals against lifts |
+| [**RoboValet**](https://clayhill.github.io/darkstore/robovalet.html) | Automated car park: cabins, car lifts and flat robots | Cars in bays on five levels | Robots that slide under a car and carry it sideways, lifts between the floors, drivers queueing and waiting | The morning queue in the street, the 17:00 rush in the lobby, the cabins as the bottleneck |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
 by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
-`pharma.txt`, `sort.txt` and `tower.txt` describe the eleven systems.
+`pharma.txt`, `sort.txt`, `tower.txt` and `park.txt` describe the twelve systems.
 
 ## Run
 
@@ -64,7 +66,8 @@ To run it locally, open `index.html` in Safari (or any modern browser). It has n
 dependencies, so double-clicking the file works. Only the 3D view needs a network connection: it loads
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
-`skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html` and `sorthub.html`.
+`skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html`, `zonehop.html`,
+`sorthub.html`, `floorstack.html` and `robovalet.html`.
 
 **In a simulation**
 
@@ -233,7 +236,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The eleven systems in detail
+## The twelve systems in detail
 
 ### CubeFlow — cube storage
 
@@ -734,12 +737,51 @@ time, because the way up is long. With a tote lift each way instead of the spira
 and the building falls behind at about 430 lines an hour. Follow an order follows its totes up
 from the store and its parcel down to the truck.
 
+### RoboValet — automated car park
+
+![RoboValet in 3D at 08:30: the car park cut open on its south and west sides, five levels of parked cars, the cabins on the street with cars driving in, the lobby under its sign and the morning queue in the street](docs/screenshots/park-3d.png)
+
+| | |
+|---|---|
+| ![Level 2 alone from above: bays with their numbers and the robots' floor markers, a robot carrying a car sideways down the aisle, the lift shafts at the back](docs/screenshots/park-level.png) | ![The lobby at 17:30: drivers waiting on the benches under the screen that lists their cars on the way down](docs/screenshots/park-lobby.png) |
+| **A level:** a robot carries a car sideways down the aisle to its bay | **The evening rush:** drivers wait in the lobby for their cars |
+| ![Follow a car: a saloon queueing in the street, with the panel showing where it is in its journey](docs/screenshots/park-follow.png) | ![RoboValet's control room at 17:30: driver wait and retrieval time, the street queue, the cabins held for cars on their way down, and the floors two by two with each bay coloured by how long its car has been in](docs/screenshots/park-control.png) |
+| **Follow a car:** from the street through a cabin and a lift to its bay, or back out | **Control room:** waits, queues, the cabins, lifts and robots, every bay on the map |
+
+RoboValet is an automated car park on five levels above a ground floor: the warehouse machinery
+moving cars instead of totes. A driver drives into one of four entry/exit cabins on the street,
+gets out, confirms at the terminal and walks off. Behind each cabin is a car lift, and a ground
+robot carries the car across into it. On every level one robot takes the car off the lift and
+parks it. Like FloorStack it is shown in 3D only, and the Floors slider shows the levels up to one,
+or one alone.
+
+**The robots.** A parking robot is a flat AGV, 12 cm high, that slides under a car, swings out
+four pairs of arms round its tyres and lifts it a few centimetres. It moves sideways as easily as
+forwards, so it carries cars sideways along the aisle and into their bays, and turns a car on the
+spot. Robots never leave their floor and the lifts carry only the car, so there is no traffic
+between robots; with no people upstairs, the levels are only 2.4 m high and have no ramps or
+lights (Lights out shows them as they are).
+
+**Coming back.** A driver returning walks into the lobby, pays at a kiosk and waits; 30 % order
+the car in the app four minutes ahead. A free cabin whose lift is free too is held for the car:
+the level robot fetches it and turns it round on the way, so it comes down facing the street;
+the ground robot sets it in the cabin; the driver walks over and drives off. A lift takes one job
+at a time and is booked only when it is free, which keeps everything free of deadlocks.
+
+**The day.** The simulation starts at 06:00 with 40 residents' cars parked overnight. 120
+commuters arrive around 08:15 and leave around 17:15; visitors come through the day. In the
+morning a short queue forms in the street. In the evening rush drivers wait about 4 to 5 minutes
+on average and the slowest tenth about 8, with nearly every cabin held for a car on its way down:
+the cabins, not the robots, are the bottleneck. More app users, more cabins, or parking cars by
+how long they stay (short stays near the lifts) shorten the wait; Call a car (Cars tab) brings any
+car down now, and Follow a car follows one in or out.
+
 ## Development
 
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
-aislemate.html, zonehop.html, sorthub.html, floorstack.html
+aislemate.html, zonehop.html, sorthub.html, floorstack.html, robovalet.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -777,12 +819,16 @@ js/tower/   FloorStack: config, building (where everything stands on the three f
             (belts and links between the floors on RailRunner's store, routing, tote lifts),
             docks (parcel spiral, sorter, roll cages, trucks, suppliers' pallets), people
             (walking, breaks, the goods lift), render, render3d, ui
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower] [settings JSON]
+js/park/    RoboValet: config, sim (the building, cabins, robots and lifts on the shared machines,
+            drivers, the day's demand, bay policies), render (a placeholder: 3D only), render3d
+            (the car park, cars, robots, lifts, drivers, the street), ui (tiles, Cars and
+            Levels tabs, car, bay and cabin inspectors)
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|park] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones, robot sorter, small pallets, transport robots, lifts between
-            FloorStack's floors), and compares a fingerprint of stock, fleet, orders and KPIs
+            FloorStack's floors, cars parked by stay), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 
@@ -793,7 +839,7 @@ golden files with `node test/golden.js --update`, and the diff of those files go
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
 systems, and it must not be used as such. It is inspired by cube-storage, pod-robot, shuttle, stacker
-crane and case-handling robot systems in general and is not affiliated with, endorsed by or derived
+crane and case-handling robot systems and automated car parks in general and is not affiliated with, endorsed by or derived
 from any vendor of such systems. All company names, addresses, products and barcodes in the
 simulation are fictional.
 

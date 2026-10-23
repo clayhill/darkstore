@@ -34,6 +34,9 @@ output) are written down once, in common.txt.
   tower.txt     a multi-storey building: a shuttle store, picking and the
                 dock on three floors, linked by spirals and lifts
                 (implemented as FloorStack)
+  park.txt      an automated car park: cabins on the street, car lifts and
+                flat robots that carry cars to bays (no stock, not a
+                warehouse; implemented as RoboValet)
   prezone-robots.txt
                 a variant of shuttle.txt, crane.txt and pallet.txt: mobile
                 robots instead of the pre-zone conveyor loop between the

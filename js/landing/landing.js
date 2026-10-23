@@ -958,6 +958,69 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview };
+  /* ---------- automated car park preview ---------- */
+  // Three parking levels over the ground floor: cars in their bays, a lift
+  // taking a car up, a robot carrying a car down the aisle to a free bay,
+  // and a car driving in from the street.
+  function parkPreview(canvas) {
+    const GW = 8, GD = 4, BW = 0.8, FZ = [0, 1.5, 2.75, 4.0], TOP = 5.0, AY = GD / 2;
+    const kit = isoKit(canvas, GW, GD + 1.4, TOP, 0.78), { P, quad, box } = kit;
+    const rand = rng(29), PAINT = ['#f1f5f9', '#334155', '#94a3b8', '#cbd5e1', '#3b82f6', '#ef4444', '#f1f5f9', '#22d3ee', '#facc15'];
+    const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16), ch = (v) => Math.round(v * (1 + f)); return `rgb(${ch((n >> 16) & 255)},${ch((n >> 8) & 255)},${ch(n & 255)})`; };
+    const bays = [];
+    for (let f = 1; f < 4; f++) for (const row of [0, 1]) for (let k = row ? 0 : 2; k < GW / BW; k++) bays.push({ f, row, x: k * BW, car: rand() < 0.72 ? PAINT[Math.floor(rand() * PAINT.length)] : null });
+    const target = bays.find((b) => b.f === 2 && b.row === 1 && !b.car && b.x > 3) || bays.find((b) => b.f === 2 && b.row === 1 && !b.car);
+    if (target) target.car = null;
+    const T = 16, CAR = '#ef4444'; // one cycle: lift up (0–4), robot along the aisle (4–9), into the bay (9–10.5), out (10.5–12), lift down (12–16)
+    let t = 0;
+    const step = (dt) => { t = (t + dt) % T; if (target) target.car = t >= 10.5 ? CAR : null; };
+    const ease = (u) => u * u * (3 - 2 * u), seg = (a, b) => ease(Math.min(1, Math.max(0, (t - a) / (b - a))));
+    // a car across the aisle (its length along y), seen from above
+    const drawCar = (x, y, z, c) => {
+      box(x - 0.18, y - 0.36, x + 0.18, y + 0.36, z + 0.05, z + 0.25, c, shade(c, -0.2), shade(c, -0.38));
+      box(x - 0.15, y - 0.2, x + 0.15, y + 0.17, z + 0.25, z + 0.4, '#1e293b', '#0f172a', '#0b1220');
+    };
+    const robot = (x, y, z) => box(x - 0.12, y - 0.34, x + 0.12, y + 0.34, z, z + 0.05, '#facc15', '#ca8a04', '#a16207', 'rgba(254,240,138,.8)');
+    animate(canvas, kit, step, () => {
+      // the street in front, with a car driving along and into a cabin
+      quad([P(-0.5, GD + 0.2, 0), P(GW + 0.5, GD + 0.2, 0), P(GW + 0.5, GD + 1.4, 0), P(-0.5, GD + 1.4, 0)], 'rgba(15,23,42,.9)', 'rgba(56,189,248,.25)', 1);
+      for (let x = 0; x < GW; x += 0.9) quad([P(x, GD + 0.78, 0.01), P(x + 0.45, GD + 0.78, 0.01), P(x + 0.45, GD + 0.82, 0.01), P(x, GD + 0.82, 0.01)], 'rgba(226,232,240,.45)');
+      const u = (t % 8) / 8, sx = u < 0.6 ? GW + 0.3 - (u / 0.6) * (GW - 0.7) : 0.6, sy = u < 0.6 ? GD + 0.5 : GD + 0.5 - ((u - 0.6) / 0.4) * 1.2;
+      const lz = t < 4 ? FZ[2] * seg(0, 4) : t < 12 ? FZ[2] : FZ[2] * (1 - seg(12, 16));
+      for (let f = 0; f < 4; f++) {
+        const z = FZ[f], items = [];
+        quad([P(0, 0, z), P(GW, 0, z), P(GW, GD, z), P(0, GD, z)], f ? 'rgba(30,41,59,.62)' : 'rgba(15,23,42,.92)', 'rgba(56,189,248,.55)', 1.2);
+        quad([P(0, GD, z - 0.1), P(GW, GD, z - 0.1), P(GW, GD, z), P(0, GD, z)], 'rgba(56,189,248,.28)');
+        quad([P(GW, 0, z - 0.1), P(GW, GD, z - 0.1), P(GW, GD, z), P(GW, 0, z)], 'rgba(14,116,144,.35)');
+        // columns up to the next slab
+        if (f < 3) for (let x = 0; x <= GW; x += 2.4) for (const y of [0, GD]) items.push({ d: x + y - 0.1, fn: () => box(x - 0.04, y - 0.04, x + 0.04, y + 0.04, z, FZ[f + 1] - 0.1, 'rgba(148,163,184,.5)', 'rgba(100,116,139,.6)', 'rgba(71,85,105,.6)') });
+        if (f === 0) {
+          // two cabins on the street, the glazed lobby beside them
+          for (const x of [0, 1.2]) items.push({ d: x + GD, fn: () => box(x + 0.05, GD - 1.3, x + 1.15, GD, z, z + 0.8, 'rgba(226,232,240,.14)', 'rgba(226,232,240,.08)', 'rgba(226,232,240,.22)', 'rgba(226,232,240,.55)') });
+          items.push({ d: 4 + GD, fn: () => box(2.6, GD - 1.2, 5.4, GD, z, z + 1.0, 'rgba(56,189,248,.1)', 'rgba(56,189,248,.16)', 'rgba(56,189,248,.1)', 'rgba(125,211,252,.7)') });
+          items.push({ d: sx + sy, fn: () => drawCar(sx, sy, z, '#f1f5f9') });
+        } else {
+          for (const b of bays.filter((q) => q.f === f)) {
+            const y = b.row ? GD - 0.65 : 0.65, x = b.x + BW / 2;
+            items.push({ d: x + y, fn: () => { quad([P(b.x, b.row ? GD - 1.3 : 0, z + 0.005), P(b.x + 0.03, b.row ? GD - 1.3 : 0, z + 0.005), P(b.x + 0.03, b.row ? GD : 1.3, z + 0.005), P(b.x, b.row ? GD : 1.3, z + 0.005)], 'rgba(226,232,240,.55)'); if (b.car) drawCar(x, y, z, b.car); } });
+          }
+          if (f === 2 && target) {
+            // the robot: from the lift along the aisle to the free bay, into it, and back out
+            const lx = 0.8, bx = target.x + BW / 2, by = GD - 0.65;
+            let rx = lx, ry = AY;
+            if (t >= 4 && t < 9) rx = lx + (bx - lx) * seg(4, 9); else if (t >= 9) { rx = bx; ry = t < 10.5 ? AY + (by - AY) * seg(9, 10.5) : t < 12 ? by - (by - AY) * seg(10.5, 12) : AY; }
+            if (t >= 12) rx = bx;
+            const carried = t >= 4 && t < 10.5;
+            items.push({ d: rx + ry + 0.05, fn: () => { robot(rx, ry, z); if (carried) drawCar(rx, ry, z + 0.04, CAR); } });
+          }
+        }
+        // the lift at the back corner: its platform and, on the way up, the car
+        if (lz >= z - 0.01 && lz < (FZ[f + 1] ?? TOP) - 0.01) items.push({ d: 1.5, fn: () => { box(0.1, 0.05, 1.5, 1.25, lz - 0.06, lz, '#22d3ee', '#0891b2', '#0e7490', 'rgba(165,243,252,.8)'); if (t < 4) drawCar(0.8, 0.65, lz, CAR); } });
+        items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+      }
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

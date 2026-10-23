@@ -1,0 +1,139 @@
+DarkStore - automated car park
+==============================
+
+Read common.txt first, but note: a car park has no stock and no orders. Of
+common.txt only the time model, the control room and the disruptions apply.
+Implemented as RoboValet (robovalet.html, js/park/).
+
+1. Overview
+
+A multi-storey car park without ramps, people or lighting on its parking
+levels. A driver drives into an entry/exit cabin (EET) on the street,
+gets out, confirms at a terminal and walks away. Machines take the car up
+to a bay and bring it back when the driver returns, turned round so it can
+be driven out forwards.
+
+The machines are those of an AGV car park:
+- Parking robots: flat, omnidirectional AGVs (about 3.9 x 1.1 x 0.12 m)
+  that drive under a car, swing out clamp arms round its four tyres and
+  lift it a few centimetres. They move sideways as easily as forwards and
+  turn a car on the spot.
+- Car lifts: a platform per shaft that carries one car between the ground
+  floor and the parking levels.
+
+Because nobody walks on the parking levels, they are low (2.4 m floor to
+floor instead of about 3 m) and need no ramps, walkways or lights: more
+cars fit in the same volume. The price is that every car passes through a
+cabin and a lift, and these set the throughput.
+
+2. Layout
+
+- Ground floor (3.6 m high): along the street a row of modules, each a
+  cabin (4 m wide) and, at the back of the building, a car lift. Between
+  them a transfer zone where a ground robot carries cars straight across.
+  Beside the modules the pedestrian lobby (entrance, pay kiosks, seats, a
+  screen with the cars on their way down), and a plant room.
+- Parking levels (default 5): one aisle 6 m wide along the building, bays
+  of 2.6 x 5.4 m at right angles to it on both sides. The lift shafts take
+  the first bays of the north row.
+- One robot per parking level, one ground robot per module. Robots never
+  leave their floor and the lifts carry only the car, so two robots never
+  meet.
+- In front the street: a lane each way. Arriving cars queue in the near
+  lane; leaving cars pull out across into the far lane.
+
+Defaults: 4 modules, 5 levels, 16 bays in the north row after the shafts,
+22 in the south row: 190 bays.
+
+3. Equipment
+
+- Robot: 2.0 m/s empty, 1.2 m/s with a car, 0.5 m/s^2; turns 30 deg/s.
+  Clamping and lifting a car 6 s, setting it down 5 s.
+- Lift: 1.0 m/s, 0.5 m/s^2; 2 s to level with a floor and open the gate,
+  1.2 s to close it.
+- Cabin: a car drives in at walking pace; the driver's handover takes 40 s
+  (get out, confirm at the terminal, leave); the door closes and the car is
+  measured and checked (8 s). Getting in again takes 15 s.
+- People walk at 1.3 m/s; paying at the kiosk takes 20 s.
+
+Published systems of this kind store or retrieve a car in about two
+minutes; one cabin handles about 30 cars an hour.
+
+4. Storing and retrieving
+
+Store: when the car in a cabin is checked and the module's lift is free,
+the lift is booked for it and a bay is chosen (policy, below) and
+reserved. The ground robot drives under the car, clamps it, carries it
+back into the transfer zone (the cabin is free again), waits for the lift
+at the ground floor, puts the car on the platform and backs out. The lift
+goes up; that level's robot drives in, takes the car, carries it sideways
+along the aisle and into its bay, and sets it down.
+
+Retrieve: the driver comes back, pays at a kiosk and sits down, or ordered
+the car in an app a few minutes earlier. The oldest request is served by a
+free cabin whose lift is free too, the lift nearest the car's level first;
+the cabin is held for the car from then on. The level robot fetches the car
+from its bay, turns it round on the way to the lift (so it comes down
+facing the street) and puts it on the platform; the lift comes down; the
+ground robot carries it into the cabin. The driver walks over, gets in and
+drives off.
+
+A free cabin takes either the head of the street queue or the oldest
+request, whichever has waited longer.
+
+5. Traffic
+
+There is no traffic between robots (one per floor). What can wait:
+- A lift takes one job at a time and is booked only when it is free, so a
+  robot only ever waits for a lift that is already on its way to it. This
+  is what keeps the system free of deadlocks; the cost is that a cabin is
+  held empty while its car comes down.
+- A level robot works its jobs one after the other, a lift already
+  waiting at its floor first.
+- Drivers queue in the street; past maxQueue cars, and when no bay is free
+  for them (counting the cars still on their way in), they go elsewhere.
+
+6. Storage policy
+
+- Balanced (default): the free bay that is quickest to reach from the
+  module's lift, plus a penalty for each job the level's robot still has:
+  stores spread over the levels in a rush.
+- Nearest: the quickest bay to reach; low levels near the lifts fill
+  first.
+- By stay: the driver tells the terminal when they will be back. Free bays
+  are sorted by how quick they are to reach, and a car takes the one at the
+  share of its stay in a 9-hour day: short stays near the lifts and low,
+  all-day cars far along and high up.
+
+7. Output
+
+- Occupancy, cars parked and delivered per hour.
+- Driver wait (from arriving in the lobby to the car ready in a cabin):
+  average and 90th percentile over the last hour; retrieval time (request
+  to car ready); drivers waiting now.
+- Street queue, drivers turned away (and how many because the car park
+  was full).
+- Cabins, lifts and robots busy over the last 15 minutes; share of the
+  cabins held for cars on their way down.
+
+8. Parameters (the day)
+
+The simulation starts at 06:00.
+- Residents: 40 cars parked overnight. 60 % leave between 06:30 and 10:00
+  (around 07:45) and come back around 18:30; 20 % go out for one to three
+  hours during the day; 20 % stay.
+- Commuters: 120, arriving around 08:15 (standard deviation 27 min) and
+  leaving around 17:15 (45 min), at least 4 hours later.
+- Visitors: 14 an hour from 10:00 to 20:00, staying 30 min to 4 h.
+- 30 % of drivers order the car in the app 4 minutes ahead.
+- A rush (Disruptions) brings visitors 2.5 times as fast.
+
+With the defaults the morning rush makes a short queue in the street; in
+the evening rush drivers wait about 4 to 5 minutes on average, the slowest
+tenth about 8 minutes, with the cabins nearly always busy and about three
+of four held for cars on their way down: the cabins, not the robots, are
+the bottleneck.
+
+Not modelled: robot batteries and charging, cars too large for the bays
+or the scanner rejecting a car, re-parking cars overnight ahead of the
+morning, electric car charging bays.

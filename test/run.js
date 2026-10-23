@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'park') return checkPark(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -170,6 +170,26 @@ function checkShelves() {
   for (const r of sim.fleet) { if (r.totes.length > sim.cfg.robotTotes) throw new Error(r.name + ' overloaded'); r.totes.forEach((o) => put(o, r.name)); }
   for (const o of sim.oms.orders) if (['RELEASED', 'PICKING', 'PICKED'].includes(o.status) && !at.has(o)) throw new Error(`${o.id} (${o.status}) nowhere`);
   for (const st of sim.stops) if (st.arrived && sim.time - st.since > 900) throw new Error(`${st.robot.name} waiting for a picker since ${st.since.toFixed(0)}`);
+}
+// RoboValet: every car in exactly one place (the street queue, a cabin, a
+// robot, a lift, a bay, or driving), bays and cars agree, a reserved bay
+// for every car on its way up, cabins agree with the car in them, a lift
+// carries at most its job's car, and no car waits forever for a robot
+function checkPark() {
+  const where = new Map(), put = (car, w) => { if (where.has(car)) throw new Error(`t=${sim.time.toFixed(1)} ${car.plate} in ${where.get(car)} and ${w}`); where.set(car, w); };
+  sim.queue.forEach((c) => put(c, 'queue'));
+  for (const b of sim.bays) if (b.car) { put(b.car, b.name); if (b.car.bay !== b || (b.car.state !== 'PARKED' && b.car.state !== 'RETRIEVING')) throw new Error(`${b.name}: ${b.car.plate} is ${b.car.state}`); if (b.reserved) throw new Error(`${b.name} reserved and taken`); }
+  for (const m of sim.fleet) if (m.car) { put(m.car, m.name); if (m instanceof WS.ParkLift && m.job && m.car !== m.job.car) throw new Error(`${m.name} carries ${m.car.plate}, not its job's car`); }
+  for (const p of sim.ports) if (p.car && p.car.where === 'cabin') put(p.car, p.name);
+  for (const c of sim.cars) if (!where.has(c) && !c.path) throw new Error(`t=${sim.time.toFixed(1)} ${c.plate} (${c.state}, ${c.where}) is nowhere`);
+  const up = sim.cars.filter((c) => c.state === 'TO_LEVEL').length, res = sim.bays.filter((b) => b.reserved).length;
+  if (up !== res) throw new Error(`t=${sim.time.toFixed(1)} ${up} cars on their way up but ${res} bays reserved`);
+  for (const p of sim.ports) {
+    if (p.state === 'READY_OUT' && (!p.car || p.car.state !== 'READY')) throw new Error(`${p.name} READY_OUT without a ready car`);
+    if (p.state === 'FREE' && p.car) throw new Error(`${p.name} free with ${p.car.plate} in it`);
+  }
+  for (const c of sim.cars) if (c.state === 'WAITING_ROBOT' && sim.time - c.times.handed > 3600) throw new Error(`${c.plate} waiting for the robot for an hour`);
+  for (const c of sim.requests) if (sim.time - c.requested > 3 * 3600) throw new Error(`${c.plate} requested three hours ago`);
 }
 // cube: every grid bin exactly once in stacks, stack heights <= Z
 function checkStacks() {

@@ -96,7 +96,7 @@
     // ---------------------------------------------------------------- periodic refresh
     refresh() {
       const sim = this.sim;
-      $('#clock').textContent = U.fmtClock(sim.time);
+      $('#clock').textContent = U.fmtClock(sim.clock ? sim.clock() : sim.time);
       WS.Share.sync(this.app); // the address bar holds the scenario
       if (this.app.view !== 'floor') { this.renderKPIs(); this.renderPorts(); this.renderAlerts(); this.renderFleet(); this.renderLog(); }
       this.refreshTab();
@@ -187,7 +187,7 @@
       const logs = this.sim.logs;
       if (logs.length && logs[logs.length - 1].id === this.logSeen) return;
       this.logSeen = logs.length ? logs[logs.length - 1].id : 0;
-      $('#log').innerHTML = logs.slice(-80).reverse().map((l) => `<div><span class="t">${U.fmtClock(l.t).slice(-8)}</span><span class="ty" style="color:${LOG_COL[l.type] || '#cbd5e1'}">${l.type}</span><span>${esc(l.msg)}</span></div>`).join('');
+      $('#log').innerHTML = logs.slice(-80).reverse().map((l) => `<div><span class="t">${U.fmtClock(this.sim.clock ? this.sim.clock(l.t) : l.t).slice(-8)}</span><span class="ty" style="color:${LOG_COL[l.type] || '#cbd5e1'}">${l.type}</span><span>${esc(l.msg)}</span></div>`).join('');
     }
 
     // ---------------------------------------------------------------- tabs
@@ -394,11 +394,11 @@
     // A bad day (WS.Disruptions): buttons that hit the running simulation now,
     // and how long each disruption lasts.
     disruptions(num) {
-      const sim = this.sim, c = sim.cfg, tm = this.terms, parcels = tm.units === 'parcels';
+      const sim = this.sim, c = sim.cfg, tm = this.terms, parcels = tm.units === 'parcels', surge = tm.surge || (parcels ? 'Parcel surge' : 'Order surge');
       const machine = sim.fleet.length ? (tm.machine || 'robot').toLowerCase() : null, chargers = (sim.grid.chargers || []).length, F = tm.fault; // a type's own breakdown (ZoneHop: a jammed channel)
       const btn = (k, label, title) => `<button class="btn" data-disrupt="${k}" title="${title}">${label}</button>`;
       return `<div class="sect"><h3>Disruptions <span class="sub">a bad day, now</span></h3><div class="card">
-        <div class="btns dis">${btn('surge', parcels ? 'Parcel surge' : 'Order surge', `${parcels ? 'Parcels' : 'Orders'} come in ${c.surgeFactor}× as fast for ${c.surgeMinutes} min`)}${btn('breakdown', F ? F.button : machine ? 'Break down a ' + machine : 'Stop the loop', F ? `${F.title} (${c.repairMinutes} min)` : machine ? `A ${machine} at work stops where it is until it is repaired (${c.repairMinutes} min)` : `A drive fault stops the tray loop for ${c.repairMinutes} min`)}${chargers ? btn('charger', 'Charger fault', `A charger is out of service for ${c.chargerMinutes} min`) : ''}${btn('break', 'Operator break', `The busiest ${sim.pickers ? 'operator or picker' : 'operator'} takes a ${c.breakMinutes} min break`)}<button class="btn ghost" data-disrupt="clear" title="End every disruption now">All clear</button></div>
+        <div class="btns dis">${btn('surge', surge, `${tm.surge ? tm.Units : parcels ? 'Parcels' : 'Orders'} come in ${c.surgeFactor}× as fast for ${c.surgeMinutes} min`)}${btn('breakdown', F ? F.button : machine ? 'Break down a ' + machine : 'Stop the loop', F ? `${F.title} (${c.repairMinutes} min)` : machine ? `A ${machine} at work stops where it is until it is repaired (${c.repairMinutes} min)` : `A drive fault stops the tray loop for ${c.repairMinutes} min`)}${chargers ? btn('charger', 'Charger fault', `A charger is out of service for ${c.chargerMinutes} min`) : ''}${sim.disrupt.people().length ? btn('break', 'Operator break', `The busiest ${sim.pickers ? 'operator or picker' : 'operator'} takes a ${c.breakMinutes} min break`) : ''}<button class="btn ghost" data-disrupt="clear" title="End every disruption now">All clear</button></div>
         <div class="row2">${num('surgeFactor', 'Surge: times as fast', 0.5, 1, 10)}${num('surgeMinutes', 'Surge lasts (min)', 5, 1, 480)}</div>
         <div class="row2">${num('repairMinutes', 'Repair takes (min)', 1, 1, 120)}${num('breakMinutes', 'Break lasts (min)', 1, 1, 60)}</div>
         <div class="row2">${num('failRate', 'Random failures / h', 0.5, 0, 30)}${chargers ? num('chargerMinutes', 'Charger fault lasts (min)', 5, 1, 240) : '<div></div>'}</div>
@@ -620,6 +620,7 @@
     scan(v) {
       const sim = this.sim, id = BC.identify(v);
       $('#scan').select();
+      if (this.type.scan && this.type.scan(this, v)) return; // a type's own codes (RoboValet: number plates, bays)
       if (id.type === 'GTIN') { if (sim.inv.byGtin.has(id.value)) return this.showProduct(id.value); return this.toast('GTIN not in item master: ' + id.value, true); }
       if (id.type === 'SSCC') { const o = sim.oms.orders.find((x) => x.sscc === id.value); if (o) return this.showLabel(o.id); return this.toast('No parcel with SSCC ' + id.value, true); }
       const s = id.value;

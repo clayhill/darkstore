@@ -31,6 +31,8 @@
       });
     }
     get sim() { return this.app.sim; }
+    // time of day for sim time t (a type may start its day later: RoboValet at 06:00)
+    clock(t) { return this.sim.clock ? this.sim.clock(t) : t; }
     // a type may give the control room its own map (RailRunner draws levels × aisles)
     get grid() { return this.sim.mapGrid || this.sim.grid; }
 
@@ -69,6 +71,8 @@
         }
         if (g.colLock[i] >= 0 && ty === WS.CELL.STORAGE) { c.fillStyle = '#f59e0b'; c.fillRect(px + s - 5, py + 2, 3, 3); }
       }
+      // a type's own words on the map (RoboValet: the floors' names)
+      if (g.mapText) { c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = C.muted; c.font = '700 10px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'; for (const t of g.mapText()) c.fillText(t.s, m.ox + t.x * s, m.oy + t.y * s); }
       // ports & chargers
       c.textAlign = 'center'; c.textBaseline = 'middle';
       for (const p of sim.ports) {
@@ -147,7 +151,7 @@
       c.textAlign = 'center'; c.textBaseline = 'top'; c.fillStyle = C.muted;
       for (let k = 0; k <= 3; k++) {
         const t = t0 + ((t1 - t0) * k) / 3;
-        c.fillText(WS.U.fmtClock(t).slice(-8, -3), pad.l + ((w - pad.l - pad.r) * k) / 3, h - pad.b + 5);
+        c.fillText(WS.U.fmtClock(this.clock(t)).slice(-8, -3), pad.l + ((w - pad.l - pad.r) * k) / 3, h - pad.b + 5);
       }
     }
     tooltip(c, w, h, x, rows, title) {
@@ -252,7 +256,7 @@
       const x = X(best.t);
       c.strokeStyle = 'rgba(230,237,247,0.45)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x + 0.5, pad.t); c.lineTo(x + 0.5, h - pad.b); c.stroke();
       for (const [k, col] of dots) { c.fillStyle = col; c.strokeStyle = C.surface; c.lineWidth = 2; c.beginPath(); c.arc(x, Y(best[k]), 4.5, 0, Math.PI * 2); c.fill(); c.stroke(); }
-      this.tooltip(c, w, h, x, rowsFn(best), WS.U.fmtClock(best.t));
+      this.tooltip(c, w, h, x, rowsFn(best), WS.U.fmtClock(this.clock(best.t)));
     }
   }
 

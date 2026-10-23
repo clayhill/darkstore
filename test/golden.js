@@ -21,6 +21,7 @@ const RUNS = {
   pallet: ['pallet', {}], 'pallet-small': ['pallet', { palletVolume: 25 }],
   zone: ['zone', {}],
   tower: ['tower', {}], 'tower-lifts': ['tower', { linkType: 'lift' }],
+  park: ['park', {}], 'park-stay': ['park', { placement: 'stay' }],
 };
 
 // Child mode: run one type and print its fingerprint lines.
@@ -30,7 +31,8 @@ if (process.argv[2] === '--one') {
   const hash = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193); return (h >>> 0).toString(16).padStart(8, '0'); };
   const num = (v) => Math.round(v * 1000) / 1000;
   const counters = () => Object.entries(sim.kpi).filter(([, v]) => typeof v === 'number').map(([k, v]) => `${k}=${num(v)}`).join(' ');
-  const stock = () => sim.inv.bins.map((b) => [b.id, b.loc, num(b.x || 0), num(b.y || 0), b.comps.map((c) => `${c.gtin}:${c.qty}:${c.reserved}`).join(',')].join('|')).join('\n');
+  // a type without stock adds its own (RoboValet: every car and where it is)
+  const stock = () => sim.inv.bins.map((b) => [b.id, b.loc, num(b.x || 0), num(b.y || 0), b.comps.map((c) => `${c.gtin}:${c.qty}:${c.reserved}`).join(',')].join('|')).join('\n') + (sim.fingerprint ? '\n' + sim.fingerprint() : '');
   const fleet = () => sim.fleet.map((r) => [r.name, r.displayState, num(r.x), num(r.y), r.battery == null ? "-" : num(r.battery), r.tasksDone, r.bin || ''].join('|')).join('\n');
   const orders = () => { const st = {}; for (const o of sim.oms.orders) st[o.status] = (st[o.status] || 0) + 1; return Object.keys(st).sort().map((k) => `${k}:${st[k]}`).join(' '); };
   const steps = HOURS * 3600 / sim.cfg.tick, every = EVERY / sim.cfg.tick;
