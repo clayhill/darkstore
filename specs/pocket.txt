@@ -1,0 +1,140 @@
+DarkStore - fashion pocket sorter
+=================================
+
+Read common.txt first, but note: this type keeps its own orders and items
+(fashion, single items) and does not use the shared stock, stations or
+packing. Of common.txt the time model, the control room and the
+disruptions apply. Implemented as PocketFlow (pocketflow.html, js/pocket/).
+
+1. Overview
+
+Fashion e-commerce: many small orders (most of one or two items) and many
+returns (in fashion about 40 % of what is sold comes back). Every item
+travels alone in a pocket: a pouch hanging from a trolley on an overhead,
+friction-driven rail (a hanging garment rides on a hanger instead). The
+pocket system is a dynamic buffer between picking and packing:
+
+- Pickers pick from ordinary shelving into totes that come to loading
+  stations; returned items that can be sold again come to a returns
+  loading station. An operator scans each item and puts it into an empty
+  pocket held open in front of them.
+- The pockets wait on storage rails until their order is complete.
+- A returned item waits in its pocket as stock; a new order for the same
+  article takes it from there instead of having it picked. A good share
+  of returns is sold again the same day without ever going back to the
+  shelving.
+- A sequencer puts a batch of complete orders in exact order, and the
+  pockets open one after the other over a pack station.
+
+Inspired by pocket sorters in general (Knapp, Dematic, Vanderlande,
+Savoye, Dürkopp and others); not any one product.
+
+2. Layout
+
+- The main loop: up the west side past the loading stations, east along
+  the top past the exits of the storage rails and sequencer lines, down
+  the east side, west along the bottom past their entries.
+- Storage rails (default 20 of 13 m, 70 pockets each) across the loop
+  like the rungs of a ladder: in from the bottom, out at the top. Each is
+  first in, first out. The first 8 hold returns waiting for an order (the
+  stock rails); the rest hold the pockets of orders.
+- The sequencer: two banks of N lines (default 8) next to the storage
+  rails, in the same ladder.
+- Off the east side a feeder runs over the pack stations; each station's
+  spur winds to and fro over it as a buffer for a whole sequenced batch,
+  then comes down over the packing table. The last spur goes to the
+  restock station, where old returns go back to the shelving.
+- From the stations a return rail takes the empty pockets to the
+  empty-pocket buffer, a rail winding to and fro along the west wall, and
+  a distribution line feeds them to the loading stations' spurs. The rail
+  comes down to chest height at a loading station.
+
+3. Equipment
+
+- Rail: 1.0 m/s; pockets queue 0.2 m apart. 1000 pockets.
+- Loading: 6 s per item (scan, open, put in). 3 stations for picked items,
+  1 for returns.
+- Pickers: 9, 34 s per item including walking; a tote of 12 items, or
+  part-filled after 150 s, comes to the loading station with the least to do.
+- Returns desk: 3 people, 28 s per item; 75 % can be sold again.
+- Pack station: the pocket opens over the table (2.2 s); the packer packs
+  an order once all of it is on the table: 18 s + 4 s an item. 4 stations.
+
+4. Flow
+
+Order: arrives (Poisson, default 380 an hour; 1-4 items, 48/30/14/8 %).
+For each item, if a return of that article waits unallocated in a pocket,
+the order takes it; otherwise the item is picked. A return loaded into a
+pocket is first offered to an order still waiting for that article to be
+picked (the pick is cancelled), else it becomes stock.
+
+Storage: a loaded pocket rides the loop to a storage rail. A return
+waiting for an order goes on the emptiest stock rail. An order's pocket
+goes behind pockets of older orders (the rail whose back pocket belongs to
+the newest older order), so it is in nobody's way when its turn comes;
+without one, the emptiest rail. When its rails are full a pocket goes on
+the emptiest other rail.
+
+Digging out returns: a return an order has taken is usually deep inside a
+stock rail. A stock rail is swept once it holds 3 taken returns or one has
+waited 5 minutes: its front pockets leave one by one, the taken ones for
+the order rails, the others round the loop back to the stock rails. One
+sweep for several costs far fewer moves than one each.
+
+Ready: an order is ready once all its pockets are on the order rails.
+
+5. Sequencing
+
+When bank A is free, the oldest ready orders (up to N^2 pockets and 30
+orders; at least 8 orders, or the oldest has waited a minute) form a
+batch for the pack station with least to do. Each pocket gets its place
+in the batch, 0 ... n-1.
+
+Pass 1: the batch's pockets leave their storage rails (a pocket in front
+of one goes round the loop to a storage rail again) and go into bank A,
+line (place mod N).
+
+Pass 2: once all are in bank A and bank B is free, bank A's lines are
+emptied one after the other, line 0 first; each pocket goes into bank B,
+line (place div N). A line goes only when the one before is empty and its
+pockets are past the next line's exit, so none can get in front of them.
+
+Out: once all are in bank B, its lines are emptied the same way, at most
+as many pockets on their way to the pack station as its spur holds. Each
+bank-B line now holds its pockets in order of their last digit, so the
+pockets arrive in exact order 0 ... n-1: a two-pass radix sort on rails.
+Bank A takes the next batch while bank B sends this one.
+
+At the pack station the table takes the order being packed and the next
+one; a pocket waits above until there is room.
+
+6. Policies
+
+- Storage: by order age behind older orders (above); stock rails for
+  returns.
+- Sweep thresholds for the stock rails: digTaken, digWait.
+- Old returns: after stockAge hours (default 8) a return waiting at the
+  front of its rail goes to the restock station.
+- Batch size: batchOrders; the sequencer size N.
+
+7. Output
+
+- Orders shipped and items packed per hour, order to parcel (average,
+  90th percentile), orders open.
+- Items sold from returns (share), returns waiting in pockets, sent back
+  to the shelving.
+- Pockets in storage, empty pockets, pockets sent round again per item
+  loaded (recirculation: the price of first-in-first-out rails).
+- Loading and packing busy, the last 15 minutes; batches.
+- The pockets by state (empty, return in stock, order incomplete, ready
+  and sequencing) over time.
+
+With the defaults the system keeps up with 380 orders an hour: about 720
+items an hour into pockets, about 12 minutes from order to parcel, about
+a quarter of the items sold from returns, and about two pockets
+sent round for every item loaded, nearly all to dig returns out of the
+stock rails.
+
+Not modelled: the shelving and its stock (a picked item is always
+there), items too large or heavy for a pocket, the garment-on-hanger
+flow's own rails, rejects at loading.

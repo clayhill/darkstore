@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park|pocket] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'park') return checkPark(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -190,6 +190,31 @@ function checkPark() {
   }
   for (const c of sim.cars) if (c.state === 'WAITING_ROBOT' && sim.time - c.times.handed > 3600) throw new Error(`${c.plate} waiting for the robot for an hour`);
   for (const c of sim.requests) if (sim.time - c.requested > 3 * 3600) throw new Error(`${c.plate} requested three hours ago`);
+}
+// PocketFlow: every pocket on exactly one rail, never closer than the pitch;
+// a pocket and its item point at each other; an order's items in pockets,
+// totes, the pick queue or on a table; a batch's places 0 … n-1 once each;
+// and the orders keep being shipped
+function checkPockets() {
+  const on = new Map(), P = sim.net.pitch;
+  for (const b of sim.net.belts) b.totes.forEach((p, k) => {
+    if (on.has(p)) throw new Error(`t=${sim.time.toFixed(1)} ${p.code} on ${on.get(p)} and ${b.name}`);
+    on.set(p, b.name);
+    if (p.belt !== b) throw new Error(`${p.code} on ${b.name} thinks it is on ${p.belt && p.belt.name}`);
+    if (k && b.totes[k - 1].s - p.s < P - 1e-6) throw new Error(`t=${sim.time.toFixed(1)} pockets too close on ${b.name}`);
+  });
+  if (on.size !== sim.pocketList.length) throw new Error(`${sim.pocketList.length - on.size} pockets on no rail`);
+  for (const p of sim.pocketList) {
+    if (p.item && p.item.pocket !== p) throw new Error(`${p.code}'s item thinks it is elsewhere`);
+    if (!p.item && p.state !== 'EMPTY') throw new Error(`${p.code} empty but ${p.state}`);
+  }
+  for (const o of sim.orders) for (const it of o.items) {
+    if (it.order !== o) throw new Error(`${o.id}: an item of another order`);
+    if (o.status !== 'SHIPPED' && !it.pocket && !sim.pickQueue.includes(it) && !it.at.startsWith('tote') && !it.at.startsWith('table')) throw new Error(`t=${sim.time.toFixed(1)} ${o.id} (${o.status}): ${it.sku.name} is nowhere (${it.at})`);
+  }
+  for (const b of sim.batches) { if (b.phase === 'PACK') continue; const seen = new Set(b.pockets.map((p) => p.seq)); if (seen.size !== b.pockets.length || Math.max(...seen) !== b.pockets.length - 1) throw new Error(`${b.id}: places not 0 … n-1`); }
+  const old = sim.orders.find((o) => o.status !== 'SHIPPED' && sim.time - o.created > 3 * 3600);
+  if (old) throw new Error(`t=${sim.time.toFixed(1)} ${old.id} (${old.status}) open for three hours`);
 }
 // cube: every grid bin exactly once in stacks, stack heights <= Z
 function checkStacks() {

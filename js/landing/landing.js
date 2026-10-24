@@ -958,6 +958,49 @@
     });
   }
 
+  /* ---------- pocket sorter preview ---------- */
+  // An overhead loop with pockets riding round it, storage rails across it,
+  // one of them letting its pockets go, and a pack station where they open.
+  function pocketPreview(canvas) {
+    const GW = 9, GD = 6, RZ = 2.6;
+    const kit = isoKit(canvas, GW, GD, RZ + 0.4, 0.7), { ctx, P, quad, box } = kit;
+    const rand = rng(41), HUES = ['#f472b6', '#38bdf8', '#a3e635', '#fbbf24', '#c084fc', '#f1f5f9', '#fb7185', '#2dd4bf'];
+    const X0 = 0.6, X1 = GW - 0.6, Y0 = 0.6, Y1 = GD - 1.6, L = 2 * (X1 - X0) + 2 * (Y1 - Y0);
+    // a point at distance u round the loop (clockwise in the view)
+    const loop = (u) => { u = ((u % L) + L) % L; const w = X1 - X0, h = Y1 - Y0; if (u < w) return { x: X0 + u, y: Y0 }; if (u < w + h) return { x: X1, y: Y0 + u - w }; if (u < 2 * w + h) return { x: X1 - (u - w - h), y: Y1 }; return { x: X0, y: Y1 - (u - 2 * w - h) }; };
+    const lanes = [1.6, 2.4, 3.2, 4.0, 4.8, 5.6, 6.4, 7.2].map((x, k) => ({ x, n: 4 + Math.floor(rand() * 7), seq: k === 5 }));
+    const riders = [...Array(22)].map((_, k) => ({ u: (k * L) / 22, c: HUES[Math.floor(rand() * HUES.length)] }));
+    const lanePk = lanes.map((ln) => [...Array(ln.n)].map(() => HUES[Math.floor(rand() * HUES.length)]));
+    let t = 0;
+    const step = (dt) => { t += dt; for (const r of riders) r.u = (r.u + dt * 0.8) % L; };
+    const pocket = (x, y, z, c, open) => {
+      ctx.strokeStyle = 'rgba(148,163,184,.8)'; ctx.lineWidth = 1; const a = P(x, y, z), b = P(x, y, z - 0.18); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      box(x - 0.16, y - 0.05, x + 0.16, y + 0.05, z - 0.62 - (open ? 0.15 : 0), z - 0.18, 'rgba(226,232,240,.85)', 'rgba(203,213,225,.85)', 'rgba(148,163,184,.85)');
+      if (c) box(x - 0.11, y - 0.04, x + 0.11, y + 0.04, z - 0.3, z - 0.2, c, c, c);
+    };
+    animate(canvas, kit, step, () => {
+      // the floor, the pack station at the front with its packer's table
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], 'rgba(15,23,42,.9)', 'rgba(56,189,248,.35)', 1);
+      box(5.6, GD - 1.0, 7.2, GD - 0.4, 0, 0.55, '#d6c6a5', '#b8a888', '#a08f70');
+      const items = [];
+      // the rails: the loop and the storage rails across it
+      const rail = (a, b, col) => items.push({ d: -1, fn: () => { ctx.strokeStyle = col; ctx.lineWidth = 2.2 * kit.s / 20; const p = P(a.x, a.y, RZ), q = P(b.x, b.y, RZ); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); } });
+      for (let u = 0; u < L; u += 0.25) rail(loop(u), loop(u + 0.26), 'rgba(125,211,252,.85)');
+      for (const ln of lanes) rail({ x: ln.x, y: Y0 }, { x: ln.x, y: Y1 }, ln.seq ? 'rgba(192,132,252,.95)' : 'rgba(125,211,252,.55)');
+      // a rail down to the pack station, where the pockets open over the table
+      rail({ x: 6.4, y: Y1 }, { x: 6.4, y: GD - 0.7 }, 'rgba(74,222,128,.9)');
+      lanes.forEach((ln, k) => {
+        const n = ln.seq ? Math.max(0, ln.n - Math.floor((t * 0.8) % (ln.n + 3))) : ln.n;
+        lanePk[k].slice(0, n).forEach((c, j) => items.push({ d: ln.x + Y0 + 0.4 + j * 0.32, fn: () => pocket(ln.x, Y0 + 0.4 + j * 0.32, RZ, c) }));
+      });
+      for (const r of riders) { const q = loop(r.u); items.push({ d: q.x + q.y, fn: () => pocket(q.x, q.y, RZ, r.c) }); }
+      // pockets going down to the packer, the front one open
+      for (let j = 0; j < 3; j++) { const y = GD - 0.75 - j * 0.3, open = j === 0 && (t % 2) < 1; items.push({ d: 6.4 + y, fn: () => pocket(6.4, y, RZ, open ? null : HUES[(j + Math.floor(t / 2)) % HUES.length], open) }); }
+      items.push({ d: 7 + GD, fn: () => person(ctx, ...P(6.4, GD - 0.1, 0), kit.s / 20, '#38bdf8', Math.max(0, Math.sin(t * 3)) * 3 * kit.s / 20, 7) });
+      items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+    });
+  }
+
   /* ---------- automated car park preview ---------- */
   // Three parking levels over the ground floor: cars in their bays, a lift
   // taking a car up, a robot carrying a car down the aisle to a free bay,
@@ -1021,6 +1064,6 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview };
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

@@ -34,6 +34,9 @@ output) are written down once, in common.txt.
   tower.txt     a multi-storey building: a shuttle store, picking and the
                 dock on three floors, linked by spirals and lifts
                 (implemented as FloorStack)
+  pocket.txt    fashion e-commerce through an overhead pocket sorter: every
+                item in a pocket, returns sold again from the pockets, a
+                two-pass matrix sequencer (implemented as PocketFlow)
   park.txt      an automated car park: cabins on the street, car lifts and
                 flat robots that carry cars to bays (no stock, not a
                 warehouse; implemented as RoboValet)

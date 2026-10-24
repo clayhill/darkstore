@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the twelve simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the thirteen simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of twelve
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of thirteen
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,12 +14,14 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the twelve systems work this way. AisleMate is the common first step towards it: people
+Seven of the thirteen systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
 the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
 but a parcel sorter, the kind of hub parcels go through after the warehouse. FloorStack puts a
 whole fulfilment centre in one building of three floors: storage, picking and the dock above each
-other, linked by spiral conveyors and lifts. RoboValet leaves the warehouse: an automated car park,
+other, linked by spiral conveyors and lifts. PocketFlow hangs every item of a fashion webshop in a
+pocket on an overhead rail, where returns wait to be sold again and a sequencer drops each order in
+turn at the packer. RoboValet leaves the warehouse: an automated car park,
 where the same kind of lifts and robots store cars instead of totes.
 
 **What every simulation shares**
@@ -36,7 +38,7 @@ where the same kind of lifts and robots store cars instead of totes.
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The twelve systems**
+**The thirteen systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -51,11 +53,12 @@ where the same kind of lifts and robots store cars instead of totes.
 | [**ZoneHop**](https://clayhill.github.io/darkstore/zonehop.html) | Pharmacy wholesale: A-frame and zone picking | Small boxes in A-frame channels, flow racks, carousels and shelving | Order totes on a conveyor loop, past the zones their order needs | A-frame refills, zone skipping, totes that miss their van |
 | [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
 | [**FloorStack**](https://clayhill.github.io/darkstore/floorstack.html) | Multi-storey fulfilment: storage, picking and the dock on three floors | Totes in a shuttle store on the first floor | Totes up a spiral to the pick stations and back down, parcels down two floors to a sorter, roll cages to the trucks | The links between the floors as the bottleneck, spirals against lifts |
+| [**PocketFlow**](https://clayhill.github.io/darkstore/pocketflow.html) | Fashion e-commerce through an overhead pocket sorter | One item in each pocket, on storage rails | Pockets on a friction rail: storage rails, a two-pass matrix sequencer, pack stations where they open | Returns sold again from the pockets, pockets sent round to dig them out, the sequencer |
 | [**RoboValet**](https://clayhill.github.io/darkstore/robovalet.html) | Automated car park: cabins, car lifts and flat robots | Cars in bays on five levels | Robots that slide under a car and carry it sideways, lifts between the floors, drivers queueing and waiting | The morning queue in the street, the 17:00 rush in the lobby, the cabins as the bottleneck |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
 by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
-`pharma.txt`, `sort.txt`, `tower.txt` and `park.txt` describe the twelve systems.
+`pharma.txt`, `sort.txt`, `tower.txt`, `pocket.txt` and `park.txt` describe the thirteen systems.
 
 ## Run
 
@@ -67,7 +70,7 @@ dependencies, so double-clicking the file works. Only the 3D view needs a networ
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
 `skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html`, `zonehop.html`,
-`sorthub.html`, `floorstack.html` and `robovalet.html`.
+`sorthub.html`, `floorstack.html`, `pocketflow.html` and `robovalet.html`.
 
 **In a simulation**
 
@@ -236,7 +239,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The twelve systems in detail
+## The thirteen systems in detail
 
 ### CubeFlow — cube storage
 
@@ -737,6 +740,43 @@ time, because the way up is long. With a tote lift each way instead of the spira
 and the building falls behind at about 430 lines an hour. Follow an order follows its totes up
 from the store and its parcel down to the truck.
 
+### PocketFlow — fashion pocket sorter
+
+![PocketFlow in 3D: the overhead rails with their pockets, the storage rails and the sequencer's two banks across the main loop, the loading stations and returns desk at the west end, the pack stations with their pocket buffers in front](docs/screenshots/pocket-3d.png)
+
+| | |
+|---|---|
+| ![A loading station: the rail comes down to chest height, an opener holds the pocket's mouth open and the operator puts in an item from a tote of picked items](docs/screenshots/pocket-load.png) | ![A pack station: the batch's pockets wait in order on the spur winding over it and open one after the other over the table, where the packer packs each order as its last item arrives](docs/screenshots/pocket-pack.png) |
+| **Loading:** one item per pocket, at chest height | **Packing:** the pockets open over the table in order |
+| ![Follow an order: its items picked into a tote at a loading station, then pockets, storage, the sequencer and the pack station](docs/screenshots/pocket-follow.png) | ![PocketFlow's control room: orders shipped, order to parcel, items sold from returns, pockets sent round, the rails on the map with every pocket in the colour of its state, and the batches in the sequencer](docs/screenshots/pocket-control.png) |
+| **Follow an order:** from the shelving through its pockets to the parcel | **Control room:** the rails with every pocket, the batches in the sequencer |
+
+PocketFlow is fashion e-commerce through an overhead pocket sorter. Orders are small (most of one or
+two items) and about 40 % of what is sold comes back, so every item travels alone, in a pocket
+hanging from a friction-driven rail. Pickers pick from shelving into totes for the loading stations;
+returns that can be sold again come from the returns desk. An operator puts each item into an empty
+pocket, held open at chest height where the rail comes down. Like FloorStack it is shown in 3D only.
+
+**Storage and returns.** The pockets wait on storage rails across the main loop. A rail is first
+in, first out, so an order's pocket goes behind pockets of older orders, where it is in nobody's way
+when its turn comes. Returns wait on rails of their own as stock: a new order takes a return of its
+article instead of having it picked, and about a quarter of everything sold never goes back to the
+shelving. The price is moving pockets: a taken return is usually deep in a stock rail, and every
+pocket in front of it has to go round the loop. Sweeping a stock rail once it holds several taken
+returns costs far fewer moves than one each; it still comes to about two pockets sent round per item.
+
+**The sequencer.** Once every item of an order is in storage, the order can go into a batch of up to
+64 pockets for one pack station. The sequencer is two banks of eight lines and does a radix sort on
+rails: pass 1 puts each pocket in bank A's line by the last digit of its place in the batch; the
+lines are emptied one after the other into bank B by the first digit; emptied in turn again, the
+pockets leave in exact order. A line lights up while it is being emptied. Over the pack station the
+pockets open one after the other, and the packer packs each order as its last item drops.
+
+**The numbers.** With 380 orders an hour the system keeps up: about 720 items an hour into pockets,
+about 12 minutes from order to parcel. Turn returns off and the pockets are never sent round; double
+them and the stock rails fill up. Try a smaller sequencer, fewer storage rails or other sweep
+thresholds; Pocket cam rides a pocket round the loop.
+
 ### RoboValet — automated car park
 
 ![RoboValet in 3D at 08:30: the car park cut open on its south and west sides, five levels of parked cars, the cabins on the street with cars driving in, the lobby under its sign and the morning queue in the street](docs/screenshots/park-3d.png)
@@ -781,7 +821,7 @@ car down now, and Follow a car follows one in or out.
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
-aislemate.html, zonehop.html, sorthub.html, floorstack.html, robovalet.html
+aislemate.html, zonehop.html, sorthub.html, floorstack.html, pocketflow.html, robovalet.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -793,7 +833,7 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
             paths and putaway: RailRunner, SkyStack and DeepLane), totebots (mobile robots
             instead of the pre-zone loop: their floor, tasks and dispatch), belts (conveyor
-            networks of belts that may climb: ZoneHop, FloorStack), disrupt (surges,
+            networks of belts that may climb: ZoneHop, FloorStack; PocketFlow's rails), disrupt (surges,
             breakdowns, charger faults, breaks)
 js/render/  iso (shared isometric view: camera, input, primitives, robot overlays), stations
             (warehouse floor, stations, packing, dock), control (SCADA map + charts),
@@ -819,16 +859,20 @@ js/tower/   FloorStack: config, building (where everything stands on the three f
             (belts and links between the floors on RailRunner's store, routing, tote lifts),
             docks (parcel spiral, sorter, roll cages, trucks, suppliers' pallets), people
             (walking, breaks, the goods lift), render, render3d, ui
+js/pocket/  PocketFlow: config, sim (the rails on the shared belt network, stations, orders and
+            returns, storage and stock rails, the two-pass sequencer), render (a placeholder: 3D
+            only), render3d (rails, pockets, stations, the pocket cam), ui (tiles, Orders, Pockets
+            and Returns tabs, order, pocket and rail inspectors)
 js/park/    RoboValet: config, sim (the building, cabins, robots and lifts on the shared machines,
             drivers, the day's demand, bay policies), render (a placeholder: 3D only), render3d
             (the car park, cars, robots, lifts, drivers, the street), ui (tiles, Cars and
             Levels tabs, car, bay and cabin inspectors)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|park] [settings JSON]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|pocket|park] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones, robot sorter, small pallets, transport robots, lifts between
-            FloorStack's floors, cars parked by stay), and compares a fingerprint of stock, fleet, orders and KPIs
+            FloorStack's floors, cars parked by stay, a pocket sorter without returns), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 
@@ -839,7 +883,7 @@ golden files with `node test/golden.js --update`, and the diff of those files go
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
 systems, and it must not be used as such. It is inspired by cube-storage, pod-robot, shuttle, stacker
-crane and case-handling robot systems and automated car parks in general and is not affiliated with, endorsed by or derived
+crane, case-handling robot and pocket sorter systems and automated car parks in general and is not affiliated with, endorsed by or derived
 from any vendor of such systems. All company names, addresses, products and barcodes in the
 simulation are fictional.
 

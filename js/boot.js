@@ -66,6 +66,12 @@
       tabs: [['cars', 'Cars'], ['levels', 'Levels'], ['settings', 'Settings']],
       sim: ['js/park/config.js', 'js/park/sim.js'], view: ['js/park/render.js', 'js/park/ui.js'],
     },
+    pocket: {
+      name: 'PocketFlow', only3d: true, three: ['js/pocket/render3d.js'], sub: 'Fashion pocket sorter', scan: 'order, pocket, GTIN', click: 'pockets, rails, stations', ride: 'pocket',
+      map: 'Rails', stations: 'Stations', flow: 'Items into pockets', flow2: 'Items packed', fleet: 'Pocket', follow: 'Follow an order',
+      tabs: [['orders', 'Orders'], ['pockets', 'Pockets'], ['returns', 'Returns'], ['settings', 'Settings']],
+      sim: ['js/sim/belts.js', 'js/pocket/config.js', 'js/pocket/sim.js'], view: ['js/pocket/render.js', 'js/pocket/ui.js'],
+    },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',
@@ -113,7 +119,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
           <button id="btn-sound" title="Sound made live from what the machines do: motors, forks, rollers, scanners. Louder near where you look.">Sound</button>
-${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (k.follow || (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order')) + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : k.ride === 'pocket' ? 'Pocket cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (k.follow || (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order')) + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>
