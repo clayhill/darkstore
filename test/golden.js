@@ -23,6 +23,7 @@ const RUNS = {
   tower: ['tower', {}], 'tower-lifts': ['tower', { linkType: 'lift' }],
   park: ['park', {}], 'park-stay': ['park', { placement: 'stay' }],
   pocket: ['pocket', {}], 'pocket-noreturns': ['pocket', { returnRate: 0 }],
+  case: ['case', {}], 'case-aisle': ['case', { buildPolicy: 'aisle', storagePolicy: 'nearest' }],
 };
 
 // Child mode: run one type and print its fingerprint lines.

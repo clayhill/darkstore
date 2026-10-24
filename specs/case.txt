@@ -1,0 +1,168 @@
+DarkStore - mixed-case pallet DC
+================================
+
+Read common.txt first, but note: this type keeps its own stock (cases of
+grocery and household goods), its own orders (stores) and does not use the
+shared stations or packing. Of common.txt the time model, the control room
+and the disruptions apply. Implemented as CaseCraft (casecraft.html,
+js/case/).
+
+1. Overview
+
+A distribution centre that supplies supermarkets. Suppliers deliver
+single-product pallets; stores order a few hundred cases of many products
+and want them on mixed pallets they can put straight into their aisles.
+Everything in between is automated, case by case:
+
+- Depalletising: a robot arm takes the cases off an incoming pallet one by
+  one onto a conveyor. A tunnel measures and weighs each case.
+- Storage: lifts take the cases up into a dense structure of many levels.
+  On every level, case bots drive along a transfer deck and into narrow
+  aisles, and set each case on a shelf in a gap just wide enough for it.
+- Sequencing: for each pallet to build, the bots bring its cases to an
+  output lift, and the lift takes them down in the exact order the pallet
+  is built in.
+- Palletising: a robot arm stacks the cases into a mixed pallet, heavy at
+  the bottom and crushable on top, in a stable stack planned beforehand.
+  The pallet is stretch-wrapped, labelled and loaded into the store's
+  truck.
+
+Inspired by case-handling distribution systems in general (Symbotic,
+Witron, Swisslog, Dematic and others); not any one product.
+
+2. Layout
+
+Positions in metres: x east, y south, z up.
+
+- The structure: A aisles (default 16) running north-south, 12 m long, 0.8
+  m wide, with shelves 0.65 m deep on both sides (back to back between
+  aisles), on L levels (default 14, 0.72 m apart, the first 0.9 m up).
+  The first 0.8 m of an aisle has no shelf, so a bot working there stays
+  clear of the deck.
+  Each level is a floor of its own: a transfer deck along the south end
+  joins its aisles to the lifts. A shelf is a continuous plank: a case
+  takes as much of it as it is wide, plus 3 cm.
+- The deck has two lanes 1.25 m apart: the north one (by the aisle
+  mouths) westbound, the south one eastbound. On its south side, for
+  every lift, a transfer shelf of three places, and round the middle a
+  parking pocket for every bot of the level.
+- Lifts: input lifts (default 3) west of the parking pockets, output
+  lifts east of them, one for each palletising cell (default 3).
+- South of the west half: the inbound door in the west wall, a pallet
+  conveyor past the depalletising cells (default 3, each with a place for
+  the pallet it works on and one for the next), the case conveyor through
+  the measuring tunnel, and a spur to each input lift.
+- South of the east half: the palletising cells (one per output lift), a
+  stretch wrapper and labeller, and a conveyor round to the doors in the
+  south wall, one below each cell, with a store's truck backed up to it.
+
+3. Equipment
+
+- Case bot: 1.2 x 0.62 m, 6 m/s on the deck, 5 m/s in an aisle, 4 m/s²;
+  a quarter turn takes 0.6 s; putting a case on or taking it off a shelf
+  2.2 s (its arms reach under the case from the side). Bots never leave
+  their level. Default 3 per level.
+- Lift: 5 m/s, 5 m/s², a carriage for 3 cases; 0.9 s to take a case from
+  or put one on a transfer shelf place, 0.8 s to load one at the bottom,
+  0.6 s to put one on the conveyor at the bottom.
+- Depalletising arm: 2.6 s a case. Pallets arrive by truck (22 pallets) and
+  a forklift puts them on the pallet conveyor; an emptied pallet goes on a
+  stack of empties.
+- Palletising arm: 3.4 s a case. A new pallet takes 8 s to come in.
+- Stretch wrapper 35 s, labeller 6 s, pallet conveyors 0.4 m/s, case
+  conveyors 0.8 m/s.
+
+4. Flow
+
+Inbound. Each product has a reorder point (coverHours of its demand, at
+least 6 cases); below it, a pallet is ordered for the next inbound truck
+(at most every 30 minutes, if there is something to bring), as long as
+the structure has room for it. A truck brings the most urgent first: the
+products orders wait for, then those with the least cover. The forklift puts the
+pallets on the conveyor; each goes to the first free depalletising cell.
+
+Storage. As a case passes the tunnel it gets its place: the level with the
+least to do among those holding the fewest cases of its product (so a
+pallet needing ten of them gets them from several levels at once), then
+the aisle and gap by the storage policy, the emptier shelves first so
+the aisles fill alike. The place is reserved at once.
+The case rides to the input lift with the shortest queue; the lift takes up
+to three cases, puts each on its level's transfer shelf, and a bot of that
+level takes it to its place.
+
+Orders. Store orders arrive (default 9 an hour, about 250 cases each, a
+Poisson stream). Each order is planned into pallets at once (section 5); its
+pallets queue for the palletising cells.
+
+Sequencing. A cell starting a pallet releases its cases in build order:
+for each, the stored case of that product nearest the deck is taken, and a
+place on the output lift's transfer shelf of that case's level is reserved.
+Places on one level are reserved in build order, at most three at a time,
+so the case the lift needs next always has one. The lift collects the next
+cases in order (up to three, as far as they are already waiting), takes
+them down and puts them on the conveyor to its cell.
+
+Bots. A free bot takes, in this order: a case its output lift needs within
+the next six; a case on its level's input shelf; any other case to fetch.
+After putting a case away it fetches one from the same aisle if there is
+one (a dual cycle). A bot needs the aisle (or the lift's shelf) it goes
+to to itself, and enters the deck only once it has reserved its lane from
+here to there, and the other lane where it crosses it; the lane behind
+it is free again as it drives on. A bot whose destination is taken waits
+in its own parking pocket, so nothing locks up.
+
+Outbound. The arm puts each case on its planned place. The finished
+pallet is wrapped, labelled and conveyed to the store's door; when all of
+an order's pallets are on its truck, the truck leaves and the next store's
+truck backs up.
+
+5. The pallet planner
+
+A pallet is 1.2 x 1.0 m, loaded up to 1.6 m high and 800 kg. The planner
+takes the order's cases in the policy's order and gives each a place:
+
+- Candidates are the corners next to cases already placed, both ways
+  round. A case goes where it ends up lowest, then furthest back and left.
+- It is turned either way round, whichever leaves no strip too narrow
+  for another like it.
+- It must stand on at least 75 % of its base, on cases strong enough to
+  carry it: fragile cases (crisps, paper) carry up to 5 kg; normal ones
+  up to 14 kg.
+- Two pallets are open at a time: a case goes on the first it fits on;
+  else a new one is opened and the older of the two closed.
+
+Build order (the policy):
+- Stable: strongest first, then heaviest, then tallest: a store's aisles
+  mixed over all its pallets.
+- Store aisle: by the store's aisle (walk order), heavy first within each:
+  each pallet goes to fewer aisles, but crushables end up low and heavy
+  cases cannot go on them.
+- Blend (default): heavy, normal and light cases in three bands, each in
+  aisle order.
+
+6. Policies
+
+- Storage: best fit (the gap the case fills best, any gap more than 60 cm
+  too big counting as open shelf; fast movers near the deck) or nearest
+  the deck.
+- Build order: stable, store aisle, blend.
+- Bots per level, lifts, cells.
+
+7. Output
+
+- Cases in (depalletised) and out (palletised) per hour, pallets per hour,
+  store orders shipped.
+- Pallet fill (share of 1.2 x 1.0 x 1.6 m used), cases and aisles per
+  pallet, height and weight.
+- Structure: cases stored, shelf length used, products below their
+  reorder point.
+- Bots, lifts and arms busy; cells waiting for their next case.
+
+With the defaults the system keeps up with about 2,200 cases an hour in
+and out: three palletising cells at about 740 cases an hour each, store
+pallets of about 43 cases, 1.4 m high and about 55 % full; an order is on
+its truck 40 to 60 minutes after it came in. The output lifts are the
+busiest machines (about 90 %).
+
+Not modelled: layer picking, rejects at the tunnel, mixed-temperature
+goods, slip sheets and tier sheets, bots changing level.

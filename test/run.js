@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park|pocket] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park|pocket|case] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -215,6 +215,53 @@ function checkPockets() {
   for (const b of sim.batches) { if (b.phase === 'PACK') continue; const seen = new Set(b.pockets.map((p) => p.seq)); if (seen.size !== b.pockets.length || Math.max(...seen) !== b.pockets.length - 1) throw new Error(`${b.id}: places not 0 … n-1`); }
   const old = sim.orders.find((o) => o.status !== 'SHIPPED' && sim.time - o.created > 3 * 3600);
   if (old) throw new Error(`t=${sim.time.toFixed(1)} ${old.id} (${old.status}) open for three hours`);
+}
+// CaseCraft: every case in exactly one place (a shelf, a bot, a lift, a
+// transfer shelf place, a conveyor, an arm, a pallet); shelf gaps never
+// overlap; the stock counts add up; no two bots on a level touch; every
+// lane reservation is its own; cells and orders keep moving
+function checkCases() {
+  const where = new Map(), t = sim.time.toFixed(1), put = (c, w) => { if (where.has(c)) throw new Error(`t=${t} case ${c.id} in ${where.get(c)} and ${w}`); where.set(c, w); };
+  const onShelf = new Map(sim.skus.map((p) => [p, 0]));
+  for (const sh of sim.shelves) {
+    let prev = 0;
+    for (const e of sh.items) {
+      if (e.a < prev - 1e-9) throw new Error(`t=${t} shelf ${sh.id}: gaps overlap`);
+      if (e.b > sim.G.AL + 1e-9) throw new Error(`shelf ${sh.id}: past the end`);
+      prev = e.b;
+      if (e.c.shelf !== sh || e.c.entry !== e) throw new Error(`case ${e.c.id} does not know its shelf place`);
+      if (e.c.state === 'STORED' || e.c.state === 'RELEASED') { put(e.c, 'shelf ' + sh.id); onShelf.set(e.c.p, onShelf.get(e.c.p) + 1); }
+      else if (!['CONV', 'LIFT', 'SLOT', 'BOT'].includes(e.c.state)) throw new Error(`t=${t} case ${e.c.id} has a shelf place but is ${e.c.state}`);
+    }
+  }
+  for (const p of sim.skus) {
+    if (onShelf.get(p) !== p.stock) throw new Error(`t=${t} ${p.name}: ${onShelf.get(p)} on shelves, stock says ${p.stock}`);
+    let n = 0; for (const c of p.cases) { if (c.state !== 'STORED') throw new Error(`${p.name}: ${c.state} case in its stock`); n++; }
+    if (p.alloc < 0 || p.coming < 0) throw new Error(`t=${t} ${p.name}: alloc ${p.alloc} coming ${p.coming}`);
+    if (p.alloc > p.cases.size + p.coming) throw new Error(`t=${t} ${p.name}: ${p.alloc} allocated, ${p.cases.size} free + ${p.coming} coming`);
+  }
+  for (const b of sim.botList) if (b.c) { put(b.c, b.name); if (b.c.state !== 'BOT') throw new Error(`${b.name} carries a ${b.c.state} case`); }
+  for (const L of [...sim.inLifts, ...sim.outLifts]) {
+    for (const c of L.load) put(c, L.name);
+    L.slots.forEach((sl, f) => sl.forEach((s, j) => { if (s.c) { put(s.c, `${L.name} L${f + 1}/${j}`); if (s.c.state !== 'SLOT') throw new Error(`slot holds a ${s.c.state} case`); } if (s.c && s.res) throw new Error(`${L.name} L${f + 1}/${j} holds a case and is booked`); }));
+  }
+  for (const q of sim.convs) q.items.forEach((it, k) => {
+    if (it.c) put(it.c, q.name);
+    if (k && q.items[k - 1].s - it.s < (q.items[k - 1].len + it.len) / 2 + q.gap - 1e-6) throw new Error(`t=${t} ${q.name}: items too close`);
+  });
+  for (const p of sim.ports) if (p.robot.c) put(p.robot.c, p.robot.name);
+  for (const lv of sim.levels) {
+    const bs = lv.bots;
+    for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+      const a = bs[i], b = bs[j], ha = (r) => (Math.abs(Math.sin(r.a)) > 0.7 ? [0.6, 0.31] : [0.31, 0.6]), [ax, ay] = ha(a), [bx, by] = ha(b);
+      if (Math.abs(a.x - b.x) < ax + bx - 0.05 && Math.abs(a.y - b.y) < ay + by - 0.05) throw new Error(`t=${t} ${a.name} and ${b.name} touch at ${a.x.toFixed(2)},${a.y.toFixed(2)} / ${b.x.toFixed(2)},${b.y.toFixed(2)}`);
+    }
+    for (const q of lv.claims) if (q.b.claim !== q) throw new Error(`level ${lv.f + 1}: a stale lane reservation of ${q.b.name}`);
+    lv.aisleBy.forEach((b, k) => { if (b && b.level !== lv.f) throw new Error('aisle held from another level'); });
+  }
+  for (const c of sim.cells) if (c.build && sim.time - c.build.t0 > 3600) throw new Error(`t=${t} ${c.name} on one pallet for an hour (${c.build.placed}/${c.build.items.length})`);
+  const old = sim.orders.find((o) => o.status !== 'SHIPPED' && sim.time - o.created > 4 * 3600);
+  if (old) throw new Error(`t=${t} ${old.code} open for four hours`);
 }
 // cube: every grid bin exactly once in stacks, stack heights <= Z
 function checkStacks() {

@@ -37,6 +37,9 @@ output) are written down once, in common.txt.
   pocket.txt    fashion e-commerce through an overhead pocket sorter: every
                 item in a pocket, returns sold again from the pockets, a
                 two-pass matrix sequencer (implemented as PocketFlow)
+  case.txt      a mixed-case pallet DC for supermarkets: depalletising,
+                case bots in a dense structure, lifts that bring cases down
+                in build order, palletising arms (implemented as CaseCraft)
   park.txt      an automated car park: cabins on the street, car lifts and
                 flat robots that carry cars to bays (no stock, not a
                 warehouse; implemented as RoboValet)

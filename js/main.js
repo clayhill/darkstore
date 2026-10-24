@@ -103,6 +103,7 @@
     tower: () => ({ Sim: WS.TowerSim, Renderer: WS.TowerRenderer, Renderer3D: WS.TowerRenderer3D, only3d: true }), // no floor view: it opens in 3D
     park: () => ({ Sim: WS.ParkSim, Renderer: WS.ParkRenderer, Renderer3D: WS.ParkRenderer3D, only3d: true }),
     pocket: () => ({ Sim: WS.PocketSim, Renderer: WS.PocketRenderer, Renderer3D: WS.PocketRenderer3D, only3d: true }),
+    case: () => ({ Sim: WS.CaseSim, Renderer: WS.CaseRenderer, Renderer3D: WS.CaseRenderer3D, only3d: true }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {

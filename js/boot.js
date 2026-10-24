@@ -72,6 +72,12 @@
       tabs: [['orders', 'Orders'], ['pockets', 'Pockets'], ['returns', 'Returns'], ['settings', 'Settings']],
       sim: ['js/sim/belts.js', 'js/pocket/config.js', 'js/pocket/sim.js'], view: ['js/pocket/render.js', 'js/pocket/ui.js'],
     },
+    case: {
+      name: 'CaseCraft', floors: true, only3d: true, three: ['js/case/render3d.js'], sub: 'Mixed-case pallet DC', scan: 'case, store order', click: 'bots, lifts, arms, cells, shelves, cases, pallets', ride: 'bot', follow: 'Follow a case',
+      map: 'Structure', stations: 'Cells', flow: 'Cases in', flow2: 'Cases out', fleet: 'Machine',
+      tabs: [['stores', 'Stores'], ['pallets', 'Pallets'], ['stock', 'Stock'], ['settings', 'Settings']],
+      sim: ['js/case/config.js', 'js/case/sim.js'], view: ['js/case/render.js', 'js/case/ui.js'],
+    },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
       map: 'Floor', stations: 'Stations', flow: 'Pick stops', fleet: 'Fleet',

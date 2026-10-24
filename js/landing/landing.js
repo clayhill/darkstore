@@ -1064,6 +1064,61 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview };
+  function casePreview(canvas) {
+    const GW = 8, GD = 5.2, LZ = [0.35, 1.25, 2.15], DY = 2.6, TOP = 2.95;
+    const kit = isoKit(canvas, GW, GD, TOP + 0.4, 0.85), { ctx, P, quad, box } = kit;
+    const rand = rng(53), INK = ['#dc2626', '#f59e0b', '#16a34a', '#2563eb', '#7c3aed', '#0891b2', '#e5e7eb', '#b98a58', '#b98a58', '#b98a58'];
+    const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16), ch = (v) => Math.round(Math.min(255, v * (1 + f))); return `rgb(${ch((n >> 16) & 255)},${ch((n >> 8) & 255)},${ch(n & 255)})`; };
+    const kase = (x, y, z, w, d, h, c) => box(x - w / 2, y - d / 2, x + w / 2, y + d / 2, z, z + h, c, shade(c, -0.18), shade(c, -0.34));
+    // the shelves: two aisles, cases on both sides of each, on every level
+    const AX = [1.5, 3.9], shelf = LZ.map(() => AX.map(() => [-1, 1].map(() => [...Array(5)].map(() => (rand() < 0.85 ? { c: INK[Math.floor(rand() * INK.length)], w: 0.34 + rand() * 0.1 } : null)))));
+    // the pallet being built in front: a plan of three layers, placed one case at a time
+    const plan = [];
+    for (let l = 0; l < 3; l++) for (let j = 0; j < 2; j++) for (let i = 0; i < 3; i++) plan.push({ x: 6.15 + i * 0.4, y: 4.0 + j * 0.45, z: 0.3 + l * 0.32, c: INK[(l * 5 + j * 3 + i * 7) % INK.length] });
+    const C = 2.0; // s per case
+    let t = 0;
+    const step = (dt) => { t = (t + dt) % (plan.length * C + 3); };
+    const ease = (u) => u * u * (3 - 2 * u);
+    animate(canvas, kit, step, () => {
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], 'rgba(15,23,42,.9)', 'rgba(56,189,248,.35)', 1);
+      const items = [];
+      LZ.forEach((z, f) => {
+        // the level's deck along the front
+        items.push({ d: -1 + f * 0.001, fn: () => quad([P(0.2, DY, z), P(5.4, DY, z), P(5.4, DY + 0.65, z), P(0.2, DY + 0.65, z)], 'rgba(51,65,85,.8)', 'rgba(125,211,252,.4)', 1) });
+        AX.forEach((ax, k) => [-1, 1].forEach((sd, si) => shelf[f][k][si].forEach((cs, j) => {
+          const x = ax + sd * 0.5, y = 0.5 + j * 0.45;
+          items.push({ d: x + y + f * 0.01, fn: () => { quad([P(x - 0.24, y - 0.22, z), P(x + 0.24, y - 0.22, z), P(x + 0.24, y + 0.22, z), P(x - 0.24, y + 0.22, z)], 'rgba(148,163,184,.4)'); if (cs) kase(x, y, z + 0.02, 0.42, cs.w, 0.32, cs.c); } });
+        })));
+        // a bot on each level, to and fro along the deck
+        const u = ((t * 0.3 + f * 0.43) % 2), g = u < 1 ? ease(u) : ease(2 - u), bx = 0.7 + g * 4.2, by = DY + 0.33;
+        items.push({ d: bx + by + 0.3, fn: () => { box(bx - 0.32, by - 0.16, bx + 0.32, by + 0.16, z, z + 0.09, '#334155', '#1f2937', '#111827', 'rgba(56,189,248,.85)'); if (f !== 1) kase(bx, by, z + 0.09, 0.36, 0.28, 0.26, INK[(f * 3 + 2) % INK.length]); } });
+      });
+      for (const x of [0.4, 2.7, 5.0]) items.push({ d: x + DY - 0.05, fn: () => box(x - 0.035, DY - 0.08, x + 0.035, DY - 0.01, 0, TOP, '#3b6cb8', '#1e3a6e', '#1e3a6e') });
+      // the output lift at the deck's end, its carriage bringing a case down
+      const lt = (t % 4) / 4, lz = LZ[2] * (lt < 0.5 ? 1 - ease(lt * 2) : ease((lt - 0.5) * 2));
+      items.push({ d: 5.8 + DY, fn: () => { for (const x of [5.45, 6.2]) box(x - 0.04, DY + 0.08, x + 0.04, DY + 0.16, 0, TOP + 0.25, '#475569', '#334155', '#1e293b'); box(5.5, DY, 6.15, DY + 0.6, lz, lz + 0.06, '#2563eb', '#1d4ed8', '#1e3a8a'); if (lt < 0.5) kase(5.82, DY + 0.3, lz + 0.06, 0.36, 0.3, 0.26, '#f59e0b'); } });
+      // the conveyor down to the palletiser, the case on it
+      items.push({ d: 5.8 + 3.6, fn: () => quad([P(5.55, DY + 0.65, 0.3), P(6.1, DY + 0.65, 0.3), P(6.1, 4.6, 0.3), P(5.55, 4.6, 0.3)], 'rgba(71,85,105,.95)', 'rgba(148,163,184,.6)', 1) });
+      const n = Math.min(plan.length, Math.floor(t / C)), ph = (t % C) / C, cur = plan[n];
+      if (cur && ph < 0.35) { const cy = DY + 0.9 + (4.3 - DY - 0.9) * Math.min(1, ph * 3); items.push({ d: 5.82 + cy + 0.1, fn: () => kase(5.82, cy, 0.3, 0.36, 0.34, 0.3, cur.c) }); }
+      // the pallet, the cases placed so far, the next place as a ghost
+      items.push({ d: 6.8 + 4.0, fn: () => box(6.1, 3.95, 7.4, 4.95, 0, 0.28, '#c9a66b', '#a8844f', '#8a6b3c') });
+      plan.slice(0, n).forEach((q) => items.push({ d: q.x + q.y + q.z * 0.1, fn: () => kase(q.x + 0.2, q.y + 0.22, q.z, 0.38, 0.43, 0.3, q.c) }));
+      if (cur) items.push({ d: cur.x + cur.y + 0.6, fn: () => { const a = P(cur.x + 0.01, cur.y + 0.01, cur.z + 0.3), b = P(cur.x + 0.39, cur.y + 0.44, cur.z); ctx.strokeStyle = 'rgba(103,232,249,.85)'; ctx.setLineDash([3, 2]); ctx.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])); ctx.setLineDash([]); } });
+      // the arm on its pedestal: shoulder, elbow, a wrist over the case, the gripper down to it
+      if (cur) items.push({ d: 7.8 + 5.2, fn: () => {
+        const sw = ph < 0.35 ? 0 : ph < 0.75 ? ease((ph - 0.35) / 0.4) : 1 - ease((ph - 0.75) / 0.25), tx = 5.82 + (cur.x + 0.2 - 5.82) * sw, ty = 4.3 + (cur.y + 0.22 - 4.3) * sw;
+        const hold = ph > 0.3 && ph < 0.78, gz = hold ? Math.max(cur.z + 0.62, 0.95) : 0.95, bx = 7.2, by = 5.2;
+        box(bx - 0.2, by - 0.2, bx + 0.2, by + 0.2, 0, 0.35, '#475569', '#334155', '#1e293b');
+        const s1 = P(bx, by, 0.75), e = P((bx + tx) / 2 + 0.1, (by + ty) / 2 + 0.1, 2.1), w = P(tx, ty, gz + 0.35), g = P(tx, ty, gz), b0 = P(bx, by, 0.35);
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#f08a24'; ctx.lineWidth = 7 * kit.s / 20;
+        ctx.beginPath(); ctx.moveTo(b0[0], b0[1]); ctx.lineTo(s1[0], s1[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(w[0], w[1]); ctx.stroke();
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 3 * kit.s / 20; ctx.beginPath(); ctx.moveTo(w[0], w[1]); ctx.lineTo(g[0], g[1]); ctx.stroke();
+        if (hold) kase(tx, ty, gz - 0.3, 0.38, 0.43, 0.3, cur.c);
+      } });
+      items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+    });
+  }
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));
