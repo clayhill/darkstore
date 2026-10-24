@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park|pocket|case] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park|pocket|case|layer] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'layer') return checkLayers(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -260,6 +260,32 @@ function checkCases() {
     lv.aisleBy.forEach((b, k) => { if (b && b.level !== lv.f) throw new Error('aisle held from another level'); });
   }
   for (const c of sim.cells) if (c.build && sim.time - c.build.t0 > 3600) throw new Error(`t=${t} ${c.name} on one pallet for an hour (${c.build.placed}/${c.build.items.length})`);
+  const old = sim.orders.find((o) => o.status !== 'SHIPPED' && sim.time - o.created > 4 * 3600);
+  if (old) throw new Error(`t=${t} ${old.code} open for four hours`);
+}
+// LayerLift: lanes never over full and never negative; the two gantries'
+// reservations apart and the gantries themselves never closer than their
+// heads; a build place's state and its pallet agree; orders keep moving
+function checkLayers() {
+  const t = sim.time.toFixed(1), c = sim.cfg;
+  for (const ln of sim.lanes) {
+    if (ln.pallets.length > c.laneDepth) throw new Error(`t=${t} lane ${ln.k + 1} has ${ln.pallets.length} pallets`);
+    for (const p of ln.pallets) if (p.layers < 0 || p.layers > ln.sku.layers) throw new Error(`t=${t} lane ${ln.k + 1}: a pallet of ${p.layers} layers`);
+    if (ln.coming < 0) throw new Error(`lane ${ln.k + 1} expects ${ln.coming}`);
+  }
+  const gs = sim.gantryList;
+  if (gs.length === 2) {
+    const [a, b] = gs;
+    if (Math.abs(a.x - b.x) < 2.0) throw new Error(`t=${t} gantries ${Math.abs(a.x - b.x).toFixed(2)} m apart`);
+    if (a.claim && b.claim && a.claim.hi > b.claim.lo && a.claim.lo < b.claim.hi) throw new Error(`t=${t} runway reserved twice`);
+    for (const [g, h] of [[a, b], [b, a]]) if (g.claim && h.x + 1.0 > g.claim.lo && h.x - 1.0 < g.claim.hi) throw new Error(`t=${t} ${h.name} stands in ${g.name}'s stretch`);
+  }
+  for (const m of sim.mags) if (m.count < 0 || m.count > c.magCap + 8) throw new Error(`t=${t} magazine holds ${m.count}`);
+  for (const sp of sim.spots) {
+    if ((sp.state === 'FREE') !== !sp.pal) throw new Error(`${sp.name} ${sp.state} with${sp.pal ? '' : 'out'} a pallet`);
+    if (sp.pal && sp.pal.placed > sp.pal.layers.length) throw new Error(`${sp.name}: too many layers`);
+    if (sp.pal && sim.time - sp.pal.t0 > 3600) throw new Error(`t=${t} ${sp.name} on one pallet for an hour (${sp.state}, ${sp.pal.placed}/${sp.pal.layers.length})`);
+  }
   const old = sim.orders.find((o) => o.status !== 'SHIPPED' && sim.time - o.created > 4 * 3600);
   if (old) throw new Error(`t=${t} ${old.code} open for four hours`);
 }

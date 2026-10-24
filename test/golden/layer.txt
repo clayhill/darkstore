@@ -1,0 +1,8 @@
+t=00:29:59 stock 221b605a fleet 8f8ac500 tasks 0 orders 
+  presented=61 presentedPick=0 presentedIn=0 linesPicked=823 unitsPicked=0 unitsReceived=0 ordersShipped=6 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=00:59:59 stock 237743fe fleet 83290c61 tasks 0 orders 
+  presented=84 presentedPick=0 presentedIn=0 linesPicked=1186 unitsPicked=0 unitsReceived=0 ordersShipped=10 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=01:30:00 stock d8b086d3 fleet 34e7acce tasks 0 orders 
+  presented=119 presentedPick=0 presentedIn=0 linesPicked=1755 unitsPicked=0 unitsReceived=0 ordersShipped=15 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=02:00:00 stock ae174f9c fleet b595d64a tasks 0 orders 
+  presented=151 presentedPick=0 presentedIn=0 linesPicked=2254 unitsPicked=0 unitsReceived=0 ordersShipped=19 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30

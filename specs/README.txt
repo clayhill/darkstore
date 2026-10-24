@@ -40,6 +40,9 @@ output) are written down once, in common.txt.
   case.txt      a mixed-case pallet DC for supermarkets: depalletising,
                 case bots in a dense structure, lifts that bring cases down
                 in build order, palletising arms (implemented as CaseCraft)
+  layer.txt     beverage distribution by layer picking: gantry robots over
+                pallet flow lanes, the odd cases by hand (implemented as
+                LayerLift)
   park.txt      an automated car park: cabins on the street, car lifts and
                 flat robots that carry cars to bays (no stock, not a
                 warehouse; implemented as RoboValet)

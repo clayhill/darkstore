@@ -24,6 +24,7 @@ const RUNS = {
   park: ['park', {}], 'park-stay': ['park', { placement: 'stay' }],
   pocket: ['pocket', {}], 'pocket-noreturns': ['pocket', { returnRate: 0 }],
   case: ['case', {}], 'case-aisle': ['case', { buildPolicy: 'aisle', storagePolicy: 'nearest' }],
+  layer: ['layer', {}], 'layer-one': ['layer', { gantries: 1, orderRate: 8 }],
 };
 
 // Child mode: run one type and print its fingerprint lines.

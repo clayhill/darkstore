@@ -14,7 +14,7 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the fourteen systems work this way. AisleMate is the common first step towards it: people
+Seven of the fifteen systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
 the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
 but a parcel sorter, the kind of hub parcels go through after the warehouse. FloorStack puts a
@@ -23,7 +23,8 @@ other, linked by spiral conveyors and lifts. PocketFlow hangs every item of a fa
 pocket on an overhead rail, where returns wait to be sold again and a sequencer drops each order in
 turn at the packer. CaseCraft supplies supermarkets: robot arms break down suppliers' pallets, bots
 store every case in a dense structure, and robot arms stack the cases into stable mixed pallets for
-each store. RoboValet leaves the warehouse: an automated car park,
+each store. LayerLift picks drinks for cafés and shops a whole layer at a time, with gantry robots
+over a row of pallet lanes. RoboValet leaves the warehouse: an automated car park,
 where the same kind of lifts and robots store cars instead of totes.
 
 **What every simulation shares**
@@ -40,7 +41,7 @@ where the same kind of lifts and robots store cars instead of totes.
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The fourteen systems**
+**The fifteen systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -57,11 +58,12 @@ where the same kind of lifts and robots store cars instead of totes.
 | [**FloorStack**](https://clayhill.github.io/darkstore/floorstack.html) | Multi-storey fulfilment: storage, picking and the dock on three floors | Totes in a shuttle store on the first floor | Totes up a spiral to the pick stations and back down, parcels down two floors to a sorter, roll cages to the trucks | The links between the floors as the bottleneck, spirals against lifts |
 | [**PocketFlow**](https://clayhill.github.io/darkstore/pocketflow.html) | Fashion e-commerce through an overhead pocket sorter | One item in each pocket, on storage rails | Pockets on a friction rail: storage rails, a two-pass matrix sequencer, pack stations where they open | Returns sold again from the pockets, pockets sent round to dig them out, the sequencer |
 | [**CaseCraft**](https://clayhill.github.io/darkstore/casecraft.html) | Mixed-case pallet DC: depalletising, case bots, palletising robots | Cases on shelves in a structure of 14 levels | Robot arms, bots on every level's deck and in its aisles, lifts that bring cases down in build order | The pallet planner (heavy at the bottom, nothing heavy on crisps), cases in sequence, how full a pallet gets |
+| [**LayerLift**](https://clayhill.github.io/darkstore/layerlift.html) | Beverage layer picking: gantry robots over pallet flow lanes | Supplier pallets of one product, a lane each | Gantries lifting whole layers onto customers' pallets, a forklift refilling the lanes, a person topping off with single cases | Layers against cases by hand, what a second gantry on the same runway adds, the top-off station |
 | [**RoboValet**](https://clayhill.github.io/darkstore/robovalet.html) | Automated car park: cabins, car lifts and flat robots | Cars in bays on five levels | Robots that slide under a car and carry it sideways, lifts between the floors, drivers queueing and waiting | The morning queue in the street, the 17:00 rush in the lobby, the cabins as the bottleneck |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
 by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
-`pharma.txt`, `sort.txt`, `tower.txt`, `pocket.txt`, `case.txt` and `park.txt` describe the fourteen systems.
+`pharma.txt`, `sort.txt`, `tower.txt`, `pocket.txt`, `case.txt`, `layer.txt` and `park.txt` describe the fifteen systems.
 
 ## Run
 
@@ -73,7 +75,7 @@ dependencies, so double-clicking the file works. Only the 3D view needs a networ
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
 `skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html`, `zonehop.html`,
-`sorthub.html`, `floorstack.html`, `pocketflow.html`, `casecraft.html` and `robovalet.html`.
+`sorthub.html`, `floorstack.html`, `pocketflow.html`, `casecraft.html`, `layerlift.html` and `robovalet.html`.
 
 **In a simulation**
 
@@ -242,7 +244,7 @@ are down. With the defaults every system works off the backlog once the disrupti
 queue. Rendering interpolates between ticks. Speed runs from 1× to 120×; a tick costs well under a
 millisecond.
 
-## The fourteen systems in detail
+## The fifteen systems in detail
 
 ### CubeFlow — cube storage
 
@@ -820,6 +822,35 @@ on its truck about 45 minutes after it came in. The output lifts are the busiest
 build orders (stable, by store aisle, or a blend of both), fewer bots per level, or nearest instead
 of best-fit storage; Follow a case follows one in or out, and Robot cam rides a bot.
 
+### LayerLift — beverage layer picking
+
+![LayerLift in 3D: the reserve rack along the north wall, the row of pallet flow lanes with drinks of every kind, the gantry runway over them, the build places in front, the top-off station and the wrapper at the east end](docs/screenshots/layer-3d.png)
+
+| | |
+|---|---|
+| ![A gantry carries a layer from a lane's front pallet towards a customer's pallet at a build place; the empty pallets wait in the dispenser beside it](docs/screenshots/layer-gantry.png) | ![The top-off station: a pallet with its layers stopped in front of the carton flow rack, cases being put on by hand; the inspector lists its layers bottom up](docs/screenshots/layer-top.png) |
+| **A gantry:** one whole layer at a time | **Top-off:** the odd cases by hand |
+
+LayerLift is a drinks distribution centre: water, soft drinks, beer crates, cans, juice and wine
+for supermarkets, cafés, hotels and wholesalers. Each product has a pallet flow lane; the pallet at
+the front is picked from and full ones wait behind it. Like the other new types it is shown in 3D
+only.
+
+**The gantries.** Over the lanes and the build places in front of them run two gantry robots on one
+runway. A gantry comes down round the top layer of a lane's front pallet, clamps and grips it, and
+sets it on a customer's pallet, heaviest layers first; it also lifts an emptied pallet into the
+magazine at its end of the runway, and the pallets behind roll forward. A forklift refills the lanes
+from the reserve rack. The two gantries cannot pass each other: each reserves the stretch of runway
+it will move in, and an idle one in the way goes back to its end. One gantry alone manages about 75
+layers an hour (makers quote about 80); a second on the same runway adds only about half as much.
+
+**Layers and cases.** An order is mostly whole layers, but often a few cases more of a product.
+Those are put on top of the last pallet by hand at the top-off station, so about three quarters of
+the cases go by gantry and the person at the top-off station is the other bottleneck to watch. The
+pallets are wrapped, labelled and loaded on route trucks, which leave when full or 20 minutes after
+their first pallet. Try one gantry, more build places, or a slower top-off; Follow an order follows
+its pallets, and Gantry cam rides a gantry.
+
 ### RoboValet — automated car park
 
 ![RoboValet in 3D at 08:30: the car park cut open on its south and west sides, five levels of parked cars, the cabins on the street with cars driving in, the lobby under its sign and the morning queue in the street](docs/screenshots/park-3d.png)
@@ -865,7 +896,7 @@ car down now, and Follow a car follows one in or out.
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
 aislemate.html, zonehop.html, sorthub.html, floorstack.html, pocketflow.html, casecraft.html,
-robovalet.html
+layerlift.html, robovalet.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -877,7 +908,8 @@ js/sim/     shared engine: inventory (IMS), router (fleet manager), mover (fleet
             type), prezone (racking with the stations in front of the aisles, pre-zone conveyor
             paths and putaway: RailRunner, SkyStack and DeepLane), totebots (mobile robots
             instead of the pre-zone loop: their floor, tasks and dispatch), belts (conveyor
-            networks of belts that may climb: ZoneHop, FloorStack; PocketFlow's rails), disrupt (surges,
+            networks of belts that may climb: ZoneHop, FloorStack; PocketFlow's rails), conveyor
+            (accumulating conveyors: CaseCraft, LayerLift), disrupt (surges,
             breakdowns, charger faults, breaks)
 js/render/  iso (shared isometric view: camera, input, primitives, robot overlays), stations
             (warehouse floor, stations, packing, dock), control (SCADA map + charts),
@@ -912,16 +944,20 @@ js/case/    CaseCraft: config, sim (the structure, shelves and gaps, bots with l
             orders, the doors), render (a placeholder: 3D only), render3d (the structure, bots,
             lifts, articulated arms, pallets, trucks), ui (tiles, Stores, Pallets and Stock tabs,
             order, pallet, case, product and shelf inspectors)
+js/layer/   LayerLift: config, sim (lanes, gantries with runway reservations, build places,
+            orders in layers and cases, the top-off station, route trucks, the forklift),
+            render (a placeholder: 3D only), render3d (on CaseCraft's view: the field,
+            runway, gantries, pallets of layers), ui (tiles, Orders and Lanes tabs, inspectors)
 js/park/    RoboValet: config, sim (the building, cabins, robots and lifts on the shared machines,
             drivers, the day's demand, bay policies), render (a placeholder: 3D only), render3d
             (the car park, cars, robots, lifts, drivers, the street), ui (tiles, Cars and
             Levels tabs, car, bay and cabin inspectors)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|pocket|case|park] [settings JSON]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|pocket|case|layer|park] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones, robot sorter, small pallets, transport robots, lifts between
-            FloorStack's floors, cars parked by stay, a pocket sorter without returns, store pallets built by store aisle), and compares a fingerprint of stock, fleet, orders and KPIs
+            FloorStack's floors, cars parked by stay, a pocket sorter without returns, store pallets built by store aisle, layer picking with one gantry), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 

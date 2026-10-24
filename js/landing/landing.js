@@ -1119,6 +1119,46 @@
       items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
     });
   }
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview };
+  function layerPreview(canvas) {
+    const GW = 8, GD = 5, RZ = 2.6, LY = 1.2, BY = 3.4;
+    const kit = isoKit(canvas, GW, GD, RZ + 0.5, 0.85), { ctx, P, quad, box } = kit;
+    const INK = ['#38bdf8', '#dc2626', '#ca8a04', '#16a34a', '#f97316', '#7c3aed'];
+    const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16), ch = (v) => Math.round(Math.min(255, v * (1 + f))); return `rgb(${ch((n >> 16) & 255)},${ch((n >> 8) & 255)},${ch(n & 255)})`; };
+    const lanes = INK.map((c, k) => ({ x: 0.9 + k * 1.15, c, n: 6 }));
+    // one layer: the pallet's footprint split into cases
+    const layer = (x, y, z, c) => { for (let j = 0; j < 2; j++) for (let i = 0; i < 3; i++) box(x - 0.45 + i * 0.3, y - 0.3 + j * 0.3, x - 0.17 + i * 0.3, y - 0.02 + j * 0.3, z, z + 0.22, c, shade(c, -0.18), shade(c, -0.34)); };
+    const pallet = (x, y, z) => box(x - 0.48, y - 0.32, x + 0.48, y + 0.32, z, z + 0.1, '#c9a66b', '#a8844f', '#8a6b3c');
+    const plan = [0, 2, 2, 4, 1, 3], C = 3.2, tx = 4.2; // which lane each layer comes from, s a layer
+    let t = 0;
+    const step = (dt) => { t = (t + dt) % (plan.length * C + 2); };
+    const ease = (u) => u * u * (3 - 2 * u);
+    animate(canvas, kit, step, () => {
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], 'rgba(15,23,42,.9)', 'rgba(56,189,248,.35)', 1);
+      const n = Math.min(plan.length, Math.floor(t / C)), ph = (t % C) / C, cur = n < plan.length ? lanes[plan[n]] : null, items = [];
+      // the lanes, each pallet's layers less those already taken
+      const taken = lanes.map((ln, k) => plan.slice(0, n + (ph > 0.3 && cur && plan[n] === k ? 1 : 0)).filter((q) => q === k).length);
+      lanes.forEach((ln, k) => {
+        items.push({ d: ln.x + LY - 0.5, fn: () => { quad([P(ln.x - 0.55, LY - 1.0, 0.02), P(ln.x + 0.55, LY - 1.0, 0.02), P(ln.x + 0.55, LY + 0.4, 0.02), P(ln.x - 0.55, LY + 0.4, 0.02)], 'rgba(71,85,105,.8)'); pallet(ln.x, LY - 0.4, 0.02); for (let l = 0; l < ln.n - 2; l++) layer(ln.x, LY - 0.7, 0.12 + l * 0.22, shade(ln.c, 0.15)); } });
+        items.push({ d: ln.x + LY, fn: () => { pallet(ln.x, LY, 0.02); for (let l = 0; l < ln.n - taken[k]; l++) layer(ln.x, LY, 0.12 + l * 0.22, ln.c); } });
+      });
+      // the customer's pallet in front, its layers so far
+      items.push({ d: tx + BY, fn: () => { pallet(tx, BY, 0.02); for (let l = 0; l < n; l++) layer(tx, BY, 0.12 + l * 0.22, lanes[plan[l]].c); } });
+      // the runway, the gantry's bridge and head; the layer in its clamps
+      if (cur) {
+        const sw = ph < 0.3 ? 0 : ph < 0.75 ? ease((ph - 0.3) / 0.45) : 1, gx = ph < 0.3 ? cur.x + (cur.x - tx) * 0 : cur.x + (tx - cur.x) * sw, gy = LY + (BY - LY) * sw;
+        const down = ph < 0.3 ? Math.sin((ph / 0.3) * Math.PI) : ph > 0.75 ? Math.sin(((ph - 0.75) / 0.25) * Math.PI) : 0;
+        const topL = sw < 1 ? 0.12 + (cur.n - taken[plan[n]] + (ph > 0.3 ? 1 : 0)) * 0.22 : 0.12 + (n + 1) * 0.22, hz = RZ - 0.4 - down * (RZ - 0.4 - topL);
+        items.push({ d: 30, fn: () => {
+          for (const y of [LY - 0.6, BY + 0.6]) box(0.2, y - 0.06, GW - 0.2, y + 0.06, RZ, RZ + 0.12, '#64748b', '#475569', '#334155');
+          box(gx - 0.12, LY - 0.65, gx + 0.12, BY + 0.65, RZ + 0.12, RZ + 0.3, '#f59e0b', '#d97706', '#b45309');
+          const a = P(gx, gy, RZ + 0.12), b = P(gx, gy, hz + 0.3); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3 * kit.s / 20; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+          box(gx - 0.5, gy - 0.35, gx + 0.5, gy + 0.35, hz + 0.22, hz + 0.32, '#334155', '#1f2937', '#111827');
+          if (ph > 0.3 && ph < 0.9) layer(gx, gy, hz, cur.c);
+        } });
+      }
+      items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
+    });
+  }
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview, layer: layerPreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

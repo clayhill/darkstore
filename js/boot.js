@@ -76,7 +76,13 @@
       name: 'CaseCraft', floors: true, only3d: true, three: ['js/case/render3d.js'], sub: 'Mixed-case pallet DC', scan: 'case, store order', click: 'bots, lifts, arms, cells, shelves, cases, pallets', ride: 'bot', follow: 'Follow a case',
       map: 'Structure', stations: 'Cells', flow: 'Cases in', flow2: 'Cases out', fleet: 'Machine',
       tabs: [['stores', 'Stores'], ['pallets', 'Pallets'], ['stock', 'Stock'], ['settings', 'Settings']],
-      sim: ['js/case/config.js', 'js/case/sim.js'], view: ['js/case/render.js', 'js/case/ui.js'],
+      sim: ['js/sim/conveyor.js', 'js/case/config.js', 'js/case/sim.js'], view: ['js/case/render.js', 'js/case/ui.js'],
+    },
+    layer: {
+      name: 'LayerLift', only3d: true, three: ['js/case/render3d.js', 'js/layer/render3d.js'], sub: 'Beverage layer picking', scan: 'order', click: 'gantries, lanes, build places, pallets', ride: 'gantry', follow: 'Follow an order',
+      map: 'Pick field', stations: 'Build places', flow: 'Layers', flow2: 'Cases out', fleet: 'Machine',
+      tabs: [['orders', 'Orders'], ['lanes', 'Lanes'], ['settings', 'Settings']],
+      sim: ['js/sim/conveyor.js', 'js/layer/config.js', 'js/layer/sim.js'], view: ['js/layer/render.js', 'js/layer/ui.js'],
     },
     amr: {
       name: 'AisleMate', sub: 'Robots alongside pickers', scan: 'location, tote, order', click: 'robots, shelves, stations', three: ['js/amr/render3d.js'],
@@ -125,7 +131,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
           <button id="btn-sound" title="Sound made live from what the machines do: motors, forks, rollers, scanners. Louder near where you look.">Sound</button>
-${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : k.ride === 'pocket' ? 'Pocket cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (k.follow || (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order')) + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : k.ride === 'pocket' ? 'Pocket cam' : k.ride === 'gantry' ? 'Gantry cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (k.follow || (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order')) + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>

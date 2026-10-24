@@ -1,0 +1,102 @@
+DarkStore - layer picking for beverage distribution
+===================================================
+
+Read common.txt first, but note: this type keeps its own products, orders
+and pallets and does not use the shared stock, stations or packing. Of
+common.txt the time model, the control room and the disruptions apply.
+Implemented as LayerLift (layerlift.html, js/layer/).
+
+1. Overview
+
+A distribution centre for drinks: water, soft drinks, beer crates, cans,
+juice and wine. Customers (supermarkets, cafés, hotels, wholesale) order
+cases of a few products, often whole layers of a pallet. A gantry robot
+picks whole layers at a time; what is short of a full layer is put on by
+hand.
+
+- Pick field: a row of pallet flow lanes, one product each. The front
+  pallet of a lane is picked from; full pallets wait behind it and roll
+  forward when it is gone.
+- Gantries on an overhead runway over the lanes and the build places in
+  front of them. A gantry comes down round the top layer of a lane's front
+  pallet, clamps and grips it, and sets it on a customer's pallet. It also
+  lifts an emptied pallet off its lane into the magazine at its end of the
+  runway.
+- Top-off: a person puts the odd cases on top of the last pallet of an
+  order. Then the stretch wrapper, the labeller and a route truck.
+- A forklift brings full pallets from the reserve rack along the north
+  wall to the back of the lanes, and takes stacks of empties away.
+
+Inspired by layer picking in general (Cimcorp, KUKA, Symbotic and others);
+not any one product.
+
+2. Layout
+
+Positions in metres: x east, y south, z up.
+
+- Along the north wall the reserve rack (three beam levels); south of it
+  the forklift aisle.
+- Lanes (default 24) 1.45 m apart, each 3 Euro pallets deep (1.2 x 0.8 m),
+  sloping gently to the front.
+- The runway: two rails 4.6 m up, the length of the field and the two
+  magazines at its ends. Build places (default 8) along the field in front
+  of the lanes, each with a dispenser of empty pallets beside it.
+- South of the build places the collector, east to the top-off station,
+  the wrapper, the labeller and the doors (default 2) in the south wall.
+
+3. Equipment
+
+- Gantry: 2 m/s along the runway (0.5 m/s²), trolley 1 m/s, head 0.8 m/s;
+  gripping a layer 3.5 s (clamps in, vacuum on, a check), letting go 2.5 s.
+  It travels with the head up at 2.95 m, clear of every pallet.
+- Products: a layer is as many cases as fit on a Euro pallet (6 to 16), a
+  supplier's pallet 3 to 8 layers.
+- Top-off: 6 s a case. Wrapper 35 s, labeller 6 s, conveyors 0.4 m/s.
+- Route trucks of 22 pallets; one leaves when full, or 20 minutes after
+  its first pallet; the next backs up 2 minutes later.
+
+4. Flow
+
+An order (default 12 an hour) has 4 to 10 lines; a line is 0 to 3 whole
+layers and often some cases more. Its layers are stacked heaviest first,
+as many as a pallet takes (1.8 m, 1000 kg); the odd cases go on top of
+the last pallet, or a pallet of their own when that is too high.
+
+A free build place takes the next pallet; an empty pallet rolls in from
+its dispenser (10 s). A gantry takes the most urgent job its runway
+allows: the next layer for the pallet waiting longest, or an emptied
+pallet off a lane that a pallet waits for (as urgent as that pallet). A
+finished pallet rolls onto the collector; a pallet with cases stops at
+the top-off station.
+
+The forklift brings a full pallet to the lane with the fewest layers left
+that has room, from a level of the reserve rack.
+
+5. Traffic
+
+Two gantries share the runway. A gantry reserves the stretch it will move
+in (from where it is to everywhere the job takes it) before it starts,
+clear of the other's stretch and of where the other stands; an idle
+gantry in the way goes back to its own end. A job whose stretch would
+need the other gantry beyond its end waits. Each gantry prefers jobs in
+its half and uses the magazine at its end.
+
+6. Policies
+
+- One or two gantries; lanes, depth, build places, magazines, doors.
+
+7. Output
+
+- Layers and cases per hour, the share of cases picked in layers.
+- Orders shipped, order to truck.
+- Gantries and the top-off station busy; lanes empty; route trucks.
+
+With the defaults: about 7 layers and 26 hand-picked cases an order, 78 %
+of the cases picked in layers, order to truck about 35 minutes. One gantry
+on its own manages about 75 layers an hour; a second on the same runway
+adds only about half as much again (the gantries 70 % and 55 % busy at
+the default load). The top-off station, at about 55 %, is the other
+bottleneck to watch.
+
+Not modelled: layers of mixed products, slip sheets, damaged layers, the
+pallet store behind the reserve rack.

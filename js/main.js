@@ -104,6 +104,7 @@
     park: () => ({ Sim: WS.ParkSim, Renderer: WS.ParkRenderer, Renderer3D: WS.ParkRenderer3D, only3d: true }),
     pocket: () => ({ Sim: WS.PocketSim, Renderer: WS.PocketRenderer, Renderer3D: WS.PocketRenderer3D, only3d: true }),
     case: () => ({ Sim: WS.CaseSim, Renderer: WS.CaseRenderer, Renderer3D: WS.CaseRenderer3D, only3d: true }),
+    layer: () => ({ Sim: WS.LayerSim, Renderer: WS.LayerRenderer, Renderer3D: WS.LayerRenderer3D, only3d: true }),
   };
   WS.app = app;
   window.addEventListener('error', (e) => {
