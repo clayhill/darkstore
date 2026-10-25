@@ -250,6 +250,18 @@ function checkCases() {
     if (k && q.items[k - 1].s - it.s < (q.items[k - 1].len + it.len) / 2 + q.gap - 1e-6) throw new Error(`t=${t} ${q.name}: items too close`);
   });
   for (const p of sim.ports) if (p.robot.c) put(p.robot.c, p.robot.name);
+  // every supplier pallet in one place: the truck, the forks, the pallet line, a cell's waiting spot or its arm
+  const pals = new Map(), pal = (x, w) => { if (pals.has(x)) throw new Error(`t=${t} supplier pallet ${x.id} at ${pals.get(x)} and ${w}`); pals.set(x, w); };
+  if (sim.inTruck) for (const x of sim.inTruck.pallets) pal(x, 'truck');
+  if (sim.fork.pal) pal(sim.fork.pal, 'forks');
+  for (const it of sim.palLine.items) { pal(it.pal, 'line'); if (it.pal.where !== 'line') throw new Error(`t=${t} pallet ${it.pal.id} on the line says ${it.pal.where}`); }
+  for (const d of sim.depals) {
+    if (d.next) { pal(d.next, d.name + ' next'); if (d.next.where !== 'next') throw new Error(`t=${t} ${d.name}: waiting pallet says ${d.next.where}`); }
+    if (d.back) pal(d.back.pal, d.name + ' back');
+    if (d.pal) pal(d.pal, d.name);
+    if (d.next && d.back) throw new Error(`${d.name}: a pallet waiting and one going back`);
+  }
+  for (const x of sim.palletById.values()) if (x.inbound && !pals.has(x)) throw new Error(`t=${t} supplier pallet ${x.id} (${x.where}) is nowhere`);
   for (const lv of sim.levels) {
     const bs = lv.bots;
     for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {

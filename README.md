@@ -796,8 +796,11 @@ thresholds; Pocket cam rides a pocket round the loop.
 CaseCraft is a distribution centre for supermarkets. Suppliers deliver pallets of one product; a
 store orders a few hundred cases of many products and wants them on mixed pallets it can wheel
 straight into its aisles. A forklift unloads the suppliers' trucks onto a pallet conveyor, and a
-robot arm in each depalletising cell takes the cases off one by one. A tunnel measures each case and
-gives it its place. Like FloorStack it is shown in 3D only, and the Floors slider shows the levels
+robot arm in each depalletising cell takes the cases off one by one. A pallet turns into a cell only
+when that cell will be ready for it soon, judged by how fast its arm has been going lately; one
+waiting in a cell whose arm stops rolls back onto the conveyor and goes on (or press *Send back to
+the line* in the cell's inspector). The cells' outfeeds join the case conveyor as a zip merge, oldest
+case first. A tunnel measures each case and gives it its place. Like FloorStack it is shown in 3D only, and the Floors slider shows the levels
 up to one, or one alone.
 
 **The structure.** Fourteen levels of sixteen short aisles, shelves on both sides. A shelf is one

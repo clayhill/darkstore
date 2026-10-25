@@ -1,7 +1,8 @@
 /* An accumulating conveyor along a polyline (CaseCraft's case and pallet
  * conveyors, LayerLift's pallet lines): items (cases, pallets) keep `gap`
  * apart and stop at its end. An exit takes an item that has reached its
- * point (a divert, a merge, the end); a gate holds an item at its point
+ * point (a divert, a merge, the end), and with `hold` keeps one it does
+ * not want waiting there instead of letting it pass; a gate holds an item at its point
  * until it lets it pass (a measuring tunnel). Items are { len, s, ps, … }:
  * s is where the item's middle is along the conveyor, ps where it was a
  * tick ago. */
@@ -48,7 +49,8 @@
         let left = false;
         for (const e of this.exits) {
           const at = e.s >= this.len - 1e-9 ? this.len - it.len / 2 : e.s;
-          if (at < it.s - 1e-6 || at > stop + 1e-9 || (e.want && !e.want(it))) continue;
+          if (at < it.s - 1e-6 || at > stop + 1e-9) continue;
+          if (e.want && !e.want(it)) { if (e.hold && e.hold(it)) { stop = Math.min(stop, at); break; } continue; }
           if (it.s + d >= at - 1e-9) { this.items.splice(k, 1); if (e.take(it)) { left = true; break; } this.items.splice(k, 0, it); it.conv = this; }
           stop = Math.min(stop, at); break;
         }

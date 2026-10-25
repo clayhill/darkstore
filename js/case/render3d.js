@@ -420,6 +420,7 @@
       this.sim.depals.forEach((cell, k) => {
         const x = G.depX[k];
         if (cell.next) this.drawPallet(cell.next, x, lerp(G.yPL, G.yDepNext, clamp01((now - cell.next.t0) / 3)), PZ);
+        if (cell.back) this.drawPallet(cell.back.pal, x, lerp(G.yDepNext, G.yPL, clamp01(1 - cell.back.t / 3)), PZ);
         if (cell.pal) this.drawPallet(cell.pal, x, lerp(G.yDepNext, G.yDepPal, clamp01(1 - cell.inT / 4)), PZ);
         for (let n = 0; n < cell.empties; n++) this.palletBase(this.dy.box, x - 1.5, G.yDepPal, 0.12 + n * PH);
         this.drawArm(cell.robot);
@@ -628,7 +629,7 @@
       const sim = this.sim, G = this.G, lv = (m) => this.lv(m);
       if (pal.where === 'line') for (const q of sim.convs) { const it = q.items.find((i) => i.pal === pal); if (it) { const a = q.at(it.s); return { x: a.x, y: a.y, z: lv(PZ) }; } }
       if (pal.inbound) {
-        if (pal.cell) return { x: G.depX[pal.cell.k], y: pal.where === 'next' ? G.yDepNext : G.yDepPal, z: lv(PZ) };
+        if (pal.cell) return { x: G.depX[pal.cell.k], y: pal.where === 'next' || pal.where === 'back' ? G.yDepNext : G.yDepPal, z: lv(PZ) };
         if (pal.where === 'fork') { const F = sim.fork; return { x: F.x + Math.sin(F.a) * 1.25, y: F.y, z: lv(0.5) }; }
         const tr = sim.inTruck, k = tr ? tr.pallets.indexOf(pal) : -1;
         if (k >= 0) { const s = sim.truckSpot(k); return { x: s.x, y: s.y, z: lv(TF) }; }

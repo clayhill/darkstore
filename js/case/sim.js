@@ -679,9 +679,12 @@
       // inbound: the pallet conveyor from the door past the depalletisers
       const lastD = G.depX[G.depX.length - 1];
       this.palLine = conv('Pallet infeed', [{ x: G.XW + 2.6, y: G.yPL }, { x: lastD, y: G.yPL }], 0.4, 0.1);
+      // A pallet turns into a depalletiser only when that one will be ready for it soon;
+      // otherwise it goes on to the next one, or waits here if a pallet waits there already.
+      // So each cell has one pallet in front of it, and none is promised to a busy cell early.
       this.depals.forEach((cell, k) => {
-        const x = G.depX[k];
-        this.palLine.exits.push({ s: x - G.XW - 2.6, want: () => !cell.next, take: (it) => { cell.next = it.pal; it.pal.where = 'next'; it.pal.cell = cell; it.pal.t0 = this.time; return true; } });
+        cell.s = G.depX[k] - G.XW - 2.6;
+        this.palLine.exits.push({ s: cell.s, want: () => this.depalWants(cell), hold: () => k < this.depals.length - 1 && !this.lineFree(cell.s, this.depals[k + 1].s), take: (it) => { cell.next = it.pal; it.pal.where = 'next'; it.pal.cell = cell; it.pal.t0 = this.time; return true; } });
       });
       this.palLine.exits.sort((a, b) => a.s - b.s);
       // the case conveyor: past the depalletisers, through the tunnel, to the input lifts
@@ -690,6 +693,8 @@
         const x = G.depX[k], q = conv('Outfeed D' + (k + 1), [{ x, y: G.yDepOut }, { x, y: yI }], 0.8, 0.06);
         q.to(this.mainLine, x - (G.depX[0] - 1));
         cell.feed = q;
+        // a zip merge: a case coming along the main line waits for one taken off earlier that waits to join
+        this.mainLine.gates.push({ s: x - (G.depX[0] - 1) - 0.6, pass: (it) => { const f = q.front; return !(f && q.atEnd(f) && f.t < it.t); } });
       });
       this.tunnelS = G.tunnelX - (G.depX[0] - 1);
       this.mainLine.gates.push({ s: this.tunnelS, pass: (it) => it.c.dest || this.measure(it.c) });
@@ -791,7 +796,7 @@
     depalPut(A, cs) {
       const cell = A.cell;
       A.c = null; A.cyc = null; A.cases++; cell.cases++; cell.stats.lines++;
-      cell.feed.put({ c: cs, len: cs.len }, cs.len / 2);
+      cell.feed.put({ c: cs, len: cs.len, t: this.time }, cs.len / 2);
       cs.state = 'CONV'; cs.pal = null; cell.pal.left--;
       this.stats.depal++; this.kpi.presented++; this.kpi.push('presented');
       if (!cell.pal.left) {
@@ -799,9 +804,58 @@
         if (cell.empties >= 12) cell.empties = 0; // a full stack of empties is taken away
       }
     }
-    // a depalletiser's waiting pallet moves up once the last one is empty
-    stepDepal() {
-      for (const cell of this.depals) if (!cell.pal && cell.next && this.time - cell.next.t0 > 4) { cell.pal = cell.next; cell.next = null; cell.pal.where = 'cell'; cell.inT = 4; }
+    // s from now until a depalletiser can start on a new pallet: the cases left on
+    // its pallet at the pace it has managed lately, held up by a full outfeed included
+    depalStart(cell) {
+      if (cell.robot.down) return Infinity;
+      if (!cell.pal) return cell.next || cell.back ? Infinity : 0;
+      const busy = cell.hb + cell.wb, slow = busy < 0.05 ? 1 : Math.min(4, busy / Math.max(cell.hb, 0.05));
+      return cell.pal.left * this.cfg.depalTime * slow + 4;
+    }
+    depalWants(cell) { return !cell.next && !cell.back && this.depalStart(cell) <= 20; }
+    // no pallet on the pallet conveyor after s0 up to s1
+    lineFree(s0, s1) { return !this.palLine.items.some((it) => it.s > s0 + 0.01 && it.s <= s1 + 0.01); }
+    // where a depalletiser's waiting pallet could go instead: a cell further along the line
+    // that starts on it sooner, with the line clear up to it (the conveyor runs one way)
+    depalBetter(cell) {
+      const v = this.palLine.v, wait = this.depalStart(cell);
+      let best = null, bt = wait - 30;
+      for (const d of this.depals) {
+        if (d.s <= cell.s || d.next || d.back || !this.lineFree(cell.s, d.s)) continue;
+        const t = Math.max(this.depalStart(d), (d.s - cell.s) / v + 7);
+        if (t < bt) { bt = t; best = d; }
+      }
+      return best;
+    }
+    canSendBack(cell) { return !!cell.next && !cell.back && cell !== this.depals[this.depals.length - 1] && this.palLine.room(cell.s, 1.3); }
+    // the waiting pallet rolls back onto the pallet conveyor and goes on along it
+    sendBack(cell, why) {
+      if (!this.canSendBack(cell)) return false;
+      const pal = cell.next;
+      cell.back = { pal, t: 3 }; cell.next = null; pal.where = 'back';
+      this.log('inbound', `Supplier pallet ${pal.id} (${pal.p.name}) back onto the line from ${cell.name}${why ? ': ' + why : ''}`);
+      return true;
+    }
+    stepDepal(dt) {
+      const f = Math.exp(-dt / 300); // how the arm has spent the last 5 minutes or so
+      for (const cell of this.depals) {
+        const A = cell.robot;
+        cell.hb = (cell.hb || 0) * f + (A.state === 'HANDLING' ? 1 - f : 0);
+        cell.wb = (cell.wb || 0) * f + (A.state === 'WAITING_PORT' ? 1 - f : 0);
+      }
+      for (const cell of this.depals) {
+        // a waiting pallet moves up once the last one is empty
+        if (!cell.pal && cell.next && !cell.robot.down && this.time - cell.next.t0 > 4) { cell.pal = cell.next; cell.next = null; cell.pal.where = 'cell'; cell.inT = 4; }
+        if (cell.back) {
+          const b = cell.back;
+          if ((b.t -= dt) <= 0 && this.palLine.room(cell.s, 1.3)) { this.palLine.put({ pal: b.pal, len: 1.3 }, cell.s); b.pal.where = 'line'; b.pal.cell = null; cell.back = null; }
+        }
+        // one that would wait long here goes on to a cell further along that is ready sooner
+        if (cell.next && this.time - cell.next.t0 > 4 && this.canSendBack(cell)) {
+          const d = this.depalBetter(cell);
+          if (d) this.sendBack(cell, cell.robot.down ? 'the arm is down' : `${d.name} is free sooner`);
+        }
+      }
     }
     // the case at the end of a spur, if its level's transfer shelf has a place for it
     inReady(L) {
@@ -1008,7 +1062,7 @@
       this.stepOrders(dt);
       this.stepInbound(dt);
       for (const q of this.convs) q.update(dt);
-      this.stepDepal();
+      this.stepDepal(dt);
       this.stepCells();
       this.stepOutbound(dt);
       const f = Math.exp(-dt / 900); // how busy each machine has been, the last 15 minutes or so

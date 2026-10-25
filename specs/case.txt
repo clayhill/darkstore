@@ -79,7 +79,18 @@ least 6 cases); below it, a pallet is ordered for the next inbound truck
 (at most every 30 minutes, if there is something to bring), as long as
 the structure has room for it. A truck brings the most urgent first: the
 products orders wait for, then those with the least cover. The forklift puts the
-pallets on the conveyor; each goes to the first free depalletising cell.
+pallets on the conveyor. A pallet turns into a depalletising cell only
+when that cell will be ready for it within 20 s (its place for the next
+pallet free, the cases left at the pace the arm has managed the last few
+minutes, a full outfeed included); otherwise it goes on to the next cell,
+or waits on the conveyor in front of this one if a pallet already waits
+in front of the next. So no pallet is promised early to a busy cell. A
+pallet that waits in a cell whose arm breaks down, or that a cell further
+along would start sooner, rolls back onto the conveyor and goes on (the
+conveyor runs one way: not back to an earlier cell); the cell's
+inspector can send it on by hand. The outfeeds join the case conveyor as
+a zip merge: a case coming along waits for one taken off earlier that
+waits to join, so the cell nearest the tunnel is not starved of gaps.
 
 Storage. As a case passes the tunnel it gets its place: the level with the
 least to do among those holding the fewest cases of its product (so a

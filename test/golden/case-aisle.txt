@@ -1,8 +1,8 @@
-t=00:29:59 stock f7ee2244 fleet cdefd62e tasks 0 orders 
-  presented=834 presentedPick=0 presentedIn=0 linesPicked=1124 unitsPicked=0 unitsReceived=0 ordersShipped=3 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
-t=00:59:59 stock 014ea728 fleet 8a8c96b2 tasks 0 orders 
-  presented=1785 presentedPick=0 presentedIn=0 linesPicked=2263 unitsPicked=0 unitsReceived=0 ordersShipped=6 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
-t=01:30:00 stock 2e716a68 fleet 0db19c70 tasks 0 orders 
-  presented=2851 presentedPick=0 presentedIn=0 linesPicked=3393 unitsPicked=0 unitsReceived=0 ordersShipped=11 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
-t=02:00:00 stock ac5b5e74 fleet 8a42ebc5 tasks 0 orders 
-  presented=3890 presentedPick=0 presentedIn=0 linesPicked=4539 unitsPicked=0 unitsReceived=0 ordersShipped=15 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=00:29:59 stock 89fec9dc fleet 8a20a68f tasks 0 orders 
+  presented=919 presentedPick=0 presentedIn=0 linesPicked=1108 unitsPicked=0 unitsReceived=0 ordersShipped=3 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=00:59:59 stock bbf87241 fleet 87abfb6c tasks 0 orders 
+  presented=1927 presentedPick=0 presentedIn=0 linesPicked=2215 unitsPicked=0 unitsReceived=0 ordersShipped=6 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=01:30:00 stock 2bdce793 fleet 5a5f4550 tasks 0 orders 
+  presented=2925 presentedPick=0 presentedIn=0 linesPicked=3326 unitsPicked=0 unitsReceived=0 ordersShipped=11 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=02:00:00 stock 52990e1c fleet 4c78d416 tasks 0 orders 
+  presented=4038 presentedPick=0 presentedIn=0 linesPicked=4464 unitsPicked=0 unitsReceived=0 ordersShipped=15 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
