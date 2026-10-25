@@ -839,9 +839,9 @@
     stepDepal(dt) {
       const f = Math.exp(-dt / 300); // how the arm has spent the last 5 minutes or so
       for (const cell of this.depals) {
-        const A = cell.robot;
-        cell.hb = (cell.hb || 0) * f + (A.state === 'HANDLING' ? 1 - f : 0);
-        cell.wb = (cell.wb || 0) * f + (A.state === 'WAITING_PORT' ? 1 - f : 0);
+        const st = cell.robot.displayState;
+        cell.hb = (cell.hb || 0) * f + (st === 'HANDLING' ? 1 - f : 0);
+        cell.wb = (cell.wb || 0) * f + (st === 'WAITING_PORT' ? 1 - f : 0);
       }
       for (const cell of this.depals) {
         // a waiting pallet moves up once the last one is empty
