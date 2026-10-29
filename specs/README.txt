@@ -43,6 +43,10 @@ output) are written down once, in common.txt.
   layer.txt     beverage distribution by layer picking: gantry robots over
                 pallet flow lanes, the odd cases by hand (implemented as
                 LayerLift)
+  tube.txt      a hospital's pneumatic tube system: wards, the lab and the
+                pharmacy with its dispensing robot, lines that carry one
+                carrier at a time, a transfer unit between them, empty
+                carriers (not a warehouse; implemented as AirPost)
   park.txt      an automated car park: cabins on the street, car lifts and
                 flat robots that carry cars to bays (no stock, not a
                 warehouse; implemented as RoboValet)

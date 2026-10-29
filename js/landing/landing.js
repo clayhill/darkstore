@@ -1159,6 +1159,49 @@
       items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
     });
   }
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview, layer: layerPreview };
+  /* ---------- hospital tube system preview ---------- */
+  // Three floors of a hospital cut open: a riser up the side with a branch
+  // to a station on every floor. A green carrier of medicines flies from
+  // the pharmacy up to a ward; a red one with samples comes down to the lab.
+  function tubePreview(canvas) {
+    const GW = 8, GD = 3.2, FZ = [0, 1.35, 2.7], TOP = 4.0, C = 1.15, RX = 1.0, RY = 0.7;
+    const kit = isoKit(canvas, GW, GD, TOP, 0.85), { ctx, P, quad, box } = kit;
+    const pt = (x, y, z) => ({ x, y, z });
+    // the routes: from the pharmacy (ground, x 3) and the lab (ground, x 6.2), and a station on each upper floor (x 5)
+    const stn = [pt(3.0, 1.4, 0.75), pt(5.0, 1.4, FZ[1] + 0.75), pt(5.0, 1.4, FZ[2] + 0.75)], lab = pt(6.3, 1.4, 0.75);
+    const up = (s) => [s, pt(s.x, s.y, s.z - 0.75 + C), pt(s.x, RY, s.z - 0.75 + C)];
+    const med = [...up(stn[0]), pt(RX, RY, C), pt(RX, RY, FZ[2] + C), pt(stn[2].x, RY, FZ[2] + C), pt(stn[2].x, stn[2].y, FZ[2] + C), stn[2]];
+    const smp = [...up(stn[1]), pt(RX, RY, FZ[1] + C), pt(RX, RY, C), pt(lab.x, RY, C), pt(lab.x, lab.y, C), lab];
+    const len = (r) => r.slice(1).reduce((a, q, i) => a + Math.hypot(q.x - r[i].x, q.y - r[i].y, q.z - r[i].z), 0);
+    const at = (r, d) => { for (let i = 1; i < r.length; i++) { const a = r[i - 1], b = r[i], l = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); if (d <= l || i === r.length - 1) { const u = l ? Math.min(1, d / l) : 0; return pt(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, a.z + (b.z - a.z) * u); } d -= l; } return r[r.length - 1]; };
+    const T = 9;
+    let t = 0;
+    const step = (dt) => { t = (t + dt) % T; };
+    const seg = (a, b, w, col) => { const p = P(a.x, a.y, a.z), q = P(b.x, b.y, b.z); ctx.strokeStyle = col; ctx.lineWidth = w * kit.s / 20; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); };
+    const route = (r, col) => { for (let i = 1; i < r.length; i++) { seg(r[i - 1], r[i], 4.5, 'rgba(219,234,254,.28)'); seg(r[i - 1], r[i], 1.6, col); } };
+    const carrier = (p, col) => { box(p.x - 0.1, p.y - 0.1, p.x + 0.1, p.y + 0.1, p.z - 0.16, p.z + 0.16, col, col, col, 'rgba(255,255,255,.85)'); };
+    const station = (s, col) => box(s.x - 0.2, s.y - 0.12, s.x + 0.2, s.y + 0.12, s.z - 0.45, s.z + 0.15, '#e2e8f0', '#94a3b8', '#cbd5e1', col);
+    animate(canvas, kit, step, () => {
+      const u = t / T, cm = at(med, Math.min(1, u * 1.25) * len(med)), cs = at(smp, Math.min(1, Math.max(0, u * 1.25 - 0.15)) * len(smp));
+      for (let f = 0; f < FZ.length; f++) {
+        const z = FZ[f];
+        quad([P(0, 0, z), P(GW, 0, z), P(GW, GD, z), P(0, GD, z)], f ? 'rgba(30,41,59,.6)' : 'rgba(15,23,42,.92)', 'rgba(56,189,248,.5)', 1.1);
+        quad([P(0, GD, z - 0.1), P(GW, GD, z - 0.1), P(GW, GD, z), P(0, GD, z)], 'rgba(56,189,248,.25)');
+        // beds on the wards, the dispensing robot's cabinet and the lab bench on the ground floor
+        if (f) for (let x = 2.4; x < GW - 0.5; x += 1.4) box(x, GD - 1.0, x + 0.5, GD - 0.2, z, z + 0.18, '#e2e8f0', '#94a3b8', '#cbd5e1');
+        else { box(0.6, 1.9, 2.4, 2.6, z, z + 0.9, 'rgba(147,197,253,.35)', 'rgba(56,189,248,.25)', 'rgba(56,189,248,.18)', 'rgba(125,211,252,.7)'); box(5.6, 2.1, 7.6, 2.6, z, z + 0.4, '#e7e5e4', '#a8a29e', '#d6d3d1'); }
+        if (f) station(stn[f], f === 2 ? '#22c55e' : '#ef4444');
+        else { station(stn[0], '#22c55e'); station(lab, '#ef4444'); }
+        if (f === 0) { route(med, '#38bdf8'); route(smp, '#a78bfa'); }
+        if (cm.z >= z - 0.3 && (f === FZ.length - 1 || cm.z < FZ[f + 1] - 0.3)) carrier(cm, '#22c55e');
+        if (cs.z >= z - 0.3 && (f === FZ.length - 1 || cs.z < FZ[f + 1] - 0.3)) carrier(cs, '#ef4444');
+      }
+      // the blower on the roof over the riser
+      box(RX - 0.3, RY - 0.25, RX + 0.3, RY + 0.25, FZ[2] + C + 0.2, FZ[2] + C + 0.6, '#475569', '#334155', '#1f2937');
+      seg(pt(RX, RY, FZ[2] + C), pt(RX, RY, FZ[2] + C + 0.2), 4.5, 'rgba(219,234,254,.28)');
+    });
+  }
+
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview, layer: layerPreview, tube: tubePreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));

@@ -80,7 +80,7 @@
         const n = +range.value, o = opts(), F = this.sim.floorNames;
         if (F) {
           o.floorTop = n >= F.length && !o.cutOnly ? null : n - 1;
-          label.textContent = o.floorTop == null ? 'all' : o.cutOnly ? `${F[n - 1]} only` : `${F[0]}–${F[n - 1]}`;
+          label.textContent = o.floorTop == null ? 'all' : o.cutOnly ? `${F[n - 1]} only` : n === 1 ? F[0] : `${F[0]}–${F[n - 1]}`;
           return;
         }
         o.cutTop = n >= this.sim.cfg.levels && !o.cutOnly ? null : n - 1;

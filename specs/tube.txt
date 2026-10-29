@@ -1,0 +1,137 @@
+DarkStore - a hospital's pneumatic tube system and its pharmacy
+================================================================
+
+Read common.txt first, but note: this type keeps its own stations,
+carriers and medicine stock and does not use the shared stock, stations,
+orders or packing. Of common.txt the time model, the control room and the
+disruptions apply. Not a warehouse. Implemented as AirPost (airpost.html,
+js/tube/).
+
+1. Overview
+
+A hospital moves small things all day: blood and other samples from the
+wards to the lab, medicines from the pharmacy to the wards, units of blood
+from the blood bank to theatres. A pneumatic tube system does it in
+carriers, plastic capsules about 40 cm long that air blows through a
+network of tubes.
+
+- Stations: on every ward, in the emergency department, theatres, ICU,
+  outpatients and radiology, and at the pharmacy and the lab. A station
+  has a send dock, a basket carriers land in, and a rack of empty
+  carriers.
+- Lines (zones): one tube with one blower. A line moves one carrier at a
+  time, from station to station through its diverters. Each wing has a
+  riser up through its floors; the pharmacy with the carrier store have
+  the core line, the lab a line of its own.
+- The transfer unit: where the lines meet, in the plant room. A carrier
+  for another line lands in it, is shifted across and waits for that
+  line.
+- The pharmacy: a dispensing robot picks the packs of a medicine order
+  from its shelves; the pharmacist checks them and sends them up.
+- Empty carriers: nothing can be sent without one. They pile up at the lab
+  and run short on the wards.
+
+Inspired by hospital tube systems in general (Swisslog TransLogic,
+Aerocom, Sumetzberger and others) and by pharmacy picking robots (BD Rowa,
+Omnicell and others); not any one product.
+
+2. Layout
+
+Positions in metres: x east along the building, y south (to the street),
+z up.
+
+- Wings (default 3) side by side along the street, 24 m wide and 18 m
+  deep; a ground floor and floors above it (default 5), 4 m apart.
+- On every floor a corridor along the building with rooms on both sides.
+  The ground floor: the emergency department in the west wing, the
+  pharmacy, plant room and lab in the middle, outpatients (or radiology)
+  in the east. The first floor: theatres in the west, ICU in the middle.
+  Wards above.
+- A station hangs on the corridor wall of each department. A wing's
+  riser stands in a shaft room beside its corridor; at each floor a
+  diverter sends the branch along the ceiling to that floor's station.
+- The transfer unit in the plant room, the carrier store beside it, the
+  core line's and the lab line's blowers there too; the risers' blowers
+  on the roof.
+
+3. Equipment
+
+- Tubes: carriers fly at 6 m/s (2 m/s² up and down), samples and blood at
+  3 m/s. Before a leg the diverters are set and the blower starts (3 s);
+  at the end the carrier slows on an air cushion and drops into the
+  basket (2 s).
+- Transfer unit: 5 s to shift a carrier across; it holds 4.
+- Carriers: 90 in the system, each with a home station.
+- People: 20 s to load a carrier, 15 s to empty one; a ward notices a
+  carrier has landed after about 150 s on average (an urgent one beeps:
+  a third of that), the lab after about 20 s.
+- Dispensing robot: a mast on rails in an aisle between two walls of
+  shelves, 11 shelves high, about 140 products. 1.2 m/s along the aisle,
+  0.9 m/s up and down; 2.5 s to grab a pack, 1.5 s to drop it in the
+  chute. The pharmacist checks an order in 25 s.
+
+4. Flow
+
+Samples: a ward sends about 3 an hour (twice as many on the morning round,
+06:30 to 09:00), the ED 12, ICU 8; some are urgent (the ED half of them).
+A nurse puts the sample in an empty carrier, puts it in the send dock and
+sets the lab as its destination.
+
+Medicines: a ward orders about 1.5 times an hour, 1 to 4 lines. The robot
+picks the most urgent order first, line by line; the pharmacist checks it
+and sends it to the ward in a carrier. Wholesaler deliveries five times a
+day refill what has fallen below its minimum; the robot puts the packs
+away between orders.
+
+Blood: the lab's blood bank sends about 2 units an hour to theatres, ICU
+or the ED, always urgent.
+
+A carrier for a station on its own line goes there in one leg; one for
+another line goes to the transfer unit first, then on that line. Where it
+lands someone empties it, and it stays there as an empty carrier.
+
+5. Traffic
+
+A line moves one carrier at a time and is held for the whole leg:
+switching, the flight and the landing. A line takes, of the carriers
+waiting in its stations' send docks and those shifted to it in the
+transfer unit, an urgent one first (unless urgent ones wait their turn),
+empties last, else the one that has waited longest. A leg starts only
+when its basket (or the transfer unit) has room. Carriers queue in a send
+dock behind the one in front.
+
+6. Policies
+
+- Empty carriers: 'store' (a station below its par of empties, 3, gets
+  one from the carrier store; a surplus goes back to it) or 'sender'
+  (every 30 minutes staff send the carriers that are not theirs back to
+  their home station). What has waited 15 minutes for an empty carrier
+  goes by porter (10 minutes on foot).
+- Urgent first on every line, or in turn.
+- One line up each wing, or a lower and an upper line, each with its own
+  blower; the lab on a line of its own, or on the core line.
+- Wings, floors, carriers, the transfer unit, carrier speed.
+
+7. Output
+
+- Carriers an hour, door to door (send dock to basket), urgent carriers;
+  the wait for the line.
+- Samples to the lab (taken to at the lab), medicines (order to on the
+  ward).
+- Each line busy; stations without an empty carrier, sends that waited
+  for one, by porter.
+- The dispensing robot: packs an hour, busy.
+
+With the defaults: about 260 carriers an hour, and about 60 % of them
+empty: every sample and every order of medicines means an empty carrier
+travels back. Door to door about 32 s, samples at the lab about 1.5 min
+after they are taken, medicines on the ward about 4.5 min after the
+order. The core line, which carries the store's empties as well as the
+pharmacy's medicines, is the busiest at about 45 %. Staff sending
+empties home now and then instead: the pharmacy runs out, medicines take
+about 18 min and some 200 loads a day go by porter. The lab on the core
+line: the core line 67 % busy and a carrier waits about 1.5 min for it on
+average, one in ten more than 7 min.
+
+Not modelled: air pressure and blower power, carriers that jam or come
+open, the lab's analysers, maintenance of the tubes.

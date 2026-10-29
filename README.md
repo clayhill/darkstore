@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the thirteen simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the sixteen simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of thirteen
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of sixteen
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,7 +14,7 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the fifteen systems work this way. AisleMate is the common first step towards it: people
+Seven of the sixteen systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
 the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
 but a parcel sorter, the kind of hub parcels go through after the warehouse. FloorStack puts a
@@ -25,7 +25,8 @@ turn at the packer. CaseCraft supplies supermarkets: robot arms break down suppl
 store every case in a dense structure, and robot arms stack the cases into stable mixed pallets for
 each store. LayerLift picks drinks for cafés and shops a whole layer at a time, with gantry robots
 over a row of pallet lanes. RoboValet leaves the warehouse: an automated car park,
-where the same kind of lifts and robots store cars instead of totes.
+where the same kind of lifts and robots store cars instead of totes. AirPost goes to hospital: a
+pneumatic tube system carries samples to the lab and medicines from a robot pharmacy to the wards.
 
 **What every simulation shares**
 
@@ -41,7 +42,7 @@ where the same kind of lifts and robots store cars instead of totes.
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The fifteen systems**
+**The sixteen systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -59,11 +60,12 @@ where the same kind of lifts and robots store cars instead of totes.
 | [**PocketFlow**](https://clayhill.github.io/darkstore/pocketflow.html) | Fashion e-commerce through an overhead pocket sorter | One item in each pocket, on storage rails | Pockets on a friction rail: storage rails, a two-pass matrix sequencer, pack stations where they open | Returns sold again from the pockets, pockets sent round to dig them out, the sequencer |
 | [**CaseCraft**](https://clayhill.github.io/darkstore/casecraft.html) | Mixed-case pallet DC: depalletising, case bots, palletising robots | Cases on shelves in a structure of 14 levels | Robot arms, bots on every level's deck and in its aisles, lifts that bring cases down in build order | The pallet planner (heavy at the bottom, nothing heavy on crisps), cases in sequence, how full a pallet gets |
 | [**LayerLift**](https://clayhill.github.io/darkstore/layerlift.html) | Beverage layer picking: gantry robots over pallet flow lanes | Supplier pallets of one product, a lane each | Gantries lifting whole layers onto customers' pallets, a forklift refilling the lanes, a person topping off with single cases | Layers against cases by hand, what a second gantry on the same runway adds, the top-off station |
+| [**AirPost**](https://clayhill.github.io/darkstore/airpost.html) | Hospital pneumatic tube system with a robot pharmacy | Carriers, and medicine packs in a dispensing robot | Carriers through lines that take one at a time, a transfer unit between them, nurses, a picking robot | Empty carriers (most of the trips), the busiest line, sending empties home by hand |
 | [**RoboValet**](https://clayhill.github.io/darkstore/robovalet.html) | Automated car park: cabins, car lifts and flat robots | Cars in bays on five levels | Robots that slide under a car and carry it sideways, lifts between the floors, drivers queueing and waiting | The morning queue in the street, the 17:00 rush in the lobby, the cabins as the bottleneck |
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
 by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
-`pharma.txt`, `sort.txt`, `tower.txt`, `pocket.txt`, `case.txt`, `layer.txt` and `park.txt` describe the fifteen systems.
+`pharma.txt`, `sort.txt`, `tower.txt`, `pocket.txt`, `case.txt`, `layer.txt`, `tube.txt` and `park.txt` describe the sixteen systems.
 
 ## Run
 
@@ -75,7 +77,7 @@ dependencies, so double-clicking the file works. Only the 3D view needs a networ
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
 `skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html`, `zonehop.html`,
-`sorthub.html`, `floorstack.html`, `pocketflow.html`, `casecraft.html`, `layerlift.html` and `robovalet.html`.
+`sorthub.html`, `floorstack.html`, `pocketflow.html`, `casecraft.html`, `layerlift.html`, `airpost.html` and `robovalet.html`.
 
 **In a simulation**
 
@@ -854,6 +856,39 @@ pallets are wrapped, labelled and loaded on route trucks, which leave when full 
 their first pallet. Try one gantry, more build places, or a slower top-off; Follow an order follows
 its pallets, and Gantry cam rides a gantry.
 
+### AirPost — a hospital's pneumatic tube system
+
+![AirPost in 3D: a hospital of three wings and six floors cut open from the street, the ED with an ambulance at its door, wards above, theatres and ICU on the first floor, the tubes of each line in their own colour climbing the risers to every floor](docs/screenshots/tube-3d.png)
+
+| | |
+|---|---|
+| ![The ground floor: the pharmacy's dispensing robot between its shelves of packs, the pharmacist at the bench, the transfer unit and the carrier store in the plant room, the colour-coded lines rising from it, the lab beyond](docs/screenshots/tube-pharmacy.png) | ![A ward's tube station on the corridor wall: the send dock, the basket, the rack of empty carriers, a nurse in scrubs; the line runs along the ceiling to the riser](docs/screenshots/tube-station.png) |
+| **The pharmacy and the plant room:** the robot, the transfer unit, the lines | **A station:** send dock, basket and empties |
+| ![Follow a carrier: a sample in the send dock on a ward, with the panel showing it waits for its line](docs/screenshots/tube-follow.png) | ![AirPost's control room: carriers an hour, door-to-door time, the wait for the line, the busiest line, samples and medicines, empty carriers; the tubes drawn as seen from the street, each line lit while it carries](docs/screenshots/tube-control.png) |
+| **Follow a carrier:** from the send dock through the tubes to the basket | **Control room:** the network as an elevation, lit while it carries |
+
+AirPost leaves the warehouse for a hospital. Every ward, the emergency department, theatres, ICU,
+outpatients and the lab have a tube station on the corridor wall: a send dock, a basket carriers
+land in and a rack of empty carriers. Nurses send samples to the lab, about 3 an hour from a ward
+and twice that on the morning round; their medicine orders come up from the pharmacy, where a
+dispensing robot picks the packs from its shelves and the pharmacist checks them. Like the other
+new types it is shown in 3D only, and the Floors slider shows the floors up to one, or one alone.
+
+**Lines.** A line is one tube with one blower, and it moves one carrier at a time: the diverters
+are set, the carrier flies at 6 m/s (samples gently, at 3), slows on its air cushion and drops into
+the basket. Each wing has a riser up through its floors; the pharmacy and the carrier store have the
+core line, the lab a line of its own. A carrier for another line goes to the transfer unit in the
+plant room, is shifted across and waits for that line. Urgent carriers go first on every line.
+
+**Empty carriers.** Nothing goes without an empty carrier, and every sample and every medicine
+order leaves one where it lands: about 60 % of the trips are empties going back. With a carrier
+store the system tops the stations up and takes surpluses back, and the core line, which carries
+those empties, is the busiest. Leave it to staff to send carriers home every half hour instead, and
+the pharmacy runs out: medicines take about 18 minutes instead of 4½ and some 200 loads a day go by
+porter. Put the lab on the core line and carriers queue for it in the morning. Try two lines up
+each wing, fewer carriers or twice the traffic; Follow a carrier follows one through the tubes,
+and Carrier cam rides along behind one.
+
 ### RoboValet — automated car park
 
 ![RoboValet in 3D at 08:30: the car park cut open on its south and west sides, five levels of parked cars, the cabins on the street with cars driving in, the lobby under its sign and the morning queue in the street](docs/screenshots/park-3d.png)
@@ -899,7 +934,7 @@ car down now, and Follow a car follows one in or out.
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
 aislemate.html, zonehop.html, sorthub.html, floorstack.html, pocketflow.html, casecraft.html,
-layerlift.html, robovalet.html
+layerlift.html, airpost.html, robovalet.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
 js/core/    util (RNG, heap), barcode (GS1 encoders), config (shared defaults)
@@ -951,16 +986,21 @@ js/layer/   LayerLift: config, sim (lanes, gantries with runway reservations, bu
             orders in layers and cases, the top-off station, route trucks, the forklift),
             render (a placeholder: 3D only), render3d (on CaseCraft's view: the field,
             runway, gantries, pallets of layers), ui (tiles, Orders and Lanes tabs, inspectors)
+js/tube/    AirPost: config, sim (the hospital's stations, lines as trees of tube from the transfer unit,
+            the blowers, the transfer unit, carriers and empty-carrier policies, porters, the
+            dispensing robot and its stock), render (a placeholder: 3D only), render3d (the
+            building floor by floor, tubes, carriers, nurses, the robot, the carrier cam), ui
+            (tiles, Carriers, Stations and Pharmacy tabs, carrier, order and product inspectors)
 js/park/    RoboValet: config, sim (the building, cabins, robots and lifts on the shared machines,
             drivers, the day's demand, bay policies), render (a placeholder: 3D only), render3d
             (the car park, cars, robots, lifts, drivers, the street), ui (tiles, Cars and
             Levels tabs, car, bay and cabin inspectors)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|pocket|case|layer|park] [settings JSON]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|pocket|case|layer|tube|park] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
             one-way aisles, no picker zones, robot sorter, small pallets, transport robots, lifts between
-            FloorStack's floors, cars parked by stay, a pocket sorter without returns, store pallets built by store aisle, layer picking with one gantry), and compares a fingerprint of stock, fleet, orders and KPIs
+            FloorStack's floors, cars parked by stay, a pocket sorter without returns, store pallets built by store aisle, layer picking with one gantry, a tube system whose staff send empties home), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
 
@@ -971,7 +1011,7 @@ golden files with `node test/golden.js --update`, and the diff of those files go
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
 systems, and it must not be used as such. It is inspired by cube-storage, pod-robot, shuttle, stacker
-crane, case-handling robot and pocket sorter systems and automated car parks in general and is not affiliated with, endorsed by or derived
+crane, case-handling robot and pocket sorter systems, automated car parks and hospital tube systems in general and is not affiliated with, endorsed by or derived
 from any vendor of such systems. All company names, addresses, products and barcodes in the
 simulation are fictional.
 

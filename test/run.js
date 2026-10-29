@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'layer') return checkLayers(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'layer') return checkLayers(); if (kind === 'tube') return checkTubes(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -220,6 +220,33 @@ function checkPockets() {
 // transfer shelf place, a conveyor, an arm, a pallet); shelf gaps never
 // overlap; the stock counts add up; no two bots on a level touch; every
 // lane reservation is its own; cells and orders keep moving
+function checkTubes() {
+  const t = sim.time.toFixed(1), where = new Map(), put = (c, w) => { if (where.has(c)) throw new Error(`t=${t} carrier ${c.code} at ${where.get(c)} and ${w}`); where.set(c, w); };
+  const inc = new Map(sim.ports.map((p) => [p, 0]));
+  for (const p of sim.ports) {
+    for (const c of p.empties) { put(c, p.code + ' rack'); if (c.state !== 'EMPTY' || c.at !== p) throw new Error(`t=${t} ${c.code} in ${p.code}'s rack is ${c.state}`); }
+    for (const c of p.basket) { put(c, p.code + ' basket'); if (c.state !== 'ARRIVED') throw new Error(`t=${t} ${c.code} in a basket is ${c.state}`); }
+    for (const c of p.outQ) { put(c, p.code + ' dock'); if (c.state !== 'QUEUED') throw new Error(`t=${t} ${c.code} in a dock is ${c.state}`); if (c.dest === p) throw new Error(`${c.code} sent to where it is`); }
+    if (p.work && p.work.cr) put(p.work.cr, p.code + ' hands');
+    if (p.type !== 'STORE' && p.basket.length + p.incoming > p.cap) throw new Error(`t=${t} ${p.code}: basket over-full`);
+  }
+  for (const c of sim.tu.slots) put(c, 'transfer unit');
+  if (sim.tu.slots.length + sim.tu.res > sim.cfg.tuSlots) throw new Error(`t=${t} transfer unit over-full`);
+  let res = 0;
+  for (const Z of sim.zones) {
+    const L = Z.leg;
+    if (!L) continue;
+    if (L.to) inc.set(L.to, inc.get(L.to) + 1); else res++;
+    if (L.cr.state === 'IN_TUBE') { put(L.cr, Z.name); if (L.cr.at !== Z) throw new Error(`${L.cr.code} in the tube of ${Z.name} thinks it is elsewhere`); }
+    if (L.to && L.to.zone !== Z) throw new Error(`${Z.name} runs to ${L.to.code} of another line`);
+    if (L.from && L.from.zone !== Z) throw new Error(`${Z.name} runs from ${L.from.code} of another line`);
+  }
+  for (const p of sim.ports) if (inc.get(p) !== p.incoming) throw new Error(`t=${t} ${p.code}: ${p.incoming} incoming, ${inc.get(p)} legs to it`);
+  if (res !== sim.tu.res) throw new Error(`t=${t} transfer unit: ${sim.tu.res} reserved, ${res} legs to it`);
+  for (const c of sim.carriers) if (!where.has(c)) throw new Error(`t=${t} carrier ${c.code} (${c.state}) is nowhere`);
+  if (where.size !== sim.cfg.carriers) throw new Error(`t=${t} ${where.size} carriers, not ${sim.cfg.carriers}`);
+  for (const d of sim.drugs) if (d.stock < 0 || d.stock > d.cap + 1e-9) throw new Error(`${d.name}: stock ${d.stock} of ${d.cap}`);
+}
 function checkCases() {
   const where = new Map(), t = sim.time.toFixed(1), put = (c, w) => { if (where.has(c)) throw new Error(`t=${t} case ${c.id} in ${where.get(c)} and ${w}`); where.set(c, w); };
   const onShelf = new Map(sim.skus.map((p) => [p, 0]));

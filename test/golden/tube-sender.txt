@@ -1,0 +1,8 @@
+t=00:29:59 stock fc1faded fleet a5184570 tasks 0 orders 
+  presented=43 presentedPick=0 presentedIn=0 linesPicked=25 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=00:59:59 stock ab38ddad fleet a5184570 tasks 0 orders 
+  presented=146 presentedPick=0 presentedIn=0 linesPicked=53 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=01:30:00 stock 907724ac fleet da5d369d tasks 0 orders 
+  presented=280 presentedPick=0 presentedIn=0 linesPicked=77 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
+t=02:00:00 stock 03593a7c fleet a5184570 tasks 0 orders 
+  presented=415 presentedPick=0 presentedIn=0 linesPicked=107 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30
