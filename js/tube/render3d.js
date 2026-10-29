@@ -23,7 +23,7 @@
   const STEPS = ['Loaded', 'Waiting', 'In the tube', 'Transfer', 'Landed', 'Emptied'];
   const lerp = (a, b, t) => (a == null ? b : a + (b - a) * t);
   const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
-  const R_TUBE = 0.09, R_CAR = 0.07, L_CAR = 0.4, WALL_H = 1.1; // m: inner walls are cut low, so the tubes and stations show
+  const R_TUBE = 0.15, R_CORE = 0.085, R_CAR = 0.115, L_CAR = 0.46, WALL_H = 0.9; // m: inner walls are cut low, so the tubes and stations show
 
   class TubeRenderer3D extends WS.View3D {
     get G() { return this.sim.G; }
@@ -67,8 +67,8 @@
     fit() {
       const G = this.G, c = this.cam;
       // from the street, south-west of the building, its south and west sides cut away
-      Object.assign(c, { walk: false, follow: null, tx: G.X * 0.5, ty: G.D * 0.5, tz: this.lv(G.top * 0.45), yaw: -0.38, pitch: 0.24 });
-      c.dist = (G.X * 1.12) / Math.min(1, this.w / this.h);
+      Object.assign(c, { walk: false, follow: null, tx: G.X * 0.5, ty: G.D * 0.5, tz: this.lv(G.top * 0.42), yaw: -0.38, pitch: 0.3 });
+      c.dist = (G.X * 1.06) / Math.min(1, this.w / this.h);
       this.syncWalkButton();
     }
     placeSun() {
@@ -100,26 +100,46 @@
       }
       this.ground.scale.set(G.X + 160, G.D + 120, 1); this.ground.position.set(G.X / 2, -0.01, G.D / 2 + 10);
       this.ground.material.color.set(this.dark ? '#090d14' : '#1d2632');
-      if (!this.tubesB) this.tubesB = { glass: this.newBatch('cyl', 'clear', 2048, { shadow: false }), tint: this.newBatch('cyl', 'std', 2048, { cast: false }) };
+            // The building stays in the background: slabs and facade faint and see-through, walls and furniture dimmed
+      // (a material's colour multiplies every part's). The tubes' cores and the carriers are drawn after the
+      // see-through parts, so they show through the floors bright; solid walls still hide them.
+      if (!this.ghost) {
+        const T3 = WS.View3D.THREE, Bt = this.st.box.constructor;
+        this.ghostMat = new T3.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02, transparent: true, opacity: 0.2, depthWrite: false, color: '#687284' });
+        const dim = new T3.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05, color: '#5c6678' });
+        const B = (geo, mat, cap, o) => new Bt(this, this.geos[geo], mat, Object.assign({ cap }, o));
+        this.ghost = { slab: B('box', this.ghostMat, 1024, { shadow: false }), box: B('box', dim, 8192, { cast: false }), cyl: B('cyl', dim, 512, { cast: false }), rnd: B('rnd', dim, 256, { cast: false }), dome: B('dome', dim, 64, { cast: false }) };
+        const over = (mat, geo, cap) => { const b = new Bt(this, this.geos[geo], mat, { shadow: false, cap }); b.mesh.renderOrder = 5; return b; };
+        const core = new T3.MeshBasicMaterial({ transparent: true, opacity: 1, toneMapped: false });
+        const body = new T3.MeshStandardMaterial({ roughness: 0.5, metalness: 0.1, transparent: true, opacity: 1 });
+        // and once more through everything, faint: a tube or carrier behind a wall still shows where it is
+        const xray = new T3.MeshBasicMaterial({ transparent: true, opacity: 0.38, toneMapped: false, depthTest: false, depthWrite: false });
+        this.tubesB = { glass: this.newBatch('cyl', 'clear', 2048, { shadow: false }), tint: over(core, 'cyl', 2048), xray: over(xray, 'cyl', 2048) };
+        this.carB = { cyl: over(body, 'cyl', 512), litCyl: over(core, 'cyl', 512), xray: over(xray, 'cyl', 512) };
+        this.tubesB.xray.mesh.renderOrder = this.carB.xray.mesh.renderOrder = 6;
+      }
+      const Gh = this.ghost, GS = { slab: Gh.slab, box: Gh.box, cyl: Gh.cyl, rnd: Gh.rnd, dome: Gh.dome, lit: S.lit, litCyl: S.litCyl, clear: S.clear, glass: S.glass };
+      for (const b of Object.values(Gh)) b.begin();
       for (const b of Object.values(this.tubesB)) b.begin();
-      for (let f = 0; f < this.nF; f++) this.floor(S, f);
+      for (let f = 0; f < this.nF; f++) this.floor(GS, f);
       this.offFloor();
       this.tubes(S);
       this.stationsStatic(S);
-      this.plantRoom(S);
+      this.plantRoom(S, GS);
       this.pharmacyStatic(S);
       this.roof(S);
-      this.street(S);
+      this.street(GS);
       this.offFloor();
       for (const b of Object.values(this.tubesB)) b.end();
+      for (const b of Object.values(Gh)) b.end();
     }
     // a floor: the slab, corridor and rooms, walls with door gaps, and what stands in the rooms
     floor(S, f) {
       const G = this.G, lv = (m) => this.lv(m), wallH = lv(WALL_H), t = 0.06;
       this.onFloor(f);
       // the slab: its underside a little below, so the ceiling shows from the floor below
-      S.box.box(-0.2, -0.2, -lv(0.3), G.X + 0.2, G.D + 0.2, -lv(0.005), f ? '#6e7888' : '#566070');
-      S.box.box(0, 7.6, 0, G.X, 10, lv(0.012), CORR);
+      (S.slab || S.box).box(-0.2, -0.2, -lv(0.3), G.X + 0.2, G.D + 0.2, -lv(0.005), f ? '#6e7888' : '#566070');
+      (S.slab || S.box).box(0, 7.6, 0, G.X, 10, lv(0.012), CORR);
       for (let w = 0; w < G.nW; w++) {
         const x0 = w * G.WW, x1 = x0 + G.WW, centreGround = !f && w === G.ci;
         // rooms on both sides of the corridor, every 4 m (the centre of the ground floor has its own)
@@ -155,7 +175,7 @@
         S.box.rbox(x, y, a, -0.45, -0.95, lv(0.58), 0.45, 0.95, lv(0.66), WHITE);
         S.box.rbox(x, y, a, -0.4, -0.95, lv(0.66), 0.4, -0.6, lv(0.74), '#f8fafc');
         S.box.rbox(x, y, a, -0.47, -1.04, lv(0.25), 0.47, -0.98, lv(1.05), '#94a3b8');
-        S.box.rbox(x, y, a, -0.44, -0.2, lv(0.66), 0.44, 0.9, lv(0.7), type === 'ICU' ? '#7dd3fc' : '#93c5fd');
+        S.box.rbox(x, y, a, -0.44, -0.2, lv(0.66), 0.44, 0.9, lv(0.7), type === 'ICU' ? '#9fb1c4' : '#a8b4c4');
         if (icu) { S.box.rbox(x, y, a, 0.62, -1.0, 0, 0.72, -0.9, lv(1.6), STEEL); S.lit.rbox(x, y, a, 0.55, -0.98, lv(1.35), 0.85, -0.93, lv(1.6), '#22c55e'); }
       };
       if (type === 'WARD' || type === 'ICU') {
@@ -211,7 +231,8 @@
       const G = this.G, lv = (m) => this.lv(m), T = 0.25, top = lv(G.H - 0.3);
       if (!this.walls) {
         this.walls = {};
-        for (const k of ['N', 'S', 'W', 'E']) this.walls[k] = { full: this.newBatch('box', 'std', 2048, { cast: false }), glass: this.newBatch('box', 'glass', 256, { shadow: false }), low: this.newBatch('box', 'std', 512, { cast: false }) };
+        const B = (cap) => new this.st.box.constructor(this, this.geos.box, this.ghostMat, { shadow: false, cap }); // see-through, like the slabs
+        for (const k of ['N', 'S', 'W', 'E']) this.walls[k] = { full: B(2048), glass: this.newBatch('box', 'glass', 256, { shadow: false }), low: B(512) };
       }
       if (f === 0) for (const W of Object.values(this.walls)) { W.full.begin(); W.glass.begin(); W.low.begin(); }
       const put = (B, side, s0, s1, t0, t1, z0, z1, c) => {
@@ -292,11 +313,11 @@
           const zz = Math.min(z1, Math.max(z + 0.01, ze));
           this.skip = !this.shown(fl);
           T.glass.cyl(a.x, a.y, lv(z), lv(zz), R_TUBE, '#dbeafe', pick);
-          T.tint.cyl(a.x, a.y, lv(z), lv(zz), R_TUBE * 0.42, col, pick);
+          T.tint.cyl(a.x, a.y, lv(z), lv(zz), R_CORE, col, pick); T.xray.cyl(a.x, a.y, lv(z), lv(zz), R_CORE, col);
           z = zz;
         }
-      } else if (Math.abs(a.x - b.x) > 1e-6) { T.glass.cylX(Math.min(a.x, b.x), Math.max(a.x, b.x), a.y, lv(a.z), R_TUBE, '#dbeafe', pick); T.tint.cylX(Math.min(a.x, b.x), Math.max(a.x, b.x), a.y, lv(a.z), R_TUBE * 0.42, col, pick); }
-      else if (Math.abs(a.y - b.y) > 1e-6) { T.glass.cylY(a.x, Math.min(a.y, b.y), Math.max(a.y, b.y), lv(a.z), R_TUBE, '#dbeafe', pick); T.tint.cylY(a.x, Math.min(a.y, b.y), Math.max(a.y, b.y), lv(a.z), R_TUBE * 0.42, col, pick); }
+      } else if (Math.abs(a.x - b.x) > 1e-6) { T.glass.cylX(Math.min(a.x, b.x), Math.max(a.x, b.x), a.y, lv(a.z), R_TUBE, '#dbeafe', pick); T.tint.cylX(Math.min(a.x, b.x), Math.max(a.x, b.x), a.y, lv(a.z), R_CORE, col, pick); T.xray.cylX(Math.min(a.x, b.x), Math.max(a.x, b.x), a.y, lv(a.z), R_CORE, col); }
+      else if (Math.abs(a.y - b.y) > 1e-6) { T.glass.cylY(a.x, Math.min(a.y, b.y), Math.max(a.y, b.y), lv(a.z), R_TUBE, '#dbeafe', pick); T.tint.cylY(a.x, Math.min(a.y, b.y), Math.max(a.y, b.y), lv(a.z), R_CORE, col, pick); T.xray.cylY(a.x, Math.min(a.y, b.y), Math.max(a.y, b.y), lv(a.z), R_CORE, col); }
       this.skip = false;
     }
     // the stations on the corridor walls: the unit with its send dock and display, the basket below, the rack of empties beside
@@ -320,7 +341,7 @@
       this.offFloor();
     }
     // the plant room: the transfer unit with its rails, the carrier store, electrical cabinets
-    plantRoom(S) {
+    plantRoom(S, GS) {
       const G = this.G, lv = (m) => this.lv(m), U = G.tu, pick = { kind: 'robot', id: this.sim.tu.id };
       this.onFloor(0);
       S.box.box(U.x - U.w / 2 - 0.2, U.y - 0.45, 0, U.x + U.w / 2 + 0.2, U.y + 0.45, lv(0.6), '#334155', pick);
@@ -329,8 +350,8 @@
       S.clear.box(U.x - U.w / 2 - 0.15, U.y + 0.4, lv(0.6), U.x + U.w / 2 + 0.15, U.y + 0.43, lv(2.1), '#bfdbfe');
       for (let k = 0; k < 3; k++) { S.box.box(G.x0c + 11.0 + k * 0.7, 0.25, 0, G.x0c + 11.6 + k * 0.7, 0.7, lv(2.0), '#64748b'); S.lit.box(G.x0c + 11.1 + k * 0.7, 0.705, lv(1.6), G.x0c + 11.2 + k * 0.7, 0.71, lv(1.7), '#4ade80'); }
       // the plant room's walls
-      S.box.box(G.x0c + 10.4, 0.2, 0, G.x0c + 10.5, 7.6, lv(WALL_H), WALL);
-      S.box.box(G.x0c, 7.55, 0, G.x0c + 10.4, 7.65, lv(WALL_H), WALL);
+      GS.box.box(G.x0c + 10.4, 0.2, 0, G.x0c + 10.5, 7.6, lv(WALL_H), WALL);
+      GS.box.box(G.x0c, 7.55, 0, G.x0c + 10.4, 7.65, lv(WALL_H), WALL);
       // the carrier store: a rack of upright tubes
       if (this.sim.store) { const s = G.store; S.box.box(s.x - 0.45, s.y - 0.7, 0, s.x + 0.45, s.y + 0.7, lv(0.4), '#475569', { kind: 'port', id: this.sim.store.idx }); S.box.box(s.x - 0.45, s.y - 0.7, lv(1.1), s.x + 0.45, s.y + 0.7, lv(1.14), '#475569', { kind: 'port', id: this.sim.store.idx }); }
       this.offFloor();
@@ -385,6 +406,11 @@
 
     // ---------------------------------------------------------------- live
     drawLive(alpha) {
+      for (const b of Object.values(this.carB)) b.begin();
+      this.drawLiveParts(alpha);
+      for (const b of Object.values(this.carB)) b.end();
+    }
+    drawLiveParts(alpha) {
       this.alpha = alpha; this.now = this.sim.time + alpha * this.sim.cfg.tick;
       const sim = this.sim;
       this.drawPacks();
@@ -395,12 +421,12 @@
       this.offFloor();
     }
     // a carrier: a capsule along axis ('x', 'y' or 'z') centred at (x, y, z m), its colour what it carries
-    carrier(cr, x, y, z, axis) {
-      const lv = (m) => this.lv(m), D = this.dy, k = cr.contents ? cr.contents.kind : 'empty', col = KCOL[k], pick = { kind: 'carrier', id: cr.id }, h = L_CAR / 2;
+    carrier(cr, x, y, z, axis, moving) {
+      const lv = (m) => this.lv(m), D = this.carB, k = cr.contents ? cr.contents.kind : 'empty', col = KCOL[k], pick = { kind: 'carrier', id: cr.id }, h = L_CAR / 2;
       const band = cr.contents && cr.contents.stat ? '#fde047' : '#e2e8f0';
-      if (axis === 'z') { D.cyl.cyl(x, y, lv(z - h), lv(z + h), R_CAR, col, pick); D.litCyl.cyl(x, y, lv(z - 0.03), lv(z + 0.03), R_CAR + 0.004, band, pick); }
-      else if (axis === 'x') { D.cyl.cylX(x - h, x + h, y, lv(z), R_CAR, col, pick); D.litCyl.cylX(x - 0.03, x + 0.03, y, lv(z), R_CAR + 0.004, band, pick); }
-      else { D.cyl.cylY(x, y - h, y + h, lv(z), R_CAR, col, pick); D.litCyl.cylY(x, y - 0.03, y + 0.03, lv(z), R_CAR + 0.004, band, pick); }
+      if (axis === 'z') { D.cyl.cyl(x, y, lv(z - h), lv(z + h), R_CAR, col, pick); if (moving) D.xray.cyl(x, y, lv(z - h), lv(z + h), R_CAR, col); D.litCyl.cyl(x, y, lv(z - 0.03), lv(z + 0.03), R_CAR + 0.004, band, pick); }
+      else if (axis === 'x') { D.cyl.cylX(x - h, x + h, y, lv(z), R_CAR, col, pick); if (moving) D.xray.cylX(x - h, x + h, y, lv(z), R_CAR, col); D.litCyl.cylX(x - 0.03, x + 0.03, y, lv(z), R_CAR + 0.004, band, pick); }
+      else { D.cyl.cylY(x, y - h, y + h, lv(z), R_CAR, col, pick); if (moving) D.xray.cylY(x, y - h, y + h, lv(z), R_CAR, col); D.litCyl.cylY(x, y - 0.03, y + 0.03, lv(z), R_CAR + 0.004, band, pick); }
     }
     // a line: the leg it runs glows; its carrier in the tube; the blower's lamp
     drawZone(Z, alpha) {
@@ -418,7 +444,7 @@
         if (L.cr.state === 'IN_TUBE') {
           const p = sim.legPos(L, lerp(Z.os, Z.s, alpha));
           this.skip = !this.shown(this.floorOfZ(p.z));
-          this.carrier(L.cr, p.x, p.y, p.z, Math.abs(p.dz) > 1e-6 ? 'z' : Math.abs(p.dx) > 1e-6 ? 'x' : 'y');
+          this.carrier(L.cr, p.x, p.y, p.z, Math.abs(p.dz) > 1e-6 ? 'z' : Math.abs(p.dx) > 1e-6 ? 'x' : 'y', true);
         }
       }
       const b = Z.blower;
