@@ -1,0 +1,8 @@
+t=00:29:59 stock 811c9dc5 fleet 811c9dc5 tasks 0 orders 
+  presented=3584 presentedPick=0 presentedIn=0 linesPicked=3492 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30 splitT=0
+t=00:59:59 stock 811c9dc5 fleet 811c9dc5 tasks 0 orders 
+  presented=6993 presentedPick=0 presentedIn=0 linesPicked=6966 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30 splitT=0
+t=01:30:00 stock 811c9dc5 fleet 811c9dc5 tasks 0 orders 
+  presented=10500 presentedPick=0 presentedIn=0 linesPicked=10404 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30 splitT=0
+t=02:00:00 stock 811c9dc5 fleet 811c9dc5 tasks 0 orders 
+  presented=13897 presentedPick=0 presentedIn=0 linesPicked=13834 unitsPicked=0 unitsReceived=0 ordersShipped=0 shuffles=0 productive=0 digs=0 digTime=0 penaltyTime=0 penaltyEvents=0 restacks=0 stores=0 cycleSum=0 cycleN=0 depthSum=0 sampleTimer=0 alertTimer=0 sampleEvery=30 splitT=0

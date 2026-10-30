@@ -2,9 +2,9 @@
 
 **Try it live: [clayhill.github.io/darkstore](https://clayhill.github.io/darkstore/)**
 
-![Landing page: choose one of the sixteen simulations](docs/screenshots/landing.png)
+![Landing page: choose one of the eighteen simulations](docs/screenshots/landing.png)
 
-DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of sixteen
+DarkStore simulates the automated heart of an e-commerce warehouse in your browser. Pick one of eighteen
 systems and watch robots, operators and orders move through it in real time: totes and bins
 fetched from storage, picked at stations, packed, labelled and loaded onto a truck. Every system runs
 the same order flow, so you can compare how they behave under the same demand.
@@ -14,10 +14,11 @@ the same order flow, so you can compare how they behave under the same demand.
 In a **goods-to-person** warehouse nobody walks the aisles. Machines bring storage units (bins,
 totes or whole shelves) to a station, where an operator picks the items into order totes. What sets
 the systems apart is how they store goods and fetch them; everything around the storage is the same.
-Seven of the sixteen systems work this way. AisleMate is the common first step towards it: people
+Seven of the eighteen systems work this way. AisleMate is the common first step towards it: people
 still pick from ordinary shelving, and robots carry the order totes to them. ZoneHop turns it round:
-the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub is not a store at all
-but a parcel sorter, the kind of hub parcels go through after the warehouse. FloorStack puts a
+the order tote travels past the stock, as in a pharmacy wholesaler's. SortHub, TrayLoop and ShoeLine
+are not stores at all but parcel sorters, the kind of hub parcels go through after the warehouse:
+a robot sorter, a tilt-tray loop and a sliding shoe sorter on the same parcel stream. FloorStack puts a
 whole fulfilment centre in one building of three floors: storage, picking and the dock above each
 other, linked by spiral conveyors and lifts. PocketFlow hangs every item of a fashion webshop in a
 pocket on an overhead rail, where returns wait to be sold again and a sequencer drops each order in
@@ -42,7 +43,7 @@ pneumatic tube system carries samples to the lab and medicines from a robot phar
   charts, and bottleneck alerts.
 - **GS1 barcodes** on items, storage units and parcels, and a scan box that finds anything by its code.
 
-**The sixteen systems**
+**The eighteen systems**
 
 | Simulation | System | Storage unit | What moves | Worth watching |
 |---|---|---|---|---|
@@ -55,7 +56,9 @@ pneumatic tube system carries samples to the lab and medicines from a robot phar
 | [**RackRider**](https://clayhill.github.io/darkstore/rackrider.html) | Climbing robots | Totes in tall racking | Robots that drive, climb the racking and present the tote at the station | Climbing blocks the aisle, the robot as the conveyor |
 | [**DeepLane**](https://clayhill.github.io/darkstore/deeplane.html) | Pallet shuttle AS/RS | Pallets in deep lanes, one SKU per lane | A carrier with a satellite per level, a lift per block | Last in, first out lanes, the lift as the bottleneck |
 | [**ZoneHop**](https://clayhill.github.io/darkstore/zonehop.html) | Pharmacy wholesale: A-frame and zone picking | Small boxes in A-frame channels, flow racks, carousels and shelving | Order totes on a conveyor loop, past the zones their order needs | A-frame refills, zone skipping, totes that miss their van |
-| [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Parcel sorter: robot sorter or tilt-tray loop | Parcels, sorted into bags | Small robots on a deck, or trays round a loop | Recirculation, chutes and bag changes, tray against robot |
+| [**SortHub**](https://clayhill.github.io/darkstore/sorthub.html) | Robot parcel sorter | Parcels, sorted into bags | Small robots on a raised deck tipping parcels through holes | One-way streets, overflow, robots against the other sorters |
+| [**TrayLoop**](https://clayhill.github.io/darkstore/trayloop.html) | Tilt-tray parcel sorter | Parcels, sorted into bags | Trays round a loop, tilting at the chute | Recirculation, chutes and bag changes |
+| [**ShoeLine**](https://clayhill.github.io/darkstore/shoeline.html) | Sliding shoe parcel sorter | Parcels, sorted into bags | Parcels on a line of slats, shoes pushing them off, a recirculation belt | The gap at the merge as the capacity, parcels going round |
 | [**FloorStack**](https://clayhill.github.io/darkstore/floorstack.html) | Multi-storey fulfilment: storage, picking and the dock on three floors | Totes in a shuttle store on the first floor | Totes up a spiral to the pick stations and back down, parcels down two floors to a sorter, roll cages to the trucks | The links between the floors as the bottleneck, spirals against lifts |
 | [**PocketFlow**](https://clayhill.github.io/darkstore/pocketflow.html) | Fashion e-commerce through an overhead pocket sorter | One item in each pocket, on storage rails | Pockets on a friction rail: storage rails, a two-pass matrix sequencer, pack stations where they open | Returns sold again from the pockets, pockets sent round to dig them out, the sequencer |
 | [**CaseCraft**](https://clayhill.github.io/darkstore/casecraft.html) | Mixed-case pallet DC: depalletising, case bots, palletising robots | Cases on shelves in a structure of 14 levels | Robot arms, bots on every level's deck and in its aisles, lifts that bring cases down in build order | The pallet planner (heavy at the bottom, nothing heavy on crisps), cases in sequence, how full a pallet gets |
@@ -65,7 +68,7 @@ pneumatic tube system carries samples to the lab and medicines from a robot phar
 
 The specs behind each system are in [`specs/`](specs/README.txt): `common.txt` holds the rules shared
 by every type, and `cube.txt`, `pod.txt`, `shuttle.txt`, `crane.txt`, `acr.txt`, `climb.txt`, `pallet.txt`, `amr.txt`,
-`pharma.txt`, `sort.txt`, `tower.txt`, `pocket.txt`, `case.txt`, `layer.txt`, `tube.txt` and `park.txt` describe the sixteen systems.
+`pharma.txt`, `hub.txt` (what the parcel sorters share), `sort.txt`, `tray.txt`, `shoe.txt`, `tower.txt`, `pocket.txt`, `case.txt`, `layer.txt`, `tube.txt` and `park.txt` describe the eighteen systems.
 
 ## Run
 
@@ -77,7 +80,7 @@ dependencies, so double-clicking the file works. Only the 3D view needs a networ
 three.js from a CDN the first time it is opened. `index.html` is the landing
 page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railrunner.html`,
 `skystack.html`, `stackpilot.html`, `rackrider.html`, `deeplane.html`, `aislemate.html`, `zonehop.html`,
-`sorthub.html`, `floorstack.html`, `pocketflow.html`, `casecraft.html`, `layerlift.html`, `airpost.html` and `robovalet.html`.
+`sorthub.html`, `trayloop.html`, `shoeline.html`, `floorstack.html`, `pocketflow.html`, `casecraft.html`, `layerlift.html`, `airpost.html` and `robovalet.html`.
 
 **In a simulation**
 
@@ -106,8 +109,8 @@ page; each simulation has its own page: `cubeflow.html`, `podswarm.html`, `railr
   its stock, the storage unit on its way to the station, the pick into the order tote, the tote on the
   conveyor, the pack bench, the labelled parcel and the truck, with a panel that says what is
   happening and how far the order is; then it moves on to the next order. **Follow in 3D** on any
-  order starts it with that order. In SortHub it follows a parcel from the feed belt through the
-  induct, on a tray or a robot, into its chute.
+  order starts it with that order. In the parcel sorters it follows a parcel from the feed belt
+  through the induct, on a robot, a tray or the slats, into its chute.
   **N** picks the next robot, station or order; any drag, scroll or key gives the camera back. Up close the
   machines behave like real ones: status lights fade between states and breathe while a robot waits,
   a crane's mast sways after braking (the forks wait for it to settle), PodSwarm pods rock when their
@@ -207,7 +210,7 @@ decaying pick velocity, and ABC classes (top 20 % / next 30 % / rest). Each syst
 storage policy, but all of them put fast movers in their fastest positions by default; *nearest* and
 *random* policies are there to compare.
 
-**Robot traffic** (CubeFlow, PodSwarm, StackPilot, AisleMate, SortHub's robot sorter). Routing is direction-aware A* (turns cost time).
+**Robot traffic** (CubeFlow, PodSwarm, StackPilot, AisleMate, SortHub). Routing is direction-aware A* (turns cost time).
 Traffic control uses moving-block cell reservations: a robot may only enter cells it has claimed, and
 it always claims its braking distance ahead, so only one robot can occupy a cell at a time. To resolve
 conflicts and deadlocks, a robot that waits too long re-routes around stopped robots, idle robots are
@@ -231,7 +234,7 @@ Friday), break down a robot or machine, take a charger out of service or send an
 break; random breakdowns are a rate per hour. A broken robot stands where it stopped until it is
 repaired (10 minutes), with its light flashing red and a technician in a red vest at work beside it,
 and the others route round it or wait behind it;
-a broken crane or lift takes its aisle out, and on the tilt-tray loop the whole sorter stops. A
+a broken crane or lift takes its aisle out, and on TrayLoop and ShoeLine the whole sorter stops. A
 station whose operator is on a break turns its stack light red, shows it on its screen and gets no
 new orders. The control room lists each disruption with the time left, shades a surge on the
 throughput chart and marks the others along its bottom, and the time split shows the machines that
@@ -644,21 +647,23 @@ the carousel zone is skipped by 60 % of the totes, about 15 % of the totes go ro
 more, and no order misses its van. The tote cam rides an order tote from order start to its lane;
 Follow an order follows its window on the A-frame, its totes, the merge and its van.
 
-### SortHub — parcel sorter
+### SortHub, TrayLoop and ShoeLine — parcel sorting
 
 ![SortHub: small robots on a raised deck carrying parcels from the inducts and tipping them through holes into the bags below](docs/screenshots/sort-robots.png)
 
 | | |
 |---|---|
-| ![The tilt-tray loop: inducts, trays carrying parcels and chutes with bags along both sides](docs/screenshots/sort-tray.png) | ![SortHub control room: sort rate, overflow, rejects, bags, robot utilization and the induct cards](docs/screenshots/sort-control.png) |
-| **Tilt-tray loop**, the other sorter: trays tip parcels into the chutes along both sides | **Control room:** sort and induct rates, overflow, rejects, bags and the inducts |
+| ![TrayLoop: inducts, trays carrying parcels and chutes with bags along both sides](docs/screenshots/sort-tray.png) | ![SortHub control room: sort rate, overflow, rejects, bags, robot utilization and the induct cards](docs/screenshots/sort-control.png) |
+| **TrayLoop:** trays tip parcels into the chutes along both sides | **Control room:** sort and induct rates, overflow, rejects, bags and the inducts |
+| ![ShoeLine in 3D: the induct belts fanning in to the merge, the straight line of slats with chutes on both sides, the recirculation belt round the back](docs/screenshots/shoe-3d.png) | ![ShoeLine close up: green shoes gliding diagonally across the slats under a parcel, pushing it off onto its chute's slide](docs/screenshots/shoe-divert.png) |
+| **ShoeLine:** a straight line of slats, chutes on both sides | **The shoes** glide across under a parcel and push it off |
 | ![The robot sorter in 3D: the deck with its holes, the robots and the induct platforms](docs/screenshots/sort-robots-3d.png) | ![The tilt-tray loop in 3D](docs/screenshots/sort-tray-3d.png) |
-| **3D:** the robot deck, the bags hanging below it | **3D:** the tilt-tray loop, its chutes and bags |
+| **3D:** SortHub's robot deck, the bags hanging below it | **3D:** TrayLoop, its chutes and bags |
 
-SortHub is a parcel hub rather than a store: there is no stock and no order flow, only a stream of
-parcels to sort. Its side panel has its own tabs: chutes with their bags, the parcel stream with its
-destinations, and the settings. The sorter is a setting (the robot sorter by default), so both
-kinds can be compared on the same stream.
+Three parcel sorters, each a simulation of its own, on the same parcel stream with the same inducts,
+chutes and bags: with the same settings and seed their figures compare directly. A parcel hub rather
+than a store, there is no stock and no order flow, only a stream of parcels to sort. The side panel
+has its own tabs: chutes with their bags, the parcel stream with its destinations, and the settings.
 
 **Parcels.** 3600 parcels per hour arrive, each for one of 28 destinations; a few destinations take
 most of the volume. At each of 4 inducts an operator scans a parcel (2.4 s) and puts it on the
@@ -668,26 +673,37 @@ sorter, scanning the next one meanwhile. 2 % of labels cannot be read and go to 
 chute. Every chute ends in a bag of 30 parcels; 2 bag workers walk to full bags and change them
 (25 s). While a bag is full or being changed, its chute takes nothing.
 
-**Tilt-tray loop.** Trays 1 m apart run round at 2 m/s. An induct puts its parcel on the next empty
-tray; at a chute of the parcel's destination with room the tray tilts and the parcel slides in.
-With its chutes full the parcel goes round again, and after 3 laps to the reject chute.
+**SortHub, the robot sorter.** 45 small robots on a raised deck, a hole above each chute's bag. A
+robot queues at an induct, takes the parcel and drives to the nearest chute of its destination with
+room, where it tips the parcel in; with all of them full the parcel goes to the overflow (reject)
+chute. The deck has one-way streets between the holes, robots never stop inside a crossing, inducts
+are pass-throughs onto a northbound street, and robots with nothing to do park along the back, next
+to the chargers. Without those rules the fleet locked itself up within an hour or two; with them it
+runs at any load. Up to about 70 robots fit the default deck; 45 manage about 3800 parcels an hour.
 
-**Robot sorter.** 45 small robots on a raised deck, a hole above each chute's bag. A robot queues at
-an induct, takes the parcel and drives to the nearest chute of its destination with room, where it
-tips the parcel in; with all of them full the parcel goes to the overflow (reject) chute. The deck
-has one-way streets between the holes, robots never stop inside a crossing, inducts are
-pass-throughs onto a northbound street, and robots with nothing to do park along the back, next to
-the chargers. Without those rules the fleet locked itself up within an hour or two; with them it
-runs at any load. Up to about 70 robots fit the default deck.
+**TrayLoop, the tilt-tray loop.** Trays 1 m apart run round at 2 m/s. An induct puts its parcel on
+the next empty tray; at a chute of the parcel's destination with room the tray tilts and the parcel
+slides in. With its chutes full the parcel goes round again, and after 3 laps to the reject chute.
+The control room shows the trays where the other systems show their fleet: a chart of trays
+carrying, going round again, heading for the reject chute and empty, the loaded trays in the table,
+and every tray on the map. One tray a metre at 2 m/s makes about 7000 parcels an hour.
 
-**KPIs.** Sort and induct rates, parcels waiting to be inducted, recirculation (tray) or overflow
-(robots), rejects, bags changed and full chutes, induct utilization, and tray occupancy or the
-robots' time split. With the tilt-tray loop the control room shows the trays where the other systems
-show their fleet: a chart of trays carrying, going round again, heading for the reject chute and
-empty, the loaded trays in the table, and every tray on the map. With the defaults both sorters keep up with 3600 parcels per hour; the
-tilt-tray recirculates about 2–3 % of parcels, and the robot sorter keeps up with 45 robots
-spending about a third of their time waiting at the inducts. Above that, two bag workers become the
-limit for both.
+**ShoeLine, the sliding shoe sorter.** A straight line of slats at 2 m/s with a chute every 1.6 m on
+both sides. Each induct has a belt of its own to the merge, where a gapper lets one parcel at a time
+onto the line once the last is 35 cm ahead, parcels coming round first. At a chute of its
+destination with room the shoes under a parcel glide diagonally across the slats and push it off. A
+parcel that reaches the end goes round on the recirculation belt, and after 3 laps into the reject
+chute straight ahead; with neither free the line stops. Its capacity is the speed over each
+parcel's length plus the gap: about 7000 parcels an hour, 8200 with a 20 cm gap or 2.5 m/s. (A first
+version put every induct on one shared infeed belt: each had to wait for a window long enough for
+its parcel, and the belt topped out at 4500 an hour.)
+
+**KPIs.** Sort and induct rates, parcels waiting to be inducted, recirculation or overflow, rejects,
+bags changed and full chutes, induct utilization, and the sorter's own: the robots' time split,
+trays loaded, or how full the line is and the merge's load against what the gaps allow. With the
+defaults all three keep up with 3600 parcels an hour; above that two bag workers become the limit,
+and with more of them each sorter's own capacity. Follow a parcel follows one from the feed belt
+into its chute.
 
 ### FloorStack — multi-storey fulfilment
 
@@ -933,7 +949,7 @@ car down now, and Follow a car follows one in or out.
 ```
 index.html, css/landing.css, js/landing/   landing page and simulation previews
 cubeflow.html, podswarm.html, railrunner.html, skystack.html, stackpilot.html, deeplane.html,
-aislemate.html, zonehop.html, sorthub.html, floorstack.html, pocketflow.html, casecraft.html,
+aislemate.html, zonehop.html, sorthub.html, trayloop.html, shoeline.html, floorstack.html, pocketflow.html, casecraft.html,
 layerlift.html, airpost.html, robovalet.html
             one line each: js/boot.js builds the shared page for that type and
             loads its scripts; css/style.css styles it
@@ -967,8 +983,13 @@ js/pallet/  DeepLane: config, sim (lanes, carriers and satellites on RailRunner'
 js/amr/     AisleMate: config, floor, sim (batches, routes, stops, pickers), render, ui
 js/zone/    ZoneHop: config, sim (orders with routes, A-frame,
             zones, RF, merge, closing line, sorter, vans, tote return), render, render3d, ui
-js/sort/    SortHub: config, sim (parcels, inducts, chutes, tray loop, robot deck, bag workers),
-            render, render3d, ui (its own tiles, tabs and settings)
+js/hub/     what the parcel sorters share: config, sim (the parcel stream, destinations, inducts,
+            chutes and bags, bag workers), render and render3d (bags, falling parcels, labels,
+            following a parcel), ui (tiles, Chutes and Parcels tabs, inspectors)
+js/sort/    SortHub: config, sim (the robot deck, its one-way streets, robots), render, render3d, ui
+js/tray/    TrayLoop: config, sim (the loop and its trays), render, render3d, ui
+js/shoe/    ShoeLine: config, sim (induct belts, the merge and its gapper, the line, shoes,
+            recirculation), render, render3d (slats with their shoes), ui
 js/tower/   FloorStack: config, building (where everything stands on the three floors), sim
             (belts and links between the floors on RailRunner's store, routing, tote lifts),
             docks (parcel spiral, sorter, roll cages, trucks, suppliers' pallets), people
@@ -995,11 +1016,11 @@ js/park/    RoboValet: config, sim (the building, cabins, robots and lifts on th
             drivers, the day's demand, bay policies), render (a placeholder: 3D only), render3d
             (the car park, cars, robots, lifts, drivers, the street), ui (tiles, Cars and
             Levels tabs, car, bay and cabin inspectors)
-test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tower|pocket|case|layer|tube|park] [settings JSON]
+test/run.js headless soak test with invariant checks:  node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|climb|pallet|amr|zone|sort|tray|shoe|tower|pocket|case|layer|tube|park] [settings JSON]
 test/golden.js  regression check (npm test): runs every type for 2 h, seed 7, plus a few
             non-default settings (nearest putaway, robot arm stations, automated decanting,
             packing machines, no tunnelling, one-tote crane handler,
-            one-way aisles, no picker zones, robot sorter, small pallets, transport robots, lifts between
+            one-way aisles, no picker zones, a busier shoe sorter, small pallets, transport robots, lifts between
             FloorStack's floors, cars parked by stay, a pocket sorter without returns, store pallets built by store aisle, layer picking with one gantry, a tube system whose staff send empties home), and compares a fingerprint of stock, fleet, orders and KPIs
             with test/golden/<run>.txt
 ```
@@ -1011,7 +1032,7 @@ golden files with `node test/golden.js --update`, and the diff of those files go
 
 DarkStore is a simulation and teaching tool. It is not control software for real robots or storage
 systems, and it must not be used as such. It is inspired by cube-storage, pod-robot, shuttle, stacker
-crane, case-handling robot and pocket sorter systems, automated car parks and hospital tube systems in general and is not affiliated with, endorsed by or derived
+crane, case-handling robot, pocket, tilt-tray and shoe sorter systems, automated car parks and hospital tube systems in general and is not affiliated with, endorsed by or derived
 from any vendor of such systems. All company names, addresses, products and barcodes in the
 simulation are fictional.
 

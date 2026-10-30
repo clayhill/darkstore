@@ -1,0 +1,38 @@
+DarkStore - tilt-tray parcel sorter
+===================================
+
+Read hub.txt first: the parcels, inducts, chutes and bags are those of
+every parcel sorter. Implemented as TrayLoop (trayloop.html, js/tray/).
+
+1. Overview
+
+Trays on a chain run round a loop past the chutes; at the right chute a
+tray tilts and the parcel slides off.
+
+2. Layout
+
+The loop is two straights joined by half circles; chutes on the outside of
+both straights, the inducts at the start of the top one, fed by a belt from
+the inbound dock.
+
+3. Equipment
+
+Trays 1 m apart at 2 m/s. An induct loads the next empty tray passing it.
+
+4. Sorting
+
+A tray passing one of its parcel's chutes tips it in if the bag has room.
+Otherwise the parcel goes round again (recirculation); after three laps it
+goes to the reject chute. A breakdown stops the whole loop.
+
+5. Output
+
+As hub.txt. The control room's fleet chart, table and map show the trays:
+carrying, going round again, to the reject chute, or empty.
+
+6. Parameters
+
+2 m/s, trays 1 m apart, 3 laps before reject.
+
+With the defaults about 2–3 % of parcels go round again. Its capacity is
+one tray per metre of loop at its speed: about 7000 parcels an hour.

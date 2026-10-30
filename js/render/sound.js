@@ -164,8 +164,8 @@
           if (now.lines[k] > was.lines[k]) ev('beep', p, 0.8);
         });
         if (sim.oms) sim.oms.packers.forEach((pk, k) => { if (now.packed[k] > was.packed[k]) ev(pk.kind === 'manual' ? 'tape' : 'clunk', L2.packerPos(pk.idx), 0.8); });
-        // a tilt-tray tipping a parcel into its chute
-        if (sim.tray) sim.chutes.forEach((ch, k) => { if (now.sorted[k] > was.sorted[k]) ev('slide', ch, 0.8); });
+        // a sorter's tray tipping or shoes pushing a parcel into its chute
+        if (sim.chuteSounds) sim.chutes.forEach((ch, k) => { if (now.sorted[k] > was.sorted[k]) ev('slide', ch, 0.8); });
         // a type's own events since the last frame (ZoneHop: the A-frame's ejectors, a window tipping)
         if (sim.soundEvents && dtSim > 0) for (const e of sim.soundEvents(sim.time - dtSim, sim.time)) ev(e.kind, e.p, e.w);
       }
@@ -174,7 +174,7 @@
       for (const e of events) { if (this.tokens < 1) break; this.tokens -= 1; this.play(e.kind, Math.min(1, e.v), e.pan); }
       // continuous voices
       let conv = sim.oms ? sim.oms.conveyor.reduce((s, it) => s + (it.queued ? 0 : near(sim.oms.posOnPath(it)).g), 0) : 0;
-      if (sim.tray && dtSim > 0) { const g = sim.grid; conv += 3 * near({ x: (g.X0 + g.X1) / 2, y: (g.Yt + g.Yb) / 2 }).g; } // the tray chain never stops
+      if (sim.soundLoop && dtSim > 0 && !sim.loopStopped) conv += 3 * near(sim.soundLoop).g; // a sorter's tray chain or slats never stop
       if (sim.net) for (const b of sim.net.belts) for (const it of b.totes) if (it.moving) conv += near(it).g; // ZoneHop's belts
       const level = Math.tanh(move / 3), avg = move > 0 ? speedSum / move : 0;
       const k = 0.15;

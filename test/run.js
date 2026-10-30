@@ -1,4 +1,4 @@
-// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|pallet|climb|zone|tower|park|pocket|case|layer] [settings as JSON]
+// Headless simulation test: node test/run.js [hours] [seed] [cube|pod|shuttle|crane|acr|amr|sort|tray|shoe|pallet|climb|zone|tower|park|pocket|case|layer|tube] [settings as JSON]
 const WS = require('./load');
 const hours = +(process.argv[2] || 1), seed = +(process.argv[3] || 7), kind = process.argv[4] || 'cube';
 const sim = new WS.SIMS[kind](Object.assign({ seed }, JSON.parse(process.argv[5] || '{}')));
@@ -13,7 +13,7 @@ function check() {
     seen.set(i, r.id);
     for (const c of r.claims) if (g.claim[c] !== r.id) throw new Error(`${r.name} claim set mismatch`);
   }
-  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'layer') return checkLayers(); if (kind === 'tube') return checkTubes(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (kind === 'sort') return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
+  if (kind === 'park') return checkPark(); if (kind === 'pocket') return checkPockets(); if (kind === 'case') return checkCases(); if (kind === 'layer') return checkLayers(); if (kind === 'tube') return checkTubes(); if (kind === 'pod') checkPods(); else if (kind === 'amr') checkShelves(); else if (sim.parcelHub) return checkSorter(); else if (kind === 'zone') checkZone(); else if (kind === 'tower') checkTower(); else if (kind === 'shuttle' || kind === 'crane' || kind === 'acr' || kind === 'pallet' || kind === 'climb') checkRacking(); else checkStacks();
   for (const p of sim.inv.products) {
     let oh = 0, res = 0;
     for (const b of sim.inv.bins) for (const c of b.comps) if (c.gtin === p.gtin) { oh += c.qty; res += c.reserved; if (c.qty < 0 || c.reserved < 0) throw new Error('negative comp ' + b.id); }
@@ -132,11 +132,21 @@ function checkPods() {
 // bag holds more than it can
 function checkSorter() {
   const ind = sim.ports.reduce((n, p) => n + p.queue.length + (p.cur ? 1 : 0) + (p.ready ? 1 : 0), 0);
-  const moving = sim.trays.filter((t) => t.parcel).length + sim.fleet.filter((r) => r.parcel).length;
+  const moving = sim.onSorter();
   const n = sim.backlog.length + ind + moving + sim.stats.sorted;
   if (n !== sim.stats.arrived) throw new Error(`t=${sim.time.toFixed(1)} parcels: ${n} accounted for, ${sim.stats.arrived} arrived`);
   for (const ch of sim.chutes) if (ch.count > sim.cfg.bagCapacity) throw new Error(`${ch.name} holds ${ch.count}`);
   for (const r of sim.fleet.filter((x) => x.claims)) if (g.claim[g.idx(r.x, r.y)] !== r.id) throw new Error(`${r.name} cell not claimed`);
+  if (kind !== 'shoe') return;
+  // ShoeLine: every parcel in one place; on the slats front first, the gapper's gap kept, none past the end
+  const seen = new Set(), put = (p, w) => { if (seen.has(p)) throw new Error(`t=${sim.time.toFixed(1)} parcel ${p.id} twice (${w})`); seen.add(p); };
+  for (const p of sim.ports) for (const x of [...p.queue, p.cur, p.ready]) if (x) put(x, p.code);
+  for (const q of [...sim.feeds, sim.ret]) q.items.forEach((it, k) => { put(it.p, q.name); if (k && q.items[k - 1].s - it.s < (q.items[k - 1].len + it.len) / 2 + q.gap - 1e-6) throw new Error(`${q.name}: parcels too close`); });
+  sim.line.forEach((it, k) => {
+    put(it.p, 'line');
+    if (it.s > sim.Ls + 1e-6) throw new Error(`t=${sim.time.toFixed(1)} parcel ${it.p.id} past the end of the line`);
+    if (k) { const a = sim.line[k - 1]; if (a.s < it.s) throw new Error('line out of order'); if (a.s - a.len / 2 - (it.s + it.len / 2) < sim.cfg.gap - 1e-6) throw new Error(`t=${sim.time.toFixed(1)} parcels ${a.p.id} and ${it.p.id} closer than the gap`); }
+  });
 }
 // ZoneHop: every tote in exactly one place (the de-stacker's stack, a belt,
 // the merge, an RF picker's cart, a van or the return dock); totes on a belt

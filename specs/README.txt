@@ -23,8 +23,15 @@ output) are written down once, in common.txt.
                 (implemented as RackRider)
   pallet.txt    pallet shuttle store: deep lanes, a carrier with a satellite
                 per level, lifts (implemented as DeepLane)
-  sort.txt      parcel sorter: a tilt-tray loop or a robot sorter sorting a
-                parcel stream into chutes (no stock; implemented as SortHub)
+  hub.txt       parcel sorting: the parcel stream, inducts, chutes and bags
+                the three sorters below share (no stock)
+  sort.txt      robot parcel sorter: robots on a raised deck tip parcels
+                into chutes (implemented as SortHub)
+  tray.txt      tilt-tray parcel sorter: trays round a loop tilt at the
+                chute (implemented as TrayLoop)
+  shoe.txt      sliding shoe parcel sorter: a gapper, a straight line of
+                slats whose shoes push parcels off, recirculation
+                (implemented as ShoeLine)
   pharma.txt    pharmacy wholesale: order totes travel past an A-frame and
                 picking zones to a closing line and route lanes (not
                 goods-to-person; implemented as ZoneHop)

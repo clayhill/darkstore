@@ -1,60 +1,34 @@
-DarkStore - parcel sorter
-=========================
+DarkStore - robot parcel sorter
+===============================
 
-Read common.txt first, but note: a sorter has no stock and no orders. Of
-common.txt only the time model, the control room and the barcodes apply.
+Read hub.txt first: the parcels, inducts, chutes and bags are those of
+every parcel sorter. Implemented as SortHub (sorthub.html, js/sort/).
 
 1. Overview
 
-A parcel hub. Parcels arrive in a stream (from trucks, or from the packing
-stations of a fulfilment centre), each labelled for one destination: a
-route, a postcode area, a carrier depot. Operators at induction stations
-scan each parcel and put it on the sorter, which drops it into the chute
-for its destination. Every chute ends in a bag or cage; people change full
-bags. Labels the scanner cannot read go to a reject chute, where someone
-handles them by hand.
-
-Two kinds of sorter, compared on the same parcel stream:
-- Tilt-tray loop: trays on a chain run round a loop past the chutes; at the
-  right chute a tray tilts and the parcel slides off.
-- Robot sorter: small robots on a raised deck each carry one parcel from an
-  induct to a hole above its chute's bag and tip it in.
+Small robots on a raised deck each carry one parcel from an induct to a
+hole above its chute's bag and tip it in.
 
 2. Layout
 
-- Destinations: a list with a share of the volume each; a few take most of
-  it (falling off with rank).
-- Chutes: one per destination, a second (third, ...) for the busiest ones,
-  and the last one for rejects.
-- Tilt-tray: the loop is two straights joined by half circles; chutes on the
-  outside of both straights, the inducts at the start of the top one, fed
-  by a belt from the inbound dock.
-- Robot sorter: a deck of cells with a hole every third cell in both
-  directions, the induct lanes along the front, chargers and parking along
-  the back. Bags hang under the holes.
+A deck of cells (0.75 m) with a hole every third cell in both directions,
+the induct lanes along the front, chargers and parking along the back.
+Bags hang under the holes.
 
 3. Equipment
 
-- Induct: an operator takes a parcel off the feed belt and scans it (2.4 s),
-  scans the next while the sorter takes the last one.
-- Tilt-tray: trays 1 m apart at 2 m/s. An induct loads the next empty tray.
-- Robots: about 0.6 m square, 2 m/s, quick to accelerate and turn, a tilt
-  tray on top (0.8 s to tip), battery with charging.
-- Bag workers walk to a full bag and change it (25 s).
+Robots: about 0.6 m square, 2 m/s, quick to accelerate and turn, a tilt
+tray on top (0.8 s to tip), battery with charging.
 
 4. Sorting
 
-Tilt-tray: a tray passing one of its parcel's chutes tips it in if the bag
-has room. Otherwise the parcel goes round again (recirculation); after
-three laps it goes to the reject chute.
+A robot queues at an induct, takes the parcel, and drives to the nearest
+chute of its destination with room. With every one of them full the parcel
+goes to the overflow (reject) chute. A chute that fills up while the robot
+is on its way is chosen again on arrival; with nowhere to go at all the
+robot waits in the parking row.
 
-Robot sorter: a robot queues at an induct, takes the parcel, and drives to
-the nearest chute of its destination with room. With every one of them
-full the parcel goes to the overflow (reject) chute. A chute that fills up
-while the robot is on its way is chosen again on arrival; with nowhere to
-go at all the robot waits in the parking row.
-
-5. Traffic (robot sorter)
+5. Traffic
 
 - One-way streets between the holes: of the two rows between hole rows one
   runs east and one west, of the two columns between hole columns one runs
@@ -66,24 +40,15 @@ go at all the robot waits in the parking row.
   an induct than its lane holds and a few on their way; robots with nothing
   to do park along the back.
 
-6. Policy
+6. Output
 
-Arriving parcels go to the induct with the shortest feed. A destination's
-parcels go to its chute nearest the robot (robot sorter) or the first of
-its chutes the tray passes with room (tilt-tray).
+As hub.txt, with overflow instead of recirculation, and the robots' time
+split and battery.
 
-7. Output
+7. Parameters
 
-- Sort rate and induction rate per hour, parcels waiting to be inducted.
-- Recirculation (tilt-tray) or overflow (robots), rejects and no-reads.
-- Bags changed, chutes full now, bag workers' utilization.
-- Tray occupancy, or the robots' time split and battery. With the tilt-tray
-  loop the control room's fleet chart, table and map show the trays: carrying,
-  going round again, to the reject chute, or empty.
+45 robots, 2 m/s, 2 m/s² acceleration, 0.35 s to turn, 10 chargers. The
+default deck takes up to about 70 robots; more crowd the streets.
 
-8. Parameters
-
-- 3600 parcels/h, 28 destinations, 36 chutes, 4 inducts, 2 % no-reads.
-- Bags of 30 parcels, 2 bag workers, 25 s per change.
-- Tilt-tray: 2 m/s, trays 1 m apart, 3 laps before reject.
-- Robots: 45, 2 m/s, 2 m/s² acceleration, 0.35 s to turn, 10 chargers.
+With the defaults it keeps up with the 3600 parcels an hour; 45 robots
+manage about 3800 an hour, however many parcels come.

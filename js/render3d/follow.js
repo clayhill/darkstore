@@ -4,8 +4,9 @@
  * unit on its way to the station, the pick into the order tote, the tote on
  * the conveyor to packing, the pack bench, the labelled parcel on its way to
  * the dock and the truck. A panel says what is happening and how far the
- * order is. In SortHub the camera follows a parcel instead: from the feed
- * belt through the induct, on a tray or a robot, into its chute.
+ * order is. In the parcel sorters the camera follows a parcel instead: from
+ * the feed belt through the induct and the sorter into its chute (the
+ * sorter's view says where it is: parcelFocus, js/hub/render3d.js).
  * When the order ships (the parcel is sorted) the camera moves on to the
  * next one. A type can follow its own way (ZoneHop: the A-frame window,
  * the totes, the merge, the van) with orderFocus and followSteps.
@@ -18,10 +19,10 @@
 
   // ---------------------------------------------------------------- what to follow
   // An order just released (so the whole journey is still ahead), else the
-  // newest one waiting; in SortHub a parcel about to be inducted.
+  // newest one waiting; in a parcel sorter a parcel about to be inducted.
   V.pickFollow = function (not) {
     const sim = this.sim;
-    if (sim.kind === 'sort') {
+    if (sim.parcelHub) {
       const ps = sim.ports.map((p) => p.queue[0]).filter((x) => x && x !== not);
       return ps.length ? { parcel: ps[Math.floor(Math.random() * ps.length)] } : null;
     }
@@ -126,28 +127,6 @@
     }
     const d = L.dock();
     return at({ x: d.x, y: d.y }, 2, o.status, step);
-  };
-  // SortHub: a parcel on the feed belt, at an induct, on a tray or a robot, in its chute
-  V.parcelFocus = function (pc) {
-    const sim = this.sim, g = sim.grid, tray = sim.tray, TZ = 2.4, PZ = 3.6;
-    const dest = pc.target === sim.reject ? 'the reject chute' : pc.dest.name;
-    for (const p of sim.ports) {
-      const k = p.queue.indexOf(pc);
-      if (k < 0 && p.cur !== pc && p.ready !== pc) continue;
-      const x = tray ? p.slot.x : p.drop.x + 0.5, y = tray ? (k >= 0 ? 1.4 + Math.min(k, 3) * 0.62 : g.Yt - 1) : g.D + (k >= 0 ? 0.7 + Math.min(k, 3) * 0.6 : 0.3);
-      const text = k >= 0 ? `On the feed belt of ${p.name}, ${k ? k + ' ahead of it' : 'next in line'}` : p.cur === pc ? `${p.name}: the operator scans the label${pc.noRead ? ' — it cannot be read' : ''}` : `${p.name}: ready for the sorter`;
-      return { x, y, z: tray ? TZ : PZ, text, step: k >= 0 ? 0 : 1 };
-    }
-    if (tray) {
-      const tr = sim.trays.find((t) => t.parcel === pc);
-      if (tr) { const q = sim.trayAt(tr, 1); return { x: q.x, y: q.y, z: TZ, text: `On tray ${tr.id + 1} to ${dest}${pc.laps ? ` · lap ${pc.laps + 1}: its chute was full` : ''}`, step: 2 }; }
-    } else {
-      const r = sim.fleet.find((m) => m.parcel === pc);
-      if (r) { const p = this.followPos(r.id, 1); if (p) return Object.assign(p, { text: `${r.name} carries it to ${dest}${r.state === 'HANDLING' ? ' and tips it in' : ''}`, step: 2 }); }
-    }
-    const d = sim.drops.find((x) => x.parcel === pc);
-    if (d) return { x: d.to.x, y: d.to.y, z: tray ? 1.5 : PZ - 1.5, text: `Sorted into ${d.chute.name} for ${d.chute === sim.reject ? 'reject' : pc.dest.name}`, step: 3, done: true };
-    return { x: g.W / 2, y: g.D / 2, z: 1, text: 'Waiting at the inbound dock', step: 0 };
   };
 
   // ---------------------------------------------------------------- camera

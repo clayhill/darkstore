@@ -1,0 +1,61 @@
+DarkStore - sliding shoe parcel sorter
+======================================
+
+Read hub.txt first: the parcels, inducts, chutes and bags are those of
+every parcel sorter. Implemented as ShoeLine (shoeline.html, js/shoe/).
+
+1. Overview
+
+A straight line of slats, each with a shoe that can glide across it. At a
+chute of its destination the shoes under a parcel glide diagonally across
+the slats one after the other and push it off onto the chute's slide. The
+most common high-speed sorter in parcel and e-commerce hubs.
+
+Inspired by sliding shoe sorters in general (Vanderlande, Intelligrated,
+Dematic, Interroll and others); not any one product.
+
+2. Layout
+
+Positions in metres: x along the line, y across it.
+
+- The inducts north of the line before its start, each with a belt of its
+  own that runs down to the merge.
+- The line: from the merge, after a short run-in, a chute every 1.6 m on
+  both sides; at its end the reject chute straight ahead.
+- The recirculation belt from the end of the line back round behind the
+  south chutes to the merge.
+- Bag workers' aisles along both sides, joined round the far end.
+
+3. Equipment
+
+- Slats at 2 m/s; the shoes take 0.45 s to push a parcel across.
+- Parcels 0.3–0.75 m long.
+- Induct belts and the recirculation belt 1.5 m/s, accumulating.
+
+4. Sorting
+
+The merge (a gapper) lets one parcel at a time onto the sorter when the
+last one is at least the gap (0.35 m) ahead of it: one coming round on the
+recirculation belt first, else the one that has waited longest at the end
+of an induct belt. A parcel crossing a chute of its destination with room
+is pushed off. One that reaches the end of the line goes onto the
+recirculation belt (a lap); after three laps, or with no room on that
+belt, it goes into the reject chute straight ahead. With the reject bag
+full a reject goes round too; if neither can take it the line stops until
+one can. A breakdown stops the line.
+
+5. Output
+
+As hub.txt, and: how much of the line the parcels and their gaps take up,
+the merge's load against the capacity the gaps allow, parcels going round,
+time the line stood still.
+
+6. Parameters
+
+2 m/s, gap 0.35 m, chutes 1.6 m apart, 0.45 s to push off, 3 laps before
+reject.
+
+Its capacity is the speed over each parcel's length plus the gap: with
+the defaults about 8200 parcels an hour in theory, and about 7000 in
+practice, as the merge waits for a gap. A gap of 0.2 m or 2.5 m/s gives
+about 8200–8400. With the defaults 3–5 % of parcels go round again.

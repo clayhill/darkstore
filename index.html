@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DarkStore — Warehouse Automation Simulator</title>
-  <meta name="description" content="DarkStore simulates warehouse automation in the browser: goods-to-person storage, robots alongside pickers, pharmacy order picking and parcel sorters. Pick a system and watch robots, operators and orders move through it.">
+  <meta name="description" content="DarkStore simulates warehouse automation in the browser: goods-to-person storage, robots alongside pickers, pharmacy order picking, parcel sorters and more. Pick a system and watch robots, operators and orders move through it.">
   <link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
@@ -103,7 +103,7 @@
     </section>
     <section class="sims" aria-labelledby="flow-title">
       <h2 id="flow-title"><span class="idx">//</span> Order flow</h2>
-      <p class="sub">Conveyors, sorters and whole buildings, where the order moves through.</p>
+      <p class="sub">Conveyors, pockets and whole buildings, where the order moves through.</p>
       <div class="cards">
         <a class="card" href="zonehop.html">
           <div class="preview"><canvas data-preview="zone" role="img" aria-label="Animated preview: an A-frame dropping boxes into windows on its belt, which tip into order totes on a conveyor; the totes ride on to a pick-to-light rack where an operator picks into them"></canvas></div>
@@ -111,14 +111,6 @@
             <p class="type">Pharmacy wholesale</p>
             <h3>ZoneHop</h3>
             <p class="desc">Pharmacy order totes collect fast movers under an A-frame, then visit only the zones they need.</p>
-          </div>
-        </a>
-        <a class="card" href="sorthub.html">
-          <div class="preview"><canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas></div>
-          <div class="body">
-            <p class="type">Parcel sorter</p>
-            <h3>SortHub</h3>
-            <p class="desc">Small robots carry each parcel to the chute for its destination. Or try a tilt-tray loop.</p>
           </div>
         </a>
         <a class="card" href="floorstack.html">
@@ -135,6 +127,36 @@
             <p class="type">Fashion pocket sorter</p>
             <h3>PocketFlow</h3>
             <p class="desc">Every item rides alone in a pocket overhead; returns wait there for the next order, a sequencer drops each order in turn.</p>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="sims" aria-labelledby="parcel-title">
+      <h2 id="parcel-title"><span class="idx">//</span> Parcel sorting</h2>
+      <p class="sub">Three sorters on the same stream of parcels, the same inducts and chutes.</p>
+      <div class="cards">
+        <a class="card" href="sorthub.html">
+          <div class="preview"><canvas data-preview="sort" role="img" aria-label="Animated preview: small robots on a raised deck carrying parcels from the inducts to chute holes and tipping them into the bags below"></canvas></div>
+          <div class="body">
+            <p class="type">Robot sorter</p>
+            <h3>SortHub</h3>
+            <p class="desc">Small robots carry each parcel across a deck to the hole above its chute.</p>
+          </div>
+        </a>
+        <a class="card" href="trayloop.html">
+          <div class="preview"><canvas data-preview="tray" role="img" aria-label="Animated preview: a loop of trays running past chutes on both sides; a tray takes a parcel at the induct and tilts to drop it into its chute"></canvas></div>
+          <div class="body">
+            <p class="type">Tilt-tray sorter</p>
+            <h3>TrayLoop</h3>
+            <p class="desc">Trays run round a loop and tilt to drop each parcel into its chute; a full chute sends it round again.</p>
+          </div>
+        </a>
+        <a class="card" href="shoeline.html">
+          <div class="preview"><canvas data-preview="shoe" role="img" aria-label="Animated preview: parcels with gaps between them on a straight line of slats; at a chute a row of green shoes glides across under a parcel and pushes it off"></canvas></div>
+          <div class="body">
+            <p class="type">Sliding shoe sorter</p>
+            <h3>ShoeLine</h3>
+            <p class="desc">Parcels ride a straight line of slats; shoes glide across under each one and push it off into its chute.</p>
           </div>
         </a>
       </div>

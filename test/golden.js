@@ -15,7 +15,7 @@ const RUNS = {
   shuttle: ['shuttle', {}], 'shuttle-decant': ['shuttle', { autoDecant: 1 }], 'shuttle-robots': ['shuttle', { transport: 'robots' }],
   crane: ['crane', {}], 'crane-single': ['crane', { handlerSlots: 1 }], 'crane-robots': ['crane', { transport: 'robots' }],
   acr: ['acr', {}], 'acr-oneway': ['acr', { aisleMode: 'oneway' }],
-  sort: ['sort', {}], 'sort-tray': ['sort', { mechanism: 'tray' }],
+  sort: ['sort', {}], tray: ['tray', {}], shoe: ['shoe', {}], 'shoe-busy': ['shoe', { parcelRate: 7000, inducts: 8, bagWorkers: 5 }],
   amr: ['amr', {}], 'amr-nozones': ['amr', { zonePicking: 'off' }],
   climb: ['climb', {}],
   pallet: ['pallet', {}], 'pallet-small': ['pallet', { palletVolume: 25 }],

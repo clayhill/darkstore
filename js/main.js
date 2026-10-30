@@ -96,6 +96,8 @@
     crane: () => ({ Sim: WS.CraneSim, Renderer: WS.CraneRenderer, Renderer3D: WS.CraneRenderer3D }),
     acr: () => ({ Sim: WS.AcrSim, Renderer: WS.AcrRenderer, Renderer3D: WS.AcrRenderer3D }),
     sort: () => ({ Sim: WS.SortSim, Renderer: WS.SortRenderer, Renderer3D: WS.SortRenderer3D }),
+    tray: () => ({ Sim: WS.TraySim, Renderer: WS.TrayRenderer, Renderer3D: WS.TrayRenderer3D }),
+    shoe: () => ({ Sim: WS.ShoeSim, Renderer: WS.ShoeRenderer, Renderer3D: WS.ShoeRenderer3D }),
     amr: () => ({ Sim: WS.AmrSim, Renderer: WS.AmrRenderer, Renderer3D: WS.AmrRenderer3D }),
     pallet: () => ({ Sim: WS.PalletSim, Renderer: WS.PalletRenderer, Renderer3D: WS.PalletRenderer3D }),
     climb: () => ({ Sim: WS.ClimbSim, Renderer: WS.ClimbRenderer, Renderer3D: WS.ClimbRenderer3D }),

@@ -32,11 +32,24 @@
       map: 'Floor', stations: 'Stations', flow: 'Totes at stations', fleet: 'Fleet',
       sim: ['js/acr/config.js', 'js/acr/sim.js'], view: ['js/render/rack.js', 'js/acr/render.js', 'js/acr/ui.js'],
     },
+    // the parcel sorters share their parcels, inducts, chutes and bags (js/hub/)
     sort: {
-      name: 'SortHub', sub: 'Parcel sorter', scan: 'SSCC', click: 'chutes, inducts, robots', three: ['js/sort/render3d.js'],
+      name: 'SortHub', sub: 'Robot parcel sorter', scan: 'SSCC', click: 'chutes, inducts, robots', three: ['js/hub/render3d.js', 'js/sort/render3d.js'], follow: 'Follow a parcel',
       map: 'Sorter', stations: 'Inducts', flow: 'Parcels inducted', flow2: 'Parcels sorted', fleet: 'Robot fleet',
       tabs: [['chutes', 'Chutes'], ['parcels', 'Parcels'], ['settings', 'Settings']],
-      sim: ['js/sort/config.js', 'js/sort/sim.js'], view: ['js/sort/render.js', 'js/sort/ui.js'],
+      sim: ['js/hub/config.js', 'js/hub/sim.js', 'js/sort/config.js', 'js/sort/sim.js'], view: ['js/hub/render.js', 'js/sort/render.js', 'js/hub/ui.js', 'js/sort/ui.js'],
+    },
+    tray: {
+      name: 'TrayLoop', sub: 'Tilt-tray parcel sorter', scan: 'SSCC', click: 'chutes, inducts', three: ['js/hub/render3d.js', 'js/tray/render3d.js'], follow: 'Follow a parcel',
+      map: 'Sorter', stations: 'Inducts', flow: 'Parcels inducted', flow2: 'Parcels sorted', fleet: 'Trays',
+      tabs: [['chutes', 'Chutes'], ['parcels', 'Parcels'], ['settings', 'Settings']],
+      sim: ['js/hub/config.js', 'js/hub/sim.js', 'js/tray/config.js', 'js/tray/sim.js'], view: ['js/hub/render.js', 'js/tray/render.js', 'js/hub/ui.js', 'js/tray/ui.js'],
+    },
+    shoe: {
+      name: 'ShoeLine', sub: 'Sliding shoe parcel sorter', scan: 'SSCC', click: 'chutes, inducts', three: ['js/hub/render3d.js', 'js/shoe/render3d.js'], follow: 'Follow a parcel',
+      map: 'Sorter', stations: 'Inducts', flow: 'Parcels inducted', flow2: 'Parcels sorted', fleet: 'Parcels',
+      tabs: [['chutes', 'Chutes'], ['parcels', 'Parcels'], ['settings', 'Settings']],
+      sim: ['js/sim/conveyor.js', 'js/hub/config.js', 'js/hub/sim.js', 'js/shoe/config.js', 'js/shoe/sim.js'], view: ['js/hub/render.js', 'js/shoe/render.js', 'js/hub/ui.js', 'js/shoe/ui.js'],
     },
     pallet: {
       name: 'DeepLane', cut: true, noSolid: true, three: ['js/render3d/rack3d.js', 'js/pallet/render3d.js'], sub: 'Pallet shuttle AS/RS', scan: 'pallet, order, machine', click: 'carriers, lifts, lanes, stations',
@@ -98,6 +111,9 @@
   };
   const SHARED = ['js/core/util.js', 'js/core/barcode.js', 'js/core/config.js', 'js/sim/inventory.js', 'js/sim/router.js', 'js/sim/mover.js', 'js/sim/robot.js',
     'js/sim/machine.js', 'js/sim/ports.js', 'js/sim/orders.js', 'js/sim/kpi.js', 'js/sim/disrupt.js', 'js/sim/sim.js', 'js/sim/floor.js', 'js/sim/rack.js'];
+  // SortHub once had the tilt-tray loop as a setting: a link to that opens TrayLoop
+  const q = new URLSearchParams(location.search);
+  if (document.body.dataset.kind === 'sort' && q.get('mechanism') === 'tray') { q.delete('mechanism'); location.replace('trayloop.html' + (q.toString() ? '?' + q : '') + location.hash); return; }
   const k = KINDS[document.body.dataset.kind];
   document.title = `${k.name} — DarkStore`;
   // keep the page hidden until the stylesheet is in, so it never flashes unstyled
@@ -137,7 +153,7 @@ ${k.xray ? '          <button data-opt="xray" title="Show every bin in the [X][Y
           <button data-opt="labels" class="on">Labels</button>
           <button id="btn-fit">Fit</button>
           <button id="btn-sound" title="Sound made live from what the machines do: motors, forks, rollers, scanners. Louder near where you look.">Sound</button>
-${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : k.ride === 'pocket' ? 'Pocket cam' : k.ride === 'gantry' ? 'Gantry cam' : k.ride === 'carrier' ? 'Carrier cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (k.follow || (document.body.dataset.kind === 'sort' ? 'Follow a parcel' : 'Follow an order')) + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
+${k.three ? '          <button id="btn-walk" class="only3d" title="Walk through the warehouse at eye height (WASD to move, drag to look)">Walk</button>\n          <select id="cam-mode" class="only3d" title="Camera: ride on a robot, chase one, visit the stations, orbit, or a tour of them all (N: next robot or station)"><option value="free">Camera: free</option><option value="robot">' + (k.ride === 'tote' ? 'Tote cam' : k.ride === 'pocket' ? 'Pocket cam' : k.ride === 'gantry' ? 'Gantry cam' : k.ride === 'carrier' ? 'Carrier cam' : 'Robot cam') + '</option><option value="chase">Chase a ' + (k.ride || 'robot') + '</option><option value="station">Stations</option><option value="order">' + (k.follow || 'Follow an order') + '</option><option value="orbit">Orbit</option><option value="tour">Ambient tour</option></select>\n          <button id="btn-dark" class="only3d" title="Lights-out: the hall lights go off and the robots work in the dark; only the work places stay lit">Lights out</button>\n' : ''}
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint hint2d">Drag to pan · Shift-drag to tilt · scroll / pinch to zoom · click ${k.click}</div>

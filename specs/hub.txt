@@ -1,0 +1,58 @@
+DarkStore - parcel sorting: what the three sorters share
+========================================================
+
+Read common.txt first, but note: a sorter has no stock and no orders. Of
+common.txt only the time model, the control room, the disruptions and the
+barcodes apply. sort.txt (SortHub, a robot sorter), tray.txt (TrayLoop, a
+tilt-tray loop) and shoe.txt (ShoeLine, a sliding shoe sorter) each add
+their own machine to what is described here; code in js/hub/.
+
+1. Overview
+
+A parcel hub. Parcels arrive in a stream (from trucks, or from the packing
+stations of a fulfilment centre), each labelled for one destination: a
+route, a postcode area, a carrier depot. Operators at induction stations
+scan each parcel and put it on the sorter, which drops it into the chute
+for its destination. Every chute ends in a bag or cage; people change full
+bags. Labels the scanner cannot read go to a reject chute, where someone
+handles them by hand.
+
+All three sorters sort the same stream with the same inducts, chutes and
+bags, so with the same settings and seed their figures compare directly.
+
+2. Layout
+
+- Destinations: a list with a share of the volume each; a few take most of
+  it (falling off with rank, 1 / rank^0.8).
+- Chutes: one per destination, a second (third, ...) for the busiest ones,
+  and the last one for rejects. With fewer chutes than destinations the
+  rest go to the reject chute.
+- Each sorter places its chutes and inducts its own way.
+
+3. Equipment
+
+- Induct: an operator takes a parcel off the feed belt and scans it (2.4 s),
+  and scans the next while the sorter takes the last one.
+- Bags of 30 parcels. Bag workers walk to a full bag and change it (25 s);
+  each full bag gets the nearest free one.
+
+4. Flow
+
+Arriving parcels (Poisson) go to the induct with the shortest feed belt;
+when every feed belt is full (40 parcels) they wait at the inbound dock. A
+label the scanner cannot read (2 %) sends the parcel to the reject chute.
+A parcel whose chutes are all full waits, goes round again or overflows,
+as its sorter does.
+
+5. Output
+
+- Sort rate and induction rate per hour, parcels waiting to be inducted.
+- Recirculation or overflow, rejects and no-reads.
+- Bags changed, chutes full now, bag workers' utilization, inducts busy.
+- Follow a parcel: from the feed belt through the induct and the sorter
+  into its chute.
+
+6. Parameters
+
+- 3600 parcels/h, 28 destinations, 36 chutes, 4 inducts, 2 % no-reads.
+- Bags of 30 parcels, 2 bag workers, 25 s per change, walking 1.2 m/s.

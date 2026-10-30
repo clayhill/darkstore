@@ -1159,6 +1159,96 @@
       items.sort((a, b) => a.d - b.d).forEach((it) => it.fn());
     });
   }
+  /* ---------- tilt-tray sorter preview ---------- */
+  // A loop of trays round two straights with chutes on both sides: a tray
+  // takes a parcel at the induct, carries it round and tilts to drop it
+  // into the chute of its destination.
+  function trayPreview(canvas) {
+    const GW = 10, GD = 5, Y0 = 1.6, Y1 = 3.4, X0 = 2, X1 = 8, R = (Y1 - Y0) / 2, S = X1 - X0, L = 2 * S + 2 * Math.PI * R, TZ = 0.6;
+    const kit = isoKit(canvas, GW, GD, 1.4, 0.7), { P, quad, box } = kit;
+    const rand = rng(17), HUES = ['#b8875a', '#a8794f', '#c6956a', '#9c6f47', '#d0a070'];
+    const at = (u) => { u = ((u % L) + L) % L; if (u < S) return { x: X0 + u, y: Y0, out: -1 }; if (u < S + Math.PI * R) { const t = (u - S) / R; return { x: X1 + R * Math.sin(t), y: Y0 + R - R * Math.cos(t), out: 0 }; } if (u < 2 * S + Math.PI * R) return { x: X1 - (u - S - Math.PI * R), y: Y1, out: 1 }; const t = (u - 2 * S - Math.PI * R) / R; return { x: X0 - R * Math.sin(t), y: Y1 - R + R * Math.cos(t), out: 0 }; };
+    const chutes = [];
+    for (let k = 0; k < 5; k++) { chutes.push({ u: 1.6 + k * 1.1, side: -1 }); chutes.push({ u: S + Math.PI * R + 0.5 + k * 1.1, side: 1 }); }
+    for (const c of chutes) { const q = at(c.u); c.x = q.x; c.fill = rand() * 0.6; }
+    const N = 20, trays = Array.from({ length: N }, (_, k) => ({ k, parcel: null, to: null, tilt: 0 }));
+    let off = 0;
+    const step = (dt) => {
+      const v = 1.6 * dt, prev = off; off = (off + v) % L;
+      for (const tr of trays) {
+        const u0 = (prev + (tr.k * L) / N) % L, u1 = u0 + v;
+        const pass = (u) => (u0 <= u && u < u1) || (u0 <= u + L && u + L < u1);
+        if (tr.tilt > 0) tr.tilt = Math.max(0, tr.tilt - dt);
+        if (!tr.parcel && pass(0.6) && rand() < 0.75) { tr.parcel = HUES[Math.floor(rand() * HUES.length)]; tr.to = chutes[Math.floor(rand() * chutes.length)]; }
+        else if (tr.parcel && pass(tr.to.u)) { tr.parcel = null; tr.tilt = 0.5; tr.to.fill = tr.to.fill > 0.9 ? 0.05 : tr.to.fill + 0.15; }
+      }
+    };
+    animate(canvas, kit, step, () => {
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], '#0b1424', 'rgba(125,211,252,.35)', 1);
+      // chutes sloping out from the loop to their bags
+      for (const c of chutes) {
+        const y = c.side < 0 ? Y0 : Y1, d = c.side;
+        quad([P(c.x - 0.35, y + d * 0.35, TZ - 0.05), P(c.x + 0.35, y + d * 0.35, TZ - 0.05), P(c.x + 0.35, y + d * 1.1, 0.25), P(c.x - 0.35, y + d * 1.1, 0.25)], 'rgba(56,189,248,.12)', 'rgba(125,211,252,.55)', 1);
+        const by = y + d * 1.35, ht = 0.1 + c.fill * 0.3;
+        box(c.x - 0.3, by - 0.25, c.x + 0.3, by + 0.25, 0.3 - ht, 0.3, '#e5e7ebdd', '#cbd5e1cc', '#94a3b8cc', c.fill > 0.9 ? '#ef4444' : null);
+      }
+      // the loop's frame, then the trays, tipping as they drop a parcel
+      const pts = []; for (let k = 0; k <= 64; k++) { const q = at((k * L) / 64); pts.push(P(q.x, q.y, TZ - 0.1)); }
+      kit.ctx.strokeStyle = 'rgba(56,189,248,.35)'; kit.ctx.lineWidth = 0.9 * kit.s; kit.ctx.beginPath(); pts.forEach((q, i) => (i ? kit.ctx.lineTo(q[0], q[1]) : kit.ctx.moveTo(q[0], q[1]))); kit.ctx.stroke();
+      const items = trays.map((tr) => { const q = at(off + (tr.k * L) / N); return { d: q.x + q.y, tr, q }; }).sort((a, b) => a.d - b.d);
+      for (const { tr, q } of items) {
+        const t = tr.tilt * 0.5, z = TZ;
+        quad([P(q.x - 0.22, q.y - 0.18, z - (q.out < 0 ? t : 0)), P(q.x + 0.22, q.y - 0.18, z - (q.out < 0 ? t : 0)), P(q.x + 0.22, q.y + 0.18, z - (q.out > 0 ? t : 0)), P(q.x - 0.22, q.y + 0.18, z - (q.out > 0 ? t : 0))], tr.tilt ? '#38bdf8' : 'rgba(14,165,233,.85)', 'rgba(125,211,252,.8)', 1);
+        if (tr.parcel) box(q.x - 0.15, q.y - 0.12, q.x + 0.15, q.y + 0.12, z, z + 0.22, tr.parcel, tr.parcel, tr.parcel, 'rgba(0,0,0,.25)');
+      }
+    });
+  }
+
+  /* ---------- sliding shoe sorter preview ---------- */
+  // A straight line of slats: parcels come from the merge with a gap between
+  // them, and at the chute of its destination a row of shoes glides across
+  // under a parcel and pushes it off diagonally.
+  function shoePreview(canvas) {
+    const GW = 11, GD = 5, YL = 2.5, XA = 1.2, XB = 10, Z = 0.55;
+    const kit = isoKit(canvas, GW, GD, 1.2, 0.7), { P, quad, box } = kit;
+    const rand = rng(23), HUES = ['#b8875a', '#a8794f', '#c6956a', '#9c6f47', '#d0a070'];
+    const chutes = [];
+    for (let k = 0; k < 6; k++) for (const side of [-1, 1]) chutes.push({ x: 3 + k * 1.2, side, fill: rand() * 0.6 });
+    let parcels = [], gapT = 0, t = 0;
+    const step = (dt) => {
+      t += dt; gapT -= dt;
+      const v = 1.8 * dt;
+      if (gapT <= 0) { parcels.push({ x: XA, y: YL, len: 0.35 + rand() * 0.3, c: HUES[Math.floor(rand() * HUES.length)], to: chutes[Math.floor(rand() * chutes.length)], push: 0 }); gapT = 0.55 + rand() * 0.4; }
+      for (const p of parcels) {
+        p.x += v;
+        if (!p.push && p.x >= p.to.x) p.push = 0.001;
+        if (p.push) { p.push += dt / 0.4; p.y = YL + p.to.side * Math.min(1.2, p.push * 0.7); }
+      }
+      parcels = parcels.filter((p) => { if (p.push >= 1.8) { p.to.fill = p.to.fill > 0.9 ? 0.05 : p.to.fill + 0.15; return false; } return p.x < XB; });
+    };
+    animate(canvas, kit, step, () => {
+      quad([P(0, 0, 0), P(GW, 0, 0), P(GW, GD, 0), P(0, GD, 0)], '#0b1424', 'rgba(125,211,252,.35)', 1);
+      for (const c of chutes) {
+        const y0 = YL + c.side * 0.45, y1 = YL + c.side * 1.3;
+        quad([P(c.x - 0.4, y0, Z - 0.05), P(c.x + 0.4, y0, Z - 0.05), P(c.x + 0.3, y1, 0.25), P(c.x - 0.3, y1, 0.25)], 'rgba(56,189,248,.12)', 'rgba(125,211,252,.5)', 1);
+        const by = YL + c.side * 1.55, ht = 0.1 + c.fill * 0.3;
+        box(c.x - 0.3, by - 0.25, c.x + 0.3, by + 0.25, 0.3 - ht, 0.3, '#e5e7ebdd', '#cbd5e1cc', '#94a3b8cc', c.fill > 0.9 ? '#ef4444' : null);
+      }
+      // the induct belts merging in from the back
+      for (const k of [0, 1]) quad([P(0.2 + k * 0.6, 0.2, Z - 0.05), P(0.6 + k * 0.6, 0.2, Z - 0.05), P(XA + 0.1, YL - 0.2, Z - 0.05), P(XA - 0.3, YL - 0.2, Z - 0.05)], 'rgba(56,189,248,.1)', 'rgba(125,211,252,.4)', 1);
+      // the slats, moving; a shoe on each, those under a parcel being pushed off slid across
+      quad([P(XA, YL - 0.45, Z), P(XB, YL - 0.45, Z), P(XB, YL + 0.45, Z), P(XA, YL + 0.45, Z)], 'rgba(56,189,248,.08)', 'rgba(125,211,252,.6)', 1.2);
+      const ph = (t * 1.8) % 0.2;
+      for (let x = XA + ph; x < XB; x += 0.2) {
+        quad([P(x, YL - 0.43, Z), P(x, YL + 0.43, Z)], null, 'rgba(148,163,184,.45)', 0.8);
+        const pp = parcels.find((p) => p.push && x > p.x - p.len / 2 - 0.15 && x < p.x + p.len / 2);
+        const sy = pp ? YL + pp.to.side * Math.min(0.4, (pp.push * 0.7) * (0.6 + (pp.x + pp.len / 2 - x) * 0.5)) : YL;
+        box(x - 0.04, sy - 0.05, x + 0.04, sy + 0.05, Z, Z + 0.05, '#22c55e', '#16a34a', '#15803d');
+      }
+      for (const p of parcels.slice().sort((a, b) => a.x + a.y - b.x - b.y)) { const w = 0.18; box(p.x - p.len / 2, p.y - w, p.x + p.len / 2, p.y + w, Z + 0.02, Z + 0.24, p.c, p.c, p.c, 'rgba(0,0,0,.25)'); }
+    });
+  }
+
   /* ---------- hospital tube system preview ---------- */
   // Three floors of a hospital cut open: a riser up the side with a branch
   // to a station on every floor. A green carrier of medicines flies from
@@ -1202,6 +1292,6 @@
     });
   }
 
-  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview, layer: layerPreview, tube: tubePreview };
+  const previews = { cube: cubePreview, pod: podPreview, shuttle: shuttlePreview, crane: cranePreview, acr: acrPreview, amr: amrPreview, sort: sortPreview, pallet: palletPreview, climb: climbPreview, zone: zonePreview, tower: towerPreview, park: parkPreview, pocket: pocketPreview, case: casePreview, layer: layerPreview, tube: tubePreview, tray: trayPreview, shoe: shoePreview };
   for (const c of document.querySelectorAll('canvas[data-preview]')) previews[c.dataset.preview](c);
 })((globalThis.WS = globalThis.WS || {}));
